@@ -3,8 +3,8 @@
 import asyncio
 import pytest
 import websockets
-from protoss.pylon import Pylon
-from protoss.gateway import Gateway
+from protoss.structures.pylon import Pylon
+from protoss.structures.gateway import Gateway
 
 
 async def nexus_listener():

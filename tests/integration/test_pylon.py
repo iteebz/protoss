@@ -3,7 +3,7 @@
 import asyncio
 import websockets
 import pytest
-from protoss.pylon import Pylon
+from protoss.structures.pylon import Pylon
 
 
 async def fake_agent(agent_id: str, target_id: str, message: str):

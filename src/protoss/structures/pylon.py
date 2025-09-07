@@ -75,7 +75,7 @@ class Pylon:
         """Handle agent connection to grid."""
         agent_id = websocket.request.path.strip("/")
         self.agents[agent_id] = websocket
-        
+
         # Flush queued messages when agent connects
         await self._flush(agent_id, websocket)
 

@@ -2,7 +2,7 @@
 
 import asyncio
 import pytest
-from protoss.nexus import Nexus
+from protoss import Nexus
 
 
 @pytest.mark.asyncio

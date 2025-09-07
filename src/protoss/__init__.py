@@ -5,9 +5,8 @@ Psionic agent swarms with democratic oversight for month-level autonomy.
 My life for Aiur.
 """
 
-from .nexus import Nexus
-from .gateway import Gateway
-from .pylon import Pylon, Psi
+from .structures import Nexus, Gateway, Pylon
+from .units import Zealot
 
 __version__ = "0.0.1"
-__all__ = ["Nexus", "Gateway", "Pylon", "Psi"]
+__all__ = ["Nexus", "Gateway", "Pylon", "Zealot"]

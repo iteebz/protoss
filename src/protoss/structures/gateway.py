@@ -36,7 +36,9 @@ class Gateway:
         zealot_id = f"zealot-{uuid.uuid4().hex[:8]}"
 
         # Create Cogency agent with Zealot identity and psionic blades
-        agent = Agent(instructions=self.zealot_instructions, tools=self.psionic_blades())
+        agent = Agent(
+            instructions=self.zealot_instructions, tools=self.psionic_blades()
+        )
 
         # Connect to Pylon grid
         pylon_uri = f"{self.pylon_uri}/{zealot_id}"
