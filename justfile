@@ -1,28 +1,38 @@
-# Protoss - Distributed AI coordination
 default:
     @just --list
 
-# Run development server
+install:
+    @poetry install
+
 dev:
-    @echo "🔹 Nexus online - Pylon grid powered"
     @poetry run python tests/integration/test_nexus.py
 
-# Format code  
+command task:
+    @poetry run python -m protoss.command "{{task}}"
+
 format:
     @poetry run ruff format .
 
-# Lint code
 lint:
     @poetry run ruff check .
 
-# Run tests
+fix:
+    @poetry run ruff check . --fix --unsafe-fixes
+
 test:
-    @echo "⚔️ Zealots engaging in righteous tests"
     @poetry run python -m pytest tests/ -v
 
-# CI pipeline
-ci: format lint test
+build:
+    @poetry build
 
-# Deploy the swarm
-deploy:
-    @poetry build && poetry publish
+publish: ci build
+    @poetry publish
+
+clean:
+    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv
+    @find . -type d -name "__pycache__" -exec rm -rf {} +
+
+commits:
+    @git --no-pager log --pretty=format:"%ar %s"
+
+ci: format fix lint test
