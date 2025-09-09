@@ -7,6 +7,8 @@ My life for Aiur.
 
 from .structures import Nexus, Gateway, Pylon
 from .units import Zealot
+from .conclave import Conclave
+from .khala import Khala, Psi
 
 __version__ = "0.0.1"
-__all__ = ["Nexus", "Gateway", "Pylon", "Zealot"]
+__all__ = ["Nexus", "Gateway", "Pylon", "Zealot", "Conclave", "Khala", "Psi"]
