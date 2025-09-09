@@ -4,12 +4,13 @@ import asyncio
 import websockets
 from .gateway import Gateway
 from .pylon import Pylon
+from ..constants import PYLON_DEFAULT_PORT
 
 
 class Nexus:
     """Central coordination hub. Human interface to Protoss swarm."""
 
-    def __init__(self, pylon_port: int = 8228):
+    def __init__(self, pylon_port: int = PYLON_DEFAULT_PORT):
         self.pylon_port = pylon_port
         self.gateway = Gateway(pylon_port=pylon_port)
         self.pylon = None

@@ -1,106 +1,121 @@
-"""Pylon: Communication grid for Protoss coordination.
+"""Pylon: Infrastructure that enables Protoss coordination.
 
-Single responsibility: Route §PSI messages between agents.
-Zero ceremony. Pure message flow.
+Power grid and WebSocket infrastructure. Enables the Khala to operate.
+All coordination logic handled by Khala - Pylon provides pure infrastructure.
 """
 
 import asyncio
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict
 import websockets
-
-
-@dataclass
-class Psi:
-    """Atomic communication unit."""
-
-    target: str
-    source: str
-    type: str
-    content: str
-
-    @classmethod
-    def parse(cls, raw: str) -> Optional["Psi"]:
-        """Parse §PSI:target:source:type:content"""
-        if not raw.startswith("§PSI:"):
-            return None
-
-        try:
-            _, target, source, msg_type, content = raw.split(":", 4)
-            return cls(target=target, source=source, type=msg_type, content=content)
-        except ValueError:
-            return None
-
-    def serialize(self) -> str:
-        """Serialize to §PSI format."""
-        return f"§PSI:{self.target}:{self.source}:{self.type}:{self.content}"
+from ..khala import Khala, Psi
+from ..constants import PYLON_DEFAULT_PORT
 
 
 class Pylon:
-    """Message router. Powers the coordination grid."""
+    """Infrastructure that powers the coordination grid. Enables the Khala to operate."""
 
-    def __init__(self, port: int = 8228):
+    def __init__(self, port: int = PYLON_DEFAULT_PORT):
         self.port = port
         self.agents: Dict[str, websockets.WebSocketServerProtocol] = {}
-        self.inbox: Dict[str, List[Psi]] = {}
-        self.message_queue = asyncio.Queue()
+        self.khala = Khala()  # The psychic network we power
 
     async def start(self):
-        """Start Pylon grid."""
+        """Power up the grid - start WebSocket infrastructure."""
         self.server = await websockets.serve(
             self._handle_connection, "localhost", self.port
         )
-        self.router_task = asyncio.create_task(self._route())
 
     async def stop(self):
-        """Stop Pylon grid."""
-        if hasattr(self, "router_task"):
-            self.router_task.cancel()
+        """Power down the grid."""
         if hasattr(self, "server"):
             self.server.close()
             await self.server.wait_closed()
 
-    async def _flush(self, agent_id: str, websocket):
-        """Deliver queued messages to agent."""
-        if agent_id in self.inbox:
-            for message in self.inbox[agent_id]:
-                try:
-                    await websocket.send(message.serialize())
-                except websockets.exceptions.ConnectionClosed:
-                    return
-            # Clear delivered messages
-            del self.inbox[agent_id]
+    async def _attune_memories(self, agent_id: str, websocket):
+        """Send recent memories from agent's Khala pathways."""
+        # Send recent memories from pathways the agent was attuned to
+        for pathway_name, minds in self.khala.subscribers.items():
+            if agent_id in minds:
+                memories = self.khala.attune(
+                    agent_id, pathway_name
+                )  # Re-attune and get memories
+                for message in memories:
+                    try:
+                        await websocket.send(message.serialize())
+                    except websockets.exceptions.ConnectionClosed:
+                        return
 
     async def _handle_connection(self, websocket):
         """Handle agent connection to grid."""
         agent_id = websocket.request.path.strip("/")
         self.agents[agent_id] = websocket
 
-        # Flush queued messages when agent connects
-        await self._flush(agent_id, websocket)
+        # Send memories from pathways agent was previously attuned to
+        await self._attune_memories(agent_id, websocket)
+        print(f"🔹 {agent_id} connected to Pylon grid")
 
         try:
             async for raw_message in websocket:
                 message = Psi.parse(raw_message)
                 if message:
-                    await self.message_queue.put(message)
+                    # Forward to appropriate handler
+                    if message.type == "inspect":
+                        await self._handle_inspection(message)
+                    else:
+                        # All coordination goes directly to Khala
+                        await self.khala.transmit(message, self.agents)
         finally:
             self.agents.pop(agent_id, None)
+            # Remove agent from all Khala pathways
+            self.khala.sever(agent_id)
 
-    async def _route(self):
-        """Route messages to target agents or inbox."""
-        while True:
-            message = await self.message_queue.get()
-            target_socket = self.agents.get(message.target)
-
-            if target_socket:
-                # Agent online - deliver immediately
-                try:
-                    await target_socket.send(message.serialize())
-                except websockets.exceptions.ConnectionClosed:
-                    self.agents.pop(message.target, None)
+    async def _handle_inspection(self, message: Psi):
+        """Handle inspection commands from CLI."""
+        command = message.content
+        agent_socket = self.agents.get(message.source)
+        
+        if not agent_socket:
+            return
+            
+        try:
+            import json
+            
+            if command == "status":
+                result = self.get_status()
+            elif command == "pathways":
+                result = {"pathways": self.get_pathways()}
+            elif command == "minds":
+                result = {"minds": self.get_minds()}
+            elif command.startswith("pathway:"):
+                pathway_name = command.split(":", 1)[1]
+                pathway_details = self.get_pathway(pathway_name)
+                result = {"pathway": pathway_details}
             else:
-                # Agent offline - queue in inbox
-                if message.target not in self.inbox:
-                    self.inbox[message.target] = []
-                self.inbox[message.target].append(message)
+                result = {"error": f"Unknown command: {command}"}
+            
+            # Send result back to inspector
+            response = f"§PSI:inspector:{message.source}:result:{json.dumps(result)}"
+            await agent_socket.send(response)
+            
+        except Exception as e:
+            error_response = f"§PSI:inspector:{message.source}:result:{json.dumps({'error': str(e)})}"
+            await agent_socket.send(error_response)
+
+    # CLI INSPECTION METHODS - DELEGATE TO COMPONENTS
+
+    def get_status(self) -> dict:
+        """Get Pylon system status."""
+        khala_status = self.khala.get_status()
+        return {"active_agents": len(self.agents), **khala_status}
+
+    def get_pathways(self):
+        """Get all Khala pathways with stats."""
+        return self.khala.get_pathways()
+
+    def get_pathway(self, name: str):
+        """Get pathway details."""
+        return self.khala.get_pathway(name)
+
+    def get_minds(self):
+        """Get all minds with pathways."""
+        return self.khala.get_minds(self.agents)
