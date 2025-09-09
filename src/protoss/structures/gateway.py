@@ -7,6 +7,7 @@ import uuid
 import websockets
 from cogency import Agent
 from ..units import Zealot, Tassadar, Zeratul, Artanis, Fenix
+from ..units.carrier import Carrier
 from ..constants import PYLON_DEFAULT_PORT, pylon_uri
 
 
@@ -21,11 +22,17 @@ class Gateway:
             "zeratul": Zeratul,
             "artanis": Artanis,
             "fenix": Fenix,
+            "carrier": Carrier,
         }
 
     def _create_unit(self, unit_type: str, unit_id: str = None):
         """Create unit instance based on type."""
         unit_class = self.unit_types.get(unit_type, Zealot)
+        
+        # Carrier uses different constructor signature
+        if unit_type == "carrier":
+            return unit_class(carrier_id=unit_id)
+        
         return unit_class(unit_id)
 
     async def spawn_agent(
@@ -48,7 +55,19 @@ class Gateway:
             # Execute task and report result
             result = ""
             try:
-                if hasattr(unit, 'deliberate') and agent_type in ['tassadar', 'zeratul', 'artanis', 'fenix']:
+                if agent_type == "carrier":
+                    # Carrier connects to Khala and stays persistent
+                    await unit.connect_to_khala()
+                    result = f"Carrier {agent_id} operational - connected to Khala network"
+                    
+                    # Carrier doesn't execute task and return - it stays connected
+                    # The task is just initialization message
+                    print(f"🛸 {agent_id} ready for conversational commands")
+                    
+                    # Keep websocket connection open for persistent operation
+                    # In production, this would be handled differently
+                    
+                elif hasattr(unit, 'deliberate') and agent_type in ['tassadar', 'zeratul', 'artanis', 'fenix']:
                     # Constitutional agents deliberate
                     result = await unit.deliberate(task)
                 else:
@@ -68,3 +87,7 @@ class Gateway:
     async def spawn_zealot(self, task: str, target: str = "nexus") -> str:
         """Backward compatibility: spawn zealot agent."""
         return await self.spawn_agent(task, "zealot", target)
+
+    async def spawn_carrier(self, command: str, target: str = "nexus") -> str:
+        """Spawn Carrier for human-swarm coordination."""
+        return await self.spawn_agent(command, "carrier", target)

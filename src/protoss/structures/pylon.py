@@ -90,6 +90,14 @@ class Pylon:
                 pathway_name = command.split(":", 1)[1]
                 pathway_details = self.get_pathway(pathway_name)
                 result = {"pathway": pathway_details}
+            elif command.startswith("carrier_command:"):
+                # Route command to active Carrier
+                human_command = command.split(":", 1)[1]
+                result = await self._route_to_carrier(human_command)
+            elif command == "carrier_status":
+                result = await self._get_carrier_status()
+            elif command == "carrier_stop":
+                result = await self._stop_carrier()
             else:
                 result = {"error": f"Unknown command: {command}"}
             
@@ -119,3 +127,93 @@ class Pylon:
     def get_minds(self):
         """Get all minds with pathways."""
         return self.khala.get_minds(self.agents)
+
+    # CARRIER COORDINATION METHODS
+
+    def _find_active_carrier(self) -> str:
+        """Find active Carrier agent ID."""
+        for agent_id in self.agents:
+            if agent_id.startswith("carrier-"):
+                return agent_id
+        return None
+
+    async def _route_to_carrier(self, human_command: str) -> dict:
+        """Route human command to active Carrier."""
+        carrier_id = self._find_active_carrier()
+        
+        if not carrier_id:
+            return {"error": "No active Carrier. Spawn with: protoss carrier spawn"}
+        
+        try:
+            # Send command to Carrier via Khala
+            command_psi = Psi(
+                target=carrier_id,
+                source="cli-interface",
+                type="human_command",
+                content=human_command
+            )
+            
+            carrier_socket = self.agents.get(carrier_id)
+            if carrier_socket:
+                await carrier_socket.send(command_psi.serialize())
+                
+                # For now, return immediate acknowledgment
+                # In full implementation, would await Carrier response
+                return {
+                    "response": f"Command routed to {carrier_id}. Processing..."
+                }
+            else:
+                return {"error": f"Carrier {carrier_id} socket not found"}
+                
+        except Exception as e:
+            return {"error": f"Carrier communication failed: {e}"}
+
+    async def _get_carrier_status(self) -> dict:
+        """Get Carrier coordination status."""
+        carrier_id = self._find_active_carrier()
+        
+        if not carrier_id:
+            return {"error": "No active Carrier"}
+        
+        # For MVP, return basic status
+        # In full implementation, would query Carrier directly
+        return {
+            "status": {
+                "carrier_id": carrier_id,
+                "active_interceptors": 0,  # Would query Carrier
+                "context_buffer_size": 0,
+                "coordination_capacity": "optimal",
+                "health": "operational"
+            }
+        }
+
+    async def _stop_carrier(self) -> dict:
+        """Stop active Carrier."""
+        carrier_id = self._find_active_carrier()
+        
+        if not carrier_id:
+            return {"error": "No active Carrier to stop"}
+        
+        try:
+            # Send stop command to Carrier
+            stop_psi = Psi(
+                target=carrier_id,
+                source="cli-interface", 
+                type="stop",
+                content="Despawn request from CLI"
+            )
+            
+            carrier_socket = self.agents.get(carrier_id)
+            if carrier_socket:
+                await carrier_socket.send(stop_psi.serialize())
+                
+                # Remove from active agents
+                self.agents.pop(carrier_id, None)
+                self.khala.sever(carrier_id)
+                
+                return {"message": f"Carrier {carrier_id} despawned"}
+            else:
+                return {"error": f"Carrier {carrier_id} socket not found"}
+                
+        except Exception as e:
+            return {"error": f"Carrier stop failed: {e}"}
