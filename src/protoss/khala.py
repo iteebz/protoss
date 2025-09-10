@@ -17,28 +17,40 @@ import time
 class Psi:
     """Atomic psychic transmission."""
 
-    target: str
-    source: str
-    type: str
+    pathway: str
+    sender: str
     content: str
     timestamp: float = field(default_factory=time.time)
 
     @classmethod
     def parse(cls, raw: str) -> Optional["Psi"]:
-        """Parse §PSI:target:source:type:content"""
-        if not raw.startswith("§PSI:"):
+        """Parse §PSI|pathway|sender: message"""
+        if not raw.startswith("§PSI|"):
             return None
 
         try:
-            _, target, source, msg_type, content = raw.split(":", 4)
-            # Timestamp added when parsing (message received)
-            return cls(target=target, source=source, type=msg_type, content=content)
+            # Split protocol parts: §PSI|pathway|sender: content
+            parts = raw[5:].split("|", 2)  # Remove "§PSI|" prefix
+            if len(parts) != 2:
+                return None
+                
+            pathway = parts[0]
+            sender_content = parts[1]
+            
+            # Split sender and content on first colon+space
+            if ": " in sender_content:
+                sender, content = sender_content.split(": ", 1)
+            else:
+                # Fallback if no colon separator
+                sender, content = sender_content, ""
+                
+            return cls(pathway=pathway, sender=sender, content=content)
         except ValueError:
             return None
 
     def serialize(self) -> str:
         """Serialize to §PSI format."""
-        return f"§PSI:{self.target}:{self.source}:{self.type}:{self.content}"
+        return f"§PSI|{self.pathway}|{self.sender}: {self.content}"
 
     @property
     def is_direct_message(self) -> bool:
@@ -49,13 +61,13 @@ class Psi:
         
         known_agent_types = ['tassadar', 'zeratul', 'artanis', 'fenix', 'zealot', 'nexus']
         
-        # Check if target looks like agent-id pattern
-        if '-' in self.target:
-            prefix = self.target.split('-')[0]
+        # Check if pathway looks like agent-id pattern
+        if '-' in self.pathway:
+            prefix = self.pathway.split('-')[0]
             if prefix in known_agent_types:
                 return True
         
-        # Everything else is a pathway
+        # Everything else is a group pathway
         return False
     
     @property
@@ -84,7 +96,7 @@ class Khala:
             return
             
         # Handle pathway broadcasts
-        pathway = message.target
+        pathway = message.pathway
 
         # Auto-create pathway if it doesn't exist
         if pathway not in self.subscribers:
@@ -92,19 +104,14 @@ class Khala:
             self.memories[pathway] = []
             print(f"🔮 Khala pathway opened: {pathway}")
 
-        # Auto-attune sender to pathway
-        if message.source not in self.subscribers[pathway]:
-            self.attune(message.source, pathway)
-            print(f"🧠 {message.source} attuned to {pathway}")
-
-        # Store memory in Khala
+        # Store memory in Khala (no auto-attune, let agents join explicitly)
         self.memories[pathway].append(message)
         # Trim memories to max_memory
         if len(self.memories[pathway]) > self.max_memory:
             self.memories[pathway] = self.memories[pathway][-self.max_memory :]
 
-        # Broadcast to all attuned minds except sender
-        attuned_minds = self.subscribers[pathway] - {message.source}
+        # Broadcast to all attuned minds
+        attuned_minds = self.subscribers[pathway]
         
         # Send to mentioned agents even if not on pathway
         mentioned_agents = set(message.mentions)
@@ -125,7 +132,7 @@ class Khala:
         self, message: Psi, agents: Dict[str, websockets.WebSocketServerProtocol]
     ):
         """Send direct message to specific agent."""
-        target_agent = message.target
+        target_agent = message.pathway
         socket = agents.get(target_agent)
         
         if socket:
@@ -213,4 +220,4 @@ class Khala:
             return []
         
         recent = [msg for msg in self.memories[pathway] if msg.timestamp > since]
-        return [f"{msg.source}: {msg.content}" for msg in recent]
+        return [msg.content for msg in recent]

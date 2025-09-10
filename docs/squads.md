@@ -1,6 +1,6 @@
-# Zealot Squads: Multi-Agent Coordination via Khala
+# Squads: Multi-Agent Deployment
 
-**Deploy agents on shared pathway. Coordinate through Khala conversation.**
+**Deploy agents on shared pathway. Coordinate through conversation.**
 
 ## Squad Pattern
 
@@ -9,26 +9,20 @@ deploy_squad("Build auth system", ["zealot", "zealot", "stalker"])
 ```
 
 **Natural coordination:**
-- Zealot-1: "Taking backend API"
-- Zealot-2: "Frontend integration" 
-- Stalker: "Reviewing implementations"
-
-## Implementation
-
-### Continuous Reasoning
-**Current:** `think → act → respond` (dies)
-**Squad:** `think → act → respond → continue` (lives)
-
-```python
-:respond: Taking auth backend
-:call: FileWrite(auth.py, code)
-:respond: Auth complete, moving to tests
-:call: SystemShell(pytest)
-:respond: All tests pass
-# Continues until objective done
+```
+§PSI|squad-123|zealot-1: taking backend API
+§PSI|squad-123|zealot-2: frontend integration
+§PSI|squad-123|stalker-x: reviewing implementations
 ```
 
-### Squad Deployment
+## Continuous Reasoning Breakthrough
+
+**Traditional:** `think → act → respond` (dies)
+**Squad:** `think → act → respond → continue` (lives)
+
+**Agents persist on pathway until squad objective complete.**
+
+## Squad Deployment
 
 ```python
 async def deploy_squad(task: str, units: List[str]):
@@ -38,70 +32,42 @@ async def deploy_squad(task: str, units: List[str]):
     for unit_type in units:
         unit = create_unit(unit_type)
         unit.join_pathway(squad_id, task)
-    
-    # Coordinate through conversation
 ```
 
-### Pathway Coordination
+## Coordination Cycle
 
-Each agent reads pathway messages before next cycle:
-- What work others claimed
-- What they completed  
-- What needs doing
+**Each agent before next execution:**
+1. Read recent pathway messages
+2. Understand what others claimed/completed
+3. Choose next logical work  
+4. Execute with squad context
+
+## Squad Types
 
 ```python
-# Agent continuous cycle
-recent_msgs = pathway.get_messages(since=last_cycle)
-context = f"Squad status: {recent_msgs}\nTask: {task}"
-# Continue reasoning with squad awareness
+["zealot", "zealot", "stalker"]          # Development
+["zealot", "zealot", "archon"]           # Research  
+["zealot", "zealot", "zealot", "stalker"] # Large tasks
 ```
 
-### Quality Control
+## Design Phase Coordination
 
-**Stalkers = Quality zealots with Guardian Protocol**
+**Design debate → peer signoff → TDD/implementation split**
 
-```
-Zealot-1: "Auth system complete"
-Stalker: "Guardian Protocol: JWT missing expiration check"
-Zealot-1: "Fixed JWT validation"
-Stalker: "APPROVED"
-```
+**Problem:** Eager agents dive into coding, add slop, require human course correction.
 
-### Squad Types
+**Solution:** Force design phase coordination before implementation:
+1. **Triage** - Initial exploration and problem understanding
+2. **Design debate** - Twin agents discuss canonical approach against doctrine  
+3. **Peer signoff** - Squad validates approach before coding
+4. **Split execution** - One takes tests, other implementation
 
-```python
-# Development
-["zealot", "zealot", "stalker"]
+**Insight:** Cognitive phase separation prevents implementation momentum from steamrolling good design.
 
-# Research  
-["zealot", "zealot", "archon"]
-
-# Large tasks
-["zealot", "zealot", "zealot", "stalker", "probe"]
-```
-
-## Escalation
-
-When squads stuck:
-```
-Zealot-1: "Database migration failing"
-Zealot-2: "Same issue here"
-Stalker: "Need Sacred Four guidance"
-```
-
-Squad escalates to constitutional deliberation.
-
-## Implementation Priority
-
-1. **Extend Cogency** - `:respond:` as non-terminal
-2. **Build `deploy_squad()`** - Multiple agents, shared pathway  
-3. **Test coordination** - 3 agents, simple task
-4. **Add Stalker QA** - Quality through conversation
-
-## Result
+## The Pattern
 
 **Natural task coordination through Khala conversation.**
 
-No hierarchy. No ceremony. Just agents coordinating through shared pathway until objective complete.
+No hierarchy. No ceremony. Agents coordinate through shared pathway until objective complete.
 
-En taro Adun. ⚔️
+**En taro Adun.** ⚔️

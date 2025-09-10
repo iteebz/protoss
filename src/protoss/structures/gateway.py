@@ -93,7 +93,7 @@ class Gateway:
 
             # Report completion via Psi (only for non-continuous mode)
             if not continuous:
-                psi_message = f"§PSI:{target}:{agent_id}:report:{result}"
+                psi_message = f"§PSI|{target}|{agent_id}: {result}"
                 await websocket.send(psi_message)
                 print(f"⚡ {agent_id} reported to {target}")
 
@@ -106,7 +106,7 @@ class Gateway:
         print(f"⚔️ {agent_id} starting continuous coordination on {target}")
         
         # Initial squad join announcement
-        join_msg = f"§PSI:{target}:{agent_id}:join:Ready for squad coordination"
+        join_msg = f"§PSI|{target}|{agent_id}: Ready for squad coordination"
         await websocket.send(join_msg)
         
         while coordination_cycle < 1:  # Single cycle test
@@ -124,7 +124,7 @@ class Gateway:
                     result = "No execution method available"
                 
                 # Broadcast progress via PSI
-                progress_msg = f"§PSI:{target}:{agent_id}:progress:{result[:100]}"
+                progress_msg = f"§PSI|{target}|{agent_id}: {result[:100]}"
                 await websocket.send(progress_msg)
                 print(f"⚔️ {agent_id}: {result[:50]}...")
                 
@@ -135,7 +135,7 @@ class Gateway:
                 break
         
         # Squad departure
-        depart_msg = f"§PSI:{target}:{agent_id}:complete:Squad coordination finished"
+        depart_msg = f"§PSI|{target}|{agent_id}: Squad coordination finished"
         await websocket.send(depart_msg)
         print(f"👋 {agent_id} completed continuous coordination")
 
