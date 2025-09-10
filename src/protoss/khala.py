@@ -7,9 +7,10 @@ the psychic network where minds connect and collaborate.
 The metaphor is architecturally perfect: distributed coordination through unified network.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 import websockets
+import time
 
 
 @dataclass
@@ -20,6 +21,7 @@ class Psi:
     source: str
     type: str
     content: str
+    timestamp: float = field(default_factory=time.time)
 
     @classmethod
     def parse(cls, raw: str) -> Optional["Psi"]:
@@ -29,6 +31,7 @@ class Psi:
 
         try:
             _, target, source, msg_type, content = raw.split(":", 4)
+            # Timestamp added when parsing (message received)
             return cls(target=target, source=source, type=msg_type, content=content)
         except ValueError:
             return None
@@ -203,3 +206,11 @@ class Khala:
                 {"id": agent_id, "pathways": pathways, "pathway_count": len(pathways)}
             )
         return sorted(minds, key=lambda x: x["pathway_count"], reverse=True)
+    
+    def get_recent_messages(self, pathway: str, since: float) -> List[str]:
+        """Get formatted recent messages from pathway since timestamp."""
+        if pathway not in self.memories:
+            return []
+        
+        recent = [msg for msg in self.memories[pathway] if msg.timestamp > since]
+        return [f"{msg.source}: {msg.content}" for msg in recent]

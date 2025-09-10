@@ -38,7 +38,7 @@ class Zealot:
     
     def __init__(self, zealot_id: str = None):
         self.id = zealot_id or f"zealot-{uuid.uuid4().hex[:8]}"
-        self.agent = Agent(instructions=self.identity, tools=self.tools)
+        self.agent = Agent(instructions=self.identity, tools=self.tools, mode="auto")
     
     @property
     def identity(self) -> str:
@@ -55,13 +55,82 @@ class Zealot:
     @property
     def lifecycle(self) -> str:
         """Zealot lifecycle pattern."""
-        return "ephemeral"  # spawn → execute → die
+        return "ephemeral"  # spawn → assess → execute|escalate → die
     
     async def execute(self, task: str) -> str:
-        """Execute task and return result."""
+        """Execute task with uncertainty escalation protocol."""
+        print(f"⚔️ {self.id} executing task: {task[:50]}...")
+        
+        # First assess uncertainty
+        uncertain = await self.assess_uncertainty(task)
+        
+        if uncertain:
+            # Escalate to Sacred Four
+            print(f"⚔️ {self.id} uncertainty detected - escalating to Sacred Four")
+            return await self.escalate_to_sacred_four(task)
+        
+        # Execute task directly
+        print(f"⚔️ {self.id} proceeding with confident execution")
         result = ""
         async for event in self.agent.stream(task, conversation_id=self.id):
             if event.get("type") == "respond":
                 result = event.get("content", "")
                 break
         return result or "Task completed"
+    
+    async def assess_uncertainty(self, task: str) -> bool:
+        """LLM metacognitive uncertainty assessment."""
+        prompt = f"""
+Current task: {task}
+
+Metacognitive self-assessment: Am I making shit up with inference or do I actually need help with this decision?
+
+If I'm uncertain about approach, requirements, or potential consequences, I should escalate.
+If the task is clear and within my execution capability, I should proceed.
+
+Return only: True if I need help, False if I can proceed confidently.
+"""
+        
+        result = ""
+        async for event in self.agent.stream(prompt, conversation_id=f"{self.id}-uncertainty"):
+            if event.get("type") == "respond":
+                result = event.get("content", "").strip().lower()
+                break
+        
+        return result.startswith("true")
+    
+    async def escalate_to_sacred_four(self, task: str) -> str:
+        """Escalate uncertainty to Sacred Four constitutional guidance."""
+        from ..conclave import Conclave
+        
+        try:
+            # Initialize Conclave for Khala-coordinated deliberation
+            conclave = Conclave()
+            
+            # Format the constitutional question
+            question = f"""ZEALOT ESCALATION: {task}
+            
+Zealot {self.id} assessed metacognitive uncertainty and requires constitutional guidance.
+How should we proceed with this task?"""
+            
+            # Convene Sacred Four via Khala pathways
+            print(f"⚔️ {self.id} escalating to Sacred Four for constitutional guidance")
+            guidance = await conclave.convene(question)
+            
+            return f"""SACRED FOUR GUIDANCE RECEIVED
+            
+Task: {task}
+Zealot: {self.id}
+Status: Constitutional guidance provided
+
+{guidance}"""
+            
+        except Exception as e:
+            print(f"⚠️  Sacred Four escalation failed: {e}")
+            return f"""ESCALATION FAILED: {e}
+            
+Task: {task}
+Zealot: {self.id}
+Status: Sacred Four coordination unavailable
+
+Proceeding with task execution despite uncertainty."""
