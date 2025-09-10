@@ -28,7 +28,7 @@ requires-python = ">=3.10,<4.0"
 dependencies = [
     "asyncio-mqtt>=0.13.0",
     "websockets>=12.0",
-    "cogency @ file:///Users/teebz/dev/space/cogency",
+    "cogency[all] @ file:///Users/teebz/dev/space/cogency",
 ]
 
 [tool.poetry.group.dev.dependencies]

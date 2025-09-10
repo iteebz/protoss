@@ -4,6 +4,7 @@ Spawns Cogency agents, connects to Pylon, executes task, despawns.
 """
 
 import uuid
+import asyncio
 import websockets
 from cogency import Agent
 from ..units import Zealot, Tassadar, Zeratul, Artanis, Fenix
@@ -56,16 +57,24 @@ class Gateway:
             result = ""
             try:
                 if agent_type == "carrier":
-                    # Carrier connects to Khala and stays persistent
-                    await unit.connect_to_khala()
-                    result = f"Carrier {agent_id} operational - connected to Khala network"
+                    # Carrier uses this websocket connection and stays persistent
+                    unit.khala_connection = websocket  # Use Gateway's connection
+                    print(f"🛸 {agent_id} attuned to Khala network")
                     
-                    # Carrier doesn't execute task and return - it stays connected
-                    # The task is just initialization message
+                    # Start message handling
+                    asyncio.create_task(unit._handle_khala_messages())
+                    
+                    result = f"Carrier {agent_id} operational - ready for commands"
                     print(f"🛸 {agent_id} ready for conversational commands")
                     
-                    # Keep websocket connection open for persistent operation
-                    # In production, this would be handled differently
+                    # Keep this connection alive - don't return yet
+                    # Wait for stop signal or connection close
+                    try:
+                        # Keep connection alive until explicitly stopped
+                        await asyncio.sleep(3600)  # 1 hour timeout
+                    except asyncio.CancelledError:
+                        print(f"🛸 {agent_id} connection cancelled")
+                        return agent_id
                     
                 elif hasattr(unit, 'deliberate') and agent_type in ['tassadar', 'zeratul', 'artanis', 'fenix']:
                     # Constitutional agents deliberate

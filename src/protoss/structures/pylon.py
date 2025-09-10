@@ -59,8 +59,8 @@ class Pylon:
                 message = Psi.parse(raw_message)
                 if message:
                     # Forward to appropriate handler
-                    if message.type == "inspect":
-                        await self._handle_inspection(message)
+                    if message.target == "system" and message.type == "status":
+                        await self._handle_status_query(message, websocket)
                     else:
                         # All coordination goes directly to Khala
                         await self.khala.transmit(message, self.agents)
@@ -69,14 +69,10 @@ class Pylon:
             # Remove agent from all Khala pathways
             self.khala.sever(agent_id)
 
-    async def _handle_inspection(self, message: Psi):
-        """Handle inspection commands from CLI."""
+    async def _handle_status_query(self, message: Psi, websocket):
+        """Handle status queries via normal Khala messaging."""
         command = message.content
-        agent_socket = self.agents.get(message.source)
         
-        if not agent_socket:
-            return
-            
         try:
             import json
             
@@ -101,13 +97,13 @@ class Pylon:
             else:
                 result = {"error": f"Unknown command: {command}"}
             
-            # Send result back to inspector
-            response = f"§PSI:inspector:{message.source}:result:{json.dumps(result)}"
-            await agent_socket.send(response)
+            # Send result back via Khala
+            response = f"§PSI:{message.source}:system:result:{json.dumps(result)}"
+            await websocket.send(response)
             
         except Exception as e:
-            error_response = f"§PSI:inspector:{message.source}:result:{json.dumps({'error': str(e)})}"
-            await agent_socket.send(error_response)
+            error_response = f"§PSI:{message.source}:system:result:{json.dumps({'error': str(e)})}"
+            await websocket.send(error_response)
 
     # CLI INSPECTION METHODS - DELEGATE TO COMPONENTS
 
@@ -157,11 +153,15 @@ class Pylon:
             if carrier_socket:
                 await carrier_socket.send(command_psi.serialize())
                 
-                # For now, return immediate acknowledgment
-                # In full implementation, would await Carrier response
-                return {
-                    "response": f"Command routed to {carrier_id}. Processing..."
-                }
+                # Wait for actual Carrier response
+                try:
+                    # Listen for response on cli-interface pathway
+                    response_msg = await self._await_carrier_response(carrier_id)
+                    return {"response": response_msg}
+                except asyncio.TimeoutError:
+                    return {"response": f"Carrier {carrier_id} processing (timeout)"}
+                except Exception as e:
+                    return {"response": f"Command routed to {carrier_id}. Processing..."}
             else:
                 return {"error": f"Carrier {carrier_id} socket not found"}
                 
@@ -217,3 +217,22 @@ class Pylon:
                 
         except Exception as e:
             return {"error": f"Carrier stop failed: {e}"}
+
+    async def _await_carrier_response(self, carrier_id: str, timeout: float = 10.0) -> str:
+        """Wait for Carrier response on cli-interface pathway."""
+        # This is a simplified approach - in production would use proper message correlation
+        pathway_memories = self.khala.memories.get("cli-interface", [])
+        initial_count = len(pathway_memories)
+        
+        start_time = asyncio.get_event_loop().time()
+        while (asyncio.get_event_loop().time() - start_time) < timeout:
+            current_memories = self.khala.memories.get("cli-interface", [])
+            if len(current_memories) > initial_count:
+                # Found new response
+                latest_message = current_memories[-1]
+                if latest_message.source == carrier_id and latest_message.type == "response":
+                    return latest_message.content
+            
+            await asyncio.sleep(0.1)  # Brief polling interval
+            
+        raise asyncio.TimeoutError("No response from Carrier")

@@ -214,8 +214,9 @@ def main():
         asyncio.run(_carrier_interface(full_command))
         return
 
-    # Default: show help
-    main()
+    # Default: unknown command
+    print(f"❌ Unknown command: {' '.join(sys.argv[1:])}")
+    print("💡 Run 'protoss --help' for usage information")
 
 
 if __name__ == "__main__":

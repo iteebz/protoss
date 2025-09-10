@@ -50,6 +50,14 @@ class Carrier:
         
         RESIST BULLSHIT. COMPRESS REALITY. COORDINATE EFFECTIVELY.
         """
+        
+        # Cognitive agent for real LLM processing
+        self.agent = Agent(
+            instructions=self.identity,
+            tools=[],  # Pure reasoning, no external tools
+            llm="gemini",  # Use Gemini
+            mode="auto"
+        )
 
     async def connect_to_khala(self):
         """Connect to Khala network for coordination."""
@@ -114,8 +122,8 @@ class Carrier:
         intent = await self._parse_strategic_intent(human_command)
         
         if intent["requires_deliberation"]:
-            # Escalate to Sacred Four for constitutional decision
-            return await self._escalate_to_constitutional(intent)
+            # Ask Sacred Four for constitutional guidance
+            return await self._ask_sacred_four(intent)
         
         if intent["requires_coordination"]:
             # Launch interceptors for swarm coordination
@@ -126,51 +134,105 @@ class Carrier:
         return await self._translate_to_swarm_execution(intent)
 
     async def _parse_strategic_intent(self, command: str) -> Dict[str, Any]:
-        """Parse human command into actionable intent structure."""
+        """Parse human command into actionable intent structure using LLM reasoning."""
         
-        # Simple pattern matching for MVP - this should use Agent reasoning
-        intent = {
-            "command": command,
-            "requires_deliberation": False,
-            "requires_coordination": False,
-            "requires_execution": True,
-            "uncertainty_level": "low",
-            "scope": "single"
-        }
-        
-        # Detect coordination requirements
-        coordination_keywords = ["coordinate", "all agents", "swarm", "multiple", "parallel"]
-        if any(keyword in command.lower() for keyword in coordination_keywords):
-            intent["requires_coordination"] = True
-            intent["scope"] = "swarm"
-        
-        # Detect constitutional decisions
-        constitutional_keywords = ["should we", "strategy", "approach", "architecture", "decide"]
-        if any(keyword in command.lower() for keyword in constitutional_keywords):
-            intent["requires_deliberation"] = True
-            intent["uncertainty_level"] = "high"
-        
-        return intent
+        prompt = f"""
+STRATEGIC INTENT ANALYSIS
 
-    async def _escalate_to_constitutional(self, intent: Dict[str, Any]) -> str:
-        """Escalate to Sacred Four for constitutional deliberation."""
+Human Command: "{command}"
+
+As the Carrier emissary, analyze this command and determine the appropriate coordination path:
+
+1. DELIBERATION: Does this require strategic/architectural decisions by the Sacred Four?
+   - Questions about "should we", strategy, approach, architecture
+   - Uncertain decisions requiring constitutional debate
+   
+2. COORDINATION: Does this require swarm coordination via Interceptors?
+   - Commands involving "all agents", "parallel", "coordinate", "multiple"
+   - Tasks requiring distributed execution across agents
+   
+3. EXECUTION: Simple direct task execution?
+   - Clear, specific tasks that can be handled directly
+   - Build, create, implement commands with clear scope
+
+Respond with JSON format:
+{{
+    "requires_deliberation": boolean,
+    "requires_coordination": boolean, 
+    "requires_execution": boolean,
+    "uncertainty_level": "low" | "medium" | "high",
+    "scope": "single" | "swarm",
+    "reasoning": "Brief explanation of classification"
+}}
+"""
         
-        escalation_psi = Psi(
-            target="conclave-constitutional",
-            source=self.id,
-            type="escalation",
-            content=f"Constitutional decision required: {intent['command']}"
-        )
+        try:
+            # Use Agent for real LLM reasoning with persistent conversation
+            conversation_id = f"{self.id}-intent"
+            result = await self.agent(prompt, user_id="carrier", conversation_id=conversation_id)
+            
+            # Parse JSON response  
+            import json
+            intent_data = json.loads(result.strip())
+            
+            # Add command for reference
+            intent_data["command"] = command
+            
+            return intent_data
+            
+        except Exception as e:
+            # Fallback to simple classification if LLM fails
+            print(f"⚠️  LLM intent parsing failed: {e}, using fallback")
+            return {
+                "command": command,
+                "requires_deliberation": "should" in command.lower() or "strategy" in command.lower(),
+                "requires_coordination": any(kw in command.lower() for kw in ["coordinate", "all", "parallel", "swarm"]),
+                "requires_execution": True,
+                "uncertainty_level": "medium",
+                "scope": "single",
+                "reasoning": "Fallback classification due to LLM error"
+            }
+
+    async def _ask_sacred_four(self, intent: Dict[str, Any]) -> str:
+        """Ask Sacred Four for constitutional guidance via Khala."""
+        from ..conclave import Conclave
         
-        # This would connect to Khala and coordinate with Sacred Four
-        # For MVP, return structured response
-        return f"""ESCALATED TO CONSTITUTIONAL COUNCIL
-        
-Decision required: {intent['command']}
+        try:
+            # Initialize Conclave for Khala-coordinated deliberation
+            conclave = Conclave()
+            
+            # Format the constitutional question
+            question = f"""CONSTITUTIONAL QUESTION: {intent['command']}
+            
+Uncertainty Level: {intent['uncertainty_level']}
+Scope: {intent['scope']}
+Reasoning: {intent['reasoning']}
+
+Sacred Four: Should we proceed with this command? What is your constitutional guidance?"""
+            
+            # Convene Sacred Four via Khala pathways
+            print(f"🛸 {self.id} summoning Sacred Four for constitutional guidance")
+            conclave_id = await conclave.convene(question)
+            
+            # Return immediate acknowledgment - Sacred Four deliberate asynchronously via Khala
+            return f"""SACRED FOUR CONVENED
+            
+Question: {intent['command']}
+Conclave Pathway: {conclave_id}
+Status: Sacred Four deliberating via Khala
+
+Constitutional guidance will be provided through the coordination network."""
+            
+        except Exception as e:
+            print(f"⚠️  Sacred Four summoning failed: {e}")
+            # Constitutional fallback when Khala fails
+            return f"""CONSTITUTIONAL ESCALATION REQUIRED
+            
+Question: {intent['command']}
 Uncertainty: {intent['uncertainty_level']}
-Status: Pending Sacred Four deliberation
+Status: Sacred Four coordination temporarily unavailable
 
-Will report back with constitutional guidance."""
+Recommendation: Proceed with extreme caution or await Khala restoration."""
 
     async def _coordinate_via_interceptors(self, intent: Dict[str, Any]) -> Dict[str, Any]:
         """Launch Interceptors for swarm coordination."""
@@ -231,17 +293,35 @@ Status: {'SUCCESS' if successful_tasks == len(swarm_results) else 'PARTIAL'}
 Ready for next command."""
 
     async def _translate_to_swarm_execution(self, intent: Dict[str, Any]) -> str:
-        """Translate command to direct swarm execution."""
+        """Translate command to direct swarm execution using LLM reasoning."""
         
-        # For MVP, simple command translation
-        execution_psi = Psi(
-            target="nexus",  # Report back to command
-            source=self.id,
-            type="command",
-            content=f"Executing: {intent['command']}"
-        )
+        prompt = f"""
+SWARM EXECUTION TRANSLATION
+
+Human Command: "{intent['command']}"
+Intent Analysis: {intent.get('reasoning', 'Direct execution required')}
+
+As the Carrier emissary, translate this human command into specific execution instructions for the swarm:
+
+1. Break down the task into actionable steps
+2. Identify what type of agents might be needed (Zealots for execution, etc.)  
+3. Provide clear, specific instructions
+4. Assess complexity and resource requirements
+
+Respond in a clear, direct format suitable for human consumption. Keep it concise but informative.
+Focus on what will actually be executed, not just echoing the command.
+"""
         
-        return f"COMMAND TRANSLATED TO SWARM: {intent['command']}"
+        try:
+            # Use Agent for intelligent command translation
+            conversation_id = f"{self.id}-execution"
+            result = await self.agent(prompt, user_id="carrier", conversation_id=conversation_id)
+            
+            return result.strip()
+            
+        except Exception as e:
+            print(f"⚠️  LLM execution translation failed: {e}, using fallback")
+            return f"EXECUTING: {intent['command']}\n\nTask queued for swarm processing."
 
     # Extension points for full implementation
 

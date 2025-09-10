@@ -7,17 +7,18 @@ from ..constants import PYLON_DEFAULT_PORT
 
 
 class PylonClient:
-    """WebSocket client for connecting to running Pylon instances."""
+    """Simple client for Khala status queries."""
     
     def __init__(self, host: str = "localhost", port: int = PYLON_DEFAULT_PORT):
-        self.uri = f"ws://{host}:{port}/inspector"
+        self.uri = f"ws://{host}:{port}"
         
     async def _request(self, command: str) -> dict:
-        """Send inspection command to running Pylon."""
+        """Send status query via normal Khala messaging."""
         try:
-            async with websockets.connect(self.uri) as websocket:
-                # Send inspection request
-                request = f"§PSI:inspector:client:inspect:{command}"
+            client_id = "cli-status"
+            async with websockets.connect(f"{self.uri}/{client_id}") as websocket:
+                # Send status request via Khala
+                request = f"§PSI:system:{client_id}:status:{command}"
                 await websocket.send(request)
                 
                 # Wait for response
@@ -28,7 +29,7 @@ class PylonClient:
                     import json
                     return json.loads(psi.content)
                     
-                return {"error": "Invalid response format"}
+                return {"error": "No response from system"}
                 
         except ConnectionRefusedError:
             return {"error": "No Pylon grid running. Start with: protoss start"}

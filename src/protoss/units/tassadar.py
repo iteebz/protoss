@@ -37,7 +37,7 @@ class Tassadar:
     
     def __init__(self, tassadar_id: str = None):
         self.id = tassadar_id or f"tassadar-{uuid.uuid4().hex[:8]}"
-        self.agent = Agent(instructions=self.identity, tools=self.tools)
+        self.agent = Agent(instructions=self.identity, tools=self.tools, mode="auto", llm="gemini")
     
     @property
     def identity(self) -> str:
@@ -65,8 +65,8 @@ You must form your constitutional position on this question:
 Based on your identity and values, provide your definitive stance with reasoning. This position will be defended in the Conclave.
 """
         result = ""
-        async for event in self.agent.stream(prompt, conversation_id=f"{self.id}-pos"):
-            if event.get("type") == "respond":
-                result = event.get("content", "")
-                break
-        return result or "No position formed"
+        from ..khala import Psi
+        
+        # Use the Agent's simple call interface for position formation
+        result = await self.agent(prompt, user_id="tassadar", conversation_id=f"{self.id}-pos")
+        return result
