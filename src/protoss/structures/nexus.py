@@ -1,46 +1,162 @@
-"""Nexus: Central coordination hub for Protoss agent swarms."""
+"""Nexus: Human command center for Protoss swarms."""
 
+import sys
 import asyncio
 import websockets
-from .gateway import Gateway
 from .pylon import Pylon
+from .gateway import Gateway
+from ..khala import Psi
 from ..constants import PYLON_DEFAULT_PORT
 
 
 class Nexus:
-    """Central coordination hub. Human interface to Protoss swarm."""
+    """Human command center. Start grid, spawn Carrier, interface with swarm."""
 
-    def __init__(self, pylon_port: int = PYLON_DEFAULT_PORT):
-        self.pylon_port = pylon_port
-        self.gateway = Gateway(pylon_port=pylon_port)
+    def __init__(self, port: int = PYLON_DEFAULT_PORT):
+        self.port = port
         self.pylon = None
+        self.gateway = None
 
-    async def start(self):
-        """Initialize Nexus with Pylon grid."""
-        self.pylon = Pylon(port=self.pylon_port)
+    async def start_grid(self):
+        """Start Pylon coordination grid."""
+        self.pylon = Pylon(self.port)
+        print(f"⚡ Starting Protoss grid on port {self.port}")
         await self.pylon.start()
-        print("🔹 Nexus online - Pylon grid powered")
+        print("🔹 Grid active. Press Ctrl+C to stop.")
+        
+        try:
+            await asyncio.Future()  # Wait indefinitely
+        except KeyboardInterrupt:
+            print("\n⚡ Stopping Protoss grid...")
+            await self.pylon.stop()
+            print("🔹 Grid offline")
 
-    async def execute_task(self, task: str) -> str:
-        """Execute task via Gateway → Zealot → Pylon → response."""
+    async def spawn_carrier(self):
+        """Launch persistent Carrier for human interface."""
+        if not self.gateway:
+            self.gateway = Gateway()
+        
+        print("🛸 Carrier has arrived...")
+        
+        try:
+            carrier_id = await self.gateway.spawn_carrier(
+                "Initialize human-swarm coordination interface",
+                "nexus"
+            )
+            print(f"⚡ All paths are one - {carrier_id} operational")
+            print("🎯 Ready for conversational coordination commands")
+        except Exception as e:
+            print(f"❌ Carrier spawn failed: {e}")
+            print("🔹 Ensure Pylon grid is running: protoss start")
 
-        # Connect to Pylon as Nexus
-        nexus_uri = f"ws://localhost:{self.pylon_port}/nexus"
+    async def carrier_interface(self, command: str):
+        """Conversational interface to Carrier. Auto-spawns on first use."""
+        print(f"🛸 Processing: {command}")
+        
+        try:
+            # Auto-spawn Carrier if not already active
+            if not self.gateway:
+                self.gateway = Gateway()
+            
+            # Check if Carrier exists, spawn if needed
+            try:
+                client_id = "nexus"
+                uri = f"ws://localhost:{self.port}/{client_id}"
+                
+                async with websockets.connect(uri) as websocket:
+                    # Try to ping existing Carrier
+                    ping = f"§PSI:carrier:{client_id}:ping:"
+                    await websocket.send(ping)
+                    
+                    try:
+                        response = await asyncio.wait_for(websocket.recv(), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        # No Carrier, spawn one
+                        print("🛸 Carrier has arrived...")
+                        await self.gateway.spawn_carrier(
+                            "Initialize human-swarm coordination interface",
+                            "nexus"
+                        )
+                        await asyncio.sleep(1)  # Give Carrier time to initialize
+            except:
+                # Carrier spawn failed or connection issues - will be caught below
+                pass
+            
+            # Send command to Carrier
+            async with websockets.connect(f"ws://localhost:{self.port}/nexus") as websocket:
+                request = f"§PSI:carrier:nexus:command:{command}"
+                await websocket.send(request)
+                
+                response = await websocket.recv()
+                psi = Psi.parse(response)
+                
+                if psi and psi.type == "response":
+                    print(f"🛸 Carrier: {psi.content}")
+                else:
+                    print("❌ No response from Carrier")
+                    
+        except ConnectionRefusedError:
+            print("❌ No Pylon grid running")
+            print("💡 Start infrastructure: protoss start")
+        except Exception as e:
+            print(f"❌ Communication failed: {e}")
 
-        async with websockets.connect(nexus_uri) as websocket:
-            print("🔹 Nexus connected to grid")
+    def cli(self):
+        """CLI entry point."""
+        
+        # Help
+        if "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) == 1:
+            print("⚡ Protoss - AI Agent Coordination Grid")
+            print()
+            print("🔧 CONTROL:")
+            print("  protoss start [port]              # Start Pylon grid")
+            print("  protoss stop                      # Shutdown grid")
+            print()
+            print("🛸 COORDINATION:")
+            print('  protoss "build tokenizer"         # Conversational interface (auto-spawns Carrier)')
+            print('  protoss "fix auth bug"            # Natural human-swarm coordination')
+            print()
+            print("🧠 CONCLAVE:")
+            print('  protoss conclave "<question>"     # Summon Sacred Four for deliberation')
+            return
 
-            # Spawn Zealot via Gateway
-            asyncio.create_task(self.gateway.spawn_zealot(task, target="nexus"))
+        # Start grid
+        if len(sys.argv) > 1 and sys.argv[1] == "start":
+            port = int(sys.argv[2]) if len(sys.argv) > 2 else PYLON_DEFAULT_PORT
+            nexus = Nexus(port)
+            asyncio.run(nexus.start_grid())
+            return
 
-            # Wait for Zealot report
-            result_message = await websocket.recv()
-            print(f"🔹 Nexus received: {result_message}")
+        # Stop grid
+        if len(sys.argv) > 1 and sys.argv[1] == "stop":
+            print("⚡ Stopping Protoss grid...")
+            print("🔹 Grid offline. En Taro Adun!")
+            return
 
-            # Extract result from Psi message
-            # §PSI:nexus:zealot-id:report:actual-result
-            if result_message.startswith("§PSI:"):
-                result = result_message.split(":", 4)[-1]
-                return result
+        # Conclave deliberation
+        if len(sys.argv) > 2 and sys.argv[1] == "conclave":
+            question = " ".join(sys.argv[2:]).strip('"')
+            from ..conclave import deliberate
+            deliberate(question)
+            return
 
-            return "No result received"
+        # Conversational interface - any unrecognized command
+        if len(sys.argv) > 1 and sys.argv[1] not in ["start", "stop", "conclave"]:
+            full_command = " ".join(sys.argv[1:])
+            nexus = Nexus()
+            asyncio.run(nexus.carrier_interface(full_command))
+            return
+
+        # Default: unknown command
+        print(f"❌ Unknown command: {' '.join(sys.argv[1:])}")
+        print("💡 Run 'protoss --help' for usage information")
+
+
+def main():
+    """CLI entry point."""
+    nexus = Nexus()
+    nexus.cli()
+
+
+if __name__ == "__main__":
+    main()

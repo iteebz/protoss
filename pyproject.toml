@@ -38,3 +38,6 @@ pytest-asyncio = "^0.21.0"
 
 [tool.poetry]
 packages = [{ include = "protoss", from = "src" }]
+
+[tool.poetry.scripts]
+protoss = "protoss.structures.nexus:main"
