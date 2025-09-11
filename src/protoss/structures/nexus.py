@@ -73,11 +73,12 @@ class Nexus:
                     except asyncio.TimeoutError:
                         # No Carrier, spawn one
                         print("🛸 Carrier has arrived...")
-                        await self.gateway.spawn_carrier(
+                        # Start Carrier in background task instead of blocking
+                        asyncio.create_task(self.gateway.spawn_carrier(
                             "Initialize human-swarm coordination interface",
                             "nexus"
-                        )
-                        await asyncio.sleep(1)  # Give Carrier time to initialize
+                        ))
+                        await asyncio.sleep(3)  # Give Carrier time to initialize
             except:
                 # Carrier spawn failed or connection issues - will be caught below
                 pass
@@ -113,11 +114,9 @@ class Nexus:
             print("  protoss stop                      # Shutdown grid")
             print()
             print("🛸 COORDINATION:")
-            print('  protoss "build tokenizer"         # Conversational interface (auto-spawns Carrier)')
-            print('  protoss "fix auth bug"            # Natural human-swarm coordination')
-            print()
-            print("🧠 CONCLAVE:")
-            print('  protoss conclave "<question>"     # Summon Sacred Four for deliberation')
+            print('  protoss "build tokenizer"         # Auto-spawn Carrier, natural coordination')
+            print('  protoss "should we use React?"    # Carrier routes to Sacred Four internally')
+            print('  protoss "coordinate 5 agents"     # Carrier deploys squad internally')
             return
 
         # Start grid
@@ -133,15 +132,10 @@ class Nexus:
             print("🔹 Grid offline. En Taro Adun!")
             return
 
-        # Conclave deliberation
-        if len(sys.argv) > 2 and sys.argv[1] == "conclave":
-            question = " ".join(sys.argv[2:]).strip('"')
-            from ..conclave import deliberate
-            deliberate(question)
-            return
+        # Remove direct conclave access - Carrier handles Sacred Four routing
 
         # Conversational interface - any unrecognized command
-        if len(sys.argv) > 1 and sys.argv[1] not in ["start", "stop", "conclave"]:
+        if len(sys.argv) > 1 and sys.argv[1] not in ["start", "stop"]:
             full_command = " ".join(sys.argv[1:])
             nexus = Nexus()
             asyncio.run(nexus.carrier_interface(full_command))

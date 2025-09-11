@@ -13,7 +13,7 @@ Context asymmetry + coordination + escalation = emergent error correction.
 ## Architecture
 
 **Infrastructure (Buildings):**
-- **NEXUS** - Human command center, final authority
+- **NEXUS** - CLI command center, auto-spawn Carrier, human interface
 - **PYLON** - WebSocket grid, powers Khala network
 - **GATEWAY** - Agent spawning facility, lifecycle management
 
@@ -38,9 +38,9 @@ Context asymmetry + coordination + escalation = emergent error correction.
 
 ```bash
 protoss start                    # Infrastructure online
-protoss carrier spawn            # 🛸 Human-swarm emissary
-protoss "build tokenizer"        # → Natural coordination 
-protoss squads deploy 3          # → Multi-agent execution
+protoss "build tokenizer"        # 🛸 Auto-spawn Carrier, natural coordination
+protoss "should we use React?"   # → Carrier routes to Sacred Four internally
+protoss "coordinate 5 agents"    # → Carrier deploys squad internally
 ```
 
 ## The Test

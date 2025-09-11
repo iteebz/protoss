@@ -24,6 +24,7 @@ class Pylon:
         self.server = await websockets.serve(
             self._handle_connection, "localhost", self.port
         )
+        print(f"🔹 Pylon powered up on ws://localhost:{self.port}")
 
     async def stop(self):
         """Power down the grid."""
