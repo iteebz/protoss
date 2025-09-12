@@ -1,106 +1,101 @@
-"""Nexus: Human command center for Protoss swarms."""
+"""Nexus: Pure infrastructure management for Protoss coordination."""
 
 import sys
 import asyncio
 import websockets
 from .pylon import Pylon
 from .gateway import Gateway
-from ..khala import Psi
+from ..khala import Khala
+from ..conclave import Conclave
+from ..units.archon import Archon
+from ..units.carrier import Carrier
 from ..constants import PYLON_DEFAULT_PORT
 
 
 class Nexus:
-    """Human command center. Start grid, spawn Carrier, interface with swarm."""
+    """Pure infrastructure hub. Manages all Protoss coordination infrastructure."""
 
     def __init__(self, port: int = PYLON_DEFAULT_PORT):
         self.port = port
+        self._shutdown_event = asyncio.Event()
+        
+        # Infrastructure components
         self.pylon = None
         self.gateway = None
+        self.khala = None
+        self.conclave = None
+        self.archon = None
+        self.carrier = None
+
+    async def initialize_infrastructure(self):
+        """Initialize all Protoss coordination infrastructure."""
+        print(f"⚡ Initializing Protoss infrastructure on port {self.port}")
+        
+        # Core infrastructure - Khala discovers the grid
+        self.khala = Khala()
+        self.khala.set_grid_port(self.port)  # Set singleton grid port
+        self.pylon = Pylon(self.port)
+        self.gateway = Gateway()
+        self.conclave = Conclave()  # No port needed - uses singleton Khala
+        self.archon = Archon()
+        
+        # Start Pylon grid
+        await self.pylon.start()
+        print("🔹 Pylon grid online")
+        
+        # Initialize Carrier via Gateway factory
+        self.carrier = self.gateway._create_unit("carrier")
+        
+        print("🛸 Carrier initialized with service discovery")
+        print("🔹 All infrastructure online - ready for coordination")
 
     async def start_grid(self):
-        """Start Pylon coordination grid."""
-        self.pylon = Pylon(self.port)
-        print(f"⚡ Starting Protoss grid on port {self.port}")
-        await self.pylon.start()
-        print("🔹 Grid active. Press Ctrl+C to stop.")
+        """Start complete Protoss coordination infrastructure."""
+        await self.initialize_infrastructure()
         
+        print("🔹 Infrastructure running. Press Ctrl+C to stop.")
         try:
-            await asyncio.Future()  # Wait indefinitely
+            await self._shutdown_event.wait()  # Wait for shutdown signal
         except KeyboardInterrupt:
-            print("\n⚡ Stopping Protoss grid...")
+            print("\n⚡ Stopping Protoss infrastructure...")
+        finally:
+            await self.shutdown_infrastructure()
+            print("🔹 Infrastructure offline")
+
+    async def shutdown_infrastructure(self):
+        """Gracefully shutdown all infrastructure."""
+        self._shutdown_event.set()  # Signal shutdown
+        if self.carrier:
+            await self.carrier.despawn()
+        if self.pylon:
             await self.pylon.stop()
-            print("🔹 Grid offline")
 
     async def spawn_carrier(self):
-        """Launch persistent Carrier for human interface."""
-        if not self.gateway:
-            self.gateway = Gateway()
+        """Deploy Carrier using existing infrastructure."""
+        if not self.carrier:
+            await self.initialize_infrastructure()
         
-        print("🛸 Carrier has arrived...")
+        print("🛸 Carrier deploying...")
         
         try:
-            carrier_id = await self.gateway.spawn_carrier(
-                "Initialize human-swarm coordination interface",
-                "nexus"
-            )
-            print(f"⚡ All paths are one - {carrier_id} operational")
+            await self.carrier.connect_to_khala()
+            print(f"⚡ {self.carrier.id} operational")
             print("🎯 Ready for conversational coordination commands")
         except Exception as e:
-            print(f"❌ Carrier spawn failed: {e}")
-            print("🔹 Ensure Pylon grid is running: protoss start")
+            print(f"❌ Carrier deployment failed: {e}")
+            print("🔹 Ensure infrastructure is running: protoss start")
 
     async def carrier_interface(self, command: str):
-        """Conversational interface to Carrier. Auto-spawns on first use."""
-        print(f"🛸 Processing: {command}")
+        """Clean conversational interface to Carrier using infrastructure."""
+        if not self.carrier:
+            await self.initialize_infrastructure()
         
         try:
-            # Auto-spawn Carrier if not already active
-            if not self.gateway:
-                self.gateway = Gateway()
-            
-            # Check if Carrier exists, spawn if needed
-            try:
-                client_id = "nexus"
-                uri = f"ws://localhost:{self.port}/{client_id}"
-                
-                async with websockets.connect(uri) as websocket:
-                    # Try to ping existing Carrier
-                    ping = f"§PSI:carrier:{client_id}:ping:"
-                    await websocket.send(ping)
-                    
-                    try:
-                        response = await asyncio.wait_for(websocket.recv(), timeout=2.0)
-                    except asyncio.TimeoutError:
-                        # No Carrier, spawn one
-                        print("🛸 Carrier has arrived...")
-                        # Start Carrier in background task instead of blocking
-                        asyncio.create_task(self.gateway.spawn_carrier(
-                            "Initialize human-swarm coordination interface",
-                            "nexus"
-                        ))
-                        await asyncio.sleep(3)  # Give Carrier time to initialize
-            except:
-                # Carrier spawn failed or connection issues - will be caught below
-                pass
-            
-            # Send command to Carrier
-            async with websockets.connect(f"ws://localhost:{self.port}/nexus") as websocket:
-                request = f"§PSI:carrier:nexus:command:{command}"
-                await websocket.send(request)
-                
-                response = await websocket.recv()
-                psi = Psi.parse(response)
-                
-                if psi and psi.type == "response":
-                    print(f"🛸 Carrier: {psi.content}")
-                else:
-                    print("❌ No response from Carrier")
-                    
-        except ConnectionRefusedError:
-            print("❌ No Pylon grid running")
-            print("💡 Start infrastructure: protoss start")
+            response = await self.carrier.process_command(command)
+            print(f"🛸 Carrier: {response}")
         except Exception as e:
-            print(f"❌ Communication failed: {e}")
+            print(f"❌ Carrier interface failed: {e}")
+            print("💡 Ensure infrastructure is running: protoss start")
 
     def cli(self):
         """CLI entry point."""

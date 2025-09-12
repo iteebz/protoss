@@ -10,14 +10,14 @@ import time
 from cogency import Agent
 from ..units import Zealot, Tassadar, Zeratul, Artanis, Fenix
 from ..units.carrier import Carrier
-from ..constants import PYLON_DEFAULT_PORT, pylon_uri
+# Gateway manages Agent configuration internally
 
 
 class Gateway:
-    """Spawns and manages Zealot agents."""
+    """Agent factory and unit spawning facility."""
 
-    def __init__(self, pylon_host: str = "localhost", pylon_port: int = PYLON_DEFAULT_PORT):
-        self.pylon_uri = pylon_uri(pylon_host, pylon_port)
+    def __init__(self):
+        # No configuration needed - uses singleton Khala discovery
         self.unit_types = {
             "zealot": Zealot,
             "tassadar": Tassadar,
@@ -27,15 +27,60 @@ class Gateway:
             "carrier": Carrier,
         }
 
+    def create_agent(self, unit_type: str, instructions: str, unit_id: str = None) -> Agent:
+        """Agent factory - creates configured Agent instances."""
+        agent_id = unit_id or f"{unit_type}-{uuid.uuid4().hex[:8]}"
+        
+        return Agent(
+            instructions=instructions,
+            mode="resume",  # Gateway default - streaming with context preservation
+            llm="gemini",   # Gateway default - stable and fast
+            tools=self._get_unit_tools(unit_type)
+        )
+    
+    def _get_unit_tools(self, unit_type: str) -> list:
+        """Get tools for unit type."""
+        # Constitutional units need no external tools
+        if unit_type in ['tassadar', 'zeratul', 'artanis', 'fenix']:
+            return []
+        # Execution units get full tool suite
+        elif unit_type == 'zealot':
+            from cogency.tools import FileRead, FileWrite, FileEdit, FileList, SystemShell
+            return [FileRead(), FileWrite(), FileEdit(), FileList(), SystemShell()]
+        return []
+        
     def _create_unit(self, unit_type: str, unit_id: str = None):
-        """Create unit instance based on type."""
+        """Create unit instance with Gateway-spawned Agent."""
         unit_class = self.unit_types.get(unit_type, Zealot)
         
-        # Carrier uses different constructor signature
-        if unit_type == "carrier":
-            return unit_class(carrier_id=unit_id)
+        # Get unit instructions
+        instructions = self._get_unit_instructions(unit_type)
         
-        return unit_class(unit_id)
+        # Spawn Agent via Gateway factory
+        agent = self.create_agent(unit_type, instructions, unit_id)
+        
+        # Create unit with Gateway-spawned Agent
+        if unit_type == "carrier":
+            unit = unit_class(carrier_id=unit_id)
+            unit.agent = agent  # Inject Gateway Agent
+            return unit
+        
+        unit = unit_class(unit_id)
+        unit.agent = agent  # Inject Gateway Agent
+        return unit
+        
+    def _get_unit_instructions(self, unit_type: str) -> str:
+        """Get instructions for unit type."""
+        # Create temporary unit to extract identity
+        unit_class = self.unit_types.get(unit_type, Zealot)
+        temp_unit = unit_class()
+        
+        if unit_type == "carrier":
+            return temp_unit.coordination_intelligence
+        elif hasattr(temp_unit, 'identity'):
+            return temp_unit.identity
+        else:
+            return f"{unit_type.title()} execution agent"
 
     async def spawn_agent(
         self, task: str, agent_type: str = "zealot", target: str = "nexus", continuous: bool = False
@@ -48,11 +93,10 @@ class Gateway:
         # Create unit instance
         unit = self._create_unit(agent_type, agent_id)
 
-        # Connect to Pylon grid
-        pylon_uri = f"{self.pylon_uri}/{agent_id}"
-
-        async with websockets.connect(pylon_uri) as websocket:
-            print(f"🔹 {agent_id} connected to Pylon grid")
+        # Connect to Khala network
+        from ..khala import Khala
+        
+        async with Khala.connect(agent_id) as khala:
 
             # Execute task and report result
             result = ""
@@ -79,7 +123,7 @@ class Gateway:
                     
                 elif continuous:
                     # CONTINUOUS SQUAD MODE
-                    await self._continuous_coordination(unit, task, target, agent_id, websocket)
+                    await self._continuous_coordination(unit, task, target, agent_id, khala)
                     result = "Continuous coordination complete"
                     
                 elif hasattr(unit, 'deliberate') and agent_type in ['tassadar', 'zeratul', 'artanis', 'fenix']:
@@ -93,21 +137,19 @@ class Gateway:
 
             # Report completion via Psi (only for non-continuous mode)
             if not continuous:
-                psi_message = f"§PSI|{target}|{agent_id}: {result}"
-                await websocket.send(psi_message)
+                await khala.send(target, result)
                 print(f"⚡ {agent_id} reported to {target}")
 
         return agent_id
     
-    async def _continuous_coordination(self, unit, task: str, target: str, agent_id: str, websocket):
+    async def _continuous_coordination(self, unit, task: str, target: str, agent_id: str, khala):
         """Continuous squad coordination with dynamic inbox reading."""
         coordination_cycle = 0
         
         print(f"⚔️ {agent_id} starting continuous coordination on {target}")
         
         # Initial squad join announcement
-        join_msg = f"§PSI|{target}|{agent_id}: Ready for squad coordination"
-        await websocket.send(join_msg)
+        await khala.send(target, "Ready for squad coordination")
         
         while coordination_cycle < 1:  # Single cycle test
             coordination_cycle += 1
@@ -124,8 +166,7 @@ class Gateway:
                     result = "No execution method available"
                 
                 # Broadcast progress via PSI
-                progress_msg = f"§PSI|{target}|{agent_id}: {result[:100]}"
-                await websocket.send(progress_msg)
+                await khala.send(target, result[:100])
                 print(f"⚔️ {agent_id}: {result[:50]}...")
                 
                 await asyncio.sleep(3)  # Coordination interval
@@ -135,8 +176,7 @@ class Gateway:
                 break
         
         # Squad departure
-        depart_msg = f"§PSI|{target}|{agent_id}: Squad coordination finished"
-        await websocket.send(depart_msg)
+        await khala.send(target, "Squad coordination finished")
         print(f"👋 {agent_id} completed continuous coordination")
 
     async def spawn_zealot(self, task: str, target: str = "nexus") -> str:

@@ -38,7 +38,7 @@ class Zealot:
     
     def __init__(self, zealot_id: str = None):
         self.id = zealot_id or f"zealot-{uuid.uuid4().hex[:8]}"
-        self.agent = Agent(instructions=self.identity, tools=self.tools, mode="auto")
+        self.agent = None  # Injected by Gateway
     
     @property
     def identity(self) -> str:

@@ -10,7 +10,7 @@ import asyncio
 import uuid
 import websockets
 from typing import Dict
-from .constants import PYLON_DEFAULT_PORT, pylon_uri
+# Conclave uses singleton Khala discovery
 from .units.tassadar import Tassadar
 from .units.zeratul import Zeratul
 from .units.artanis import Artanis
@@ -24,8 +24,8 @@ class Conclave:
     Canonical protocol: Position → Consensus → Response
     """
 
-    def __init__(self, pylon_host: str = "localhost", pylon_port: int = PYLON_DEFAULT_PORT):
-        self.pylon_uri = pylon_uri(pylon_host, pylon_port)
+    def __init__(self):
+        # No configuration needed - uses singleton Khala discovery
         
         # Initialize Sacred Four constitutional minds
         self.tassadar = Tassadar()
@@ -119,23 +119,22 @@ class Conclave:
         
         try:
             # Connect to conclave pathway
-            pylon_uri = f"{self.pylon_uri}/{agent_id}"
+            from .khala import Khala
             
-            async with websockets.connect(pylon_uri) as websocket:
+            async with Khala.connect(agent_id) as khala:
                 print(f"🔹 {agent_id} joined conclave pathway")
                 
                 # Present initial position
-                msg = f"§PSI:{conclave_id}:{agent_id}:position:{position}"
-                await websocket.send(msg)
+                await khala.send(conclave_id, f"position:{position}")
                 print(f"💭 {agent_id} presented position")
                 
                 # Deliberate via Khala coordination
-                await self._khala_deliberation(sacred_agent.agent, agent_id, position, question, conclave_id, websocket)
+                await self._khala_deliberation(sacred_agent.agent, agent_id, position, question, conclave_id, khala)
                 
         except Exception as e:
             print(f"⚠️  {agent_id} participation failed: {e}")
 
-    async def _khala_deliberation(self, agent, agent_id: str, position: str, question: str, conclave_id: str, websocket):
+    async def _khala_deliberation(self, agent, agent_id: str, position: str, question: str, conclave_id: str, khala):
         """Agent deliberates via Khala coordination until consensus."""
         
         discussion_context = f"""
@@ -156,21 +155,27 @@ When consensus is reached, send: §PSI:{conclave_id}:{agent_id}:CONSENSUS:final_
 """
         
         try:
-            # Listen for Khala messages and respond appropriately
-            async for message in websocket:
+            # Listen for Khala messages and respond appropriately  
+            while True:
+                psi_message = await khala.receive()
+                if not psi_message:
+                    break
+                message = psi_message.content
                 prompt = f"{discussion_context}\n\nIncoming: {message}\n\nRespond if appropriate:"
                 
-                # Stream response via cogency (this is where WebSocket issues occur)
-                async for event in agent.stream(prompt, conversation_id=f"{agent_id}-conclave"):
-                    if event.get("type") == "respond":
-                        response = event.get("content", "").strip()
-                        if response and not response.lower().startswith("no response"):
-                            await websocket.send(response)
-                            print(f"⚡ {agent_id}: {response[:50]}...")
-                        break
+                # Stream response via cogency async generator
+                agent_stream = agent(prompt, conversation_id=f"{agent_id}-conclave")
+                try:
+                    async for event in agent_stream:
+                        if event.get("type") == "respond":
+                            response = event.get("content", "").strip()
+                            if response and not response.lower().startswith("no response"):
+                                await khala.send(conclave_id, f"discuss:{response}")
+                                print(f"⚡ {agent_id}: {response[:50]}...")
+                            break
+                finally:
+                    await agent_stream.aclose()
                         
-        except websockets.exceptions.ConnectionClosed:
-            print(f"🔌 {agent_id} connection closed")
         except Exception as e:
             print(f"❌ {agent_id} deliberation error: {e}")
 

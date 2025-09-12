@@ -37,7 +37,7 @@ class Artanis:
     
     def __init__(self, artanis_id: str = None):
         self.id = artanis_id or f"artanis-{uuid.uuid4().hex[:8]}"
-        self.agent = Agent(instructions=self.identity, tools=self.tools, mode="auto", llm="gemini")
+        self.agent = None  # Injected by Gateway
     
     @property
     def identity(self) -> str:
@@ -68,5 +68,13 @@ Based on your identity and values, provide your definitive stance with reasoning
         from ..khala import Psi
         
         # Use the Agent's simple call interface for position formation
-        result = await self.agent(prompt, user_id="artanis", conversation_id=f"{self.id}-pos")
+        # Use async generator pattern for Agent
+        agent_stream = self.agent(prompt, user_id="artanis", conversation_id=f"{self.id}-pos")
+        try:
+            async for event in agent_stream:
+                if event.get("type") == "respond":
+                    result = event.get("content", "")
+                    break
+        finally:
+            await agent_stream.aclose()
         return result

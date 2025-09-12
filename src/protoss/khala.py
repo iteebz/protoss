@@ -77,13 +77,75 @@ class Psi:
         return re.findall(r'@([a-zA-Z0-9_-]+)', self.content)
 
 
+class KhalaConnection:
+    """Individual agent connection to Khala network."""
+    
+    def __init__(self, agent_id: str):
+        self.agent_id = agent_id
+        self.connection = None
+        
+    async def __aenter__(self):
+        """Connect to Khala network."""
+        connection_uri = f"{Khala.get_grid_uri()}/{self.agent_id}"
+        self.connection = await websockets.connect(connection_uri)
+        print(f"🔹 {self.agent_id} connected to Khala network")
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Disconnect from Khala network."""
+        if self.connection:
+            await self.connection.close()
+            print(f"🔌 {self.agent_id} disconnected from Khala")
+            
+    async def send(self, pathway: str, content: str):
+        """Send psi message to pathway."""
+        psi = Psi(pathway=pathway, sender=self.agent_id, content=content)
+        await self.connection.send(psi.serialize())
+        
+    async def receive(self):
+        """Receive psi message."""
+        try:
+            raw_message = await self.connection.recv()
+            return Psi.parse(raw_message)
+        except websockets.exceptions.ConnectionClosed:
+            return None
+
+
 class Khala:
     """THE central coordination system. Slack for AI agents. En taro Adun."""
+    
+    _instance = None
+    _grid_port = None
 
-    def __init__(self):
-        self.subscribers: Dict[str, Set[str]] = {}  # pathway -> minds
-        self.memories: Dict[str, List[Psi]] = {}  # pathway -> memories
-        self.max_memory = 50
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.subscribers = {}  # pathway -> minds
+            cls._instance.memories = {}  # pathway -> memories
+            cls._instance.max_memory = 50
+        return cls._instance
+
+    @classmethod
+    def set_grid_port(cls, port: int):
+        """Set the active Pylon grid port."""
+        cls._grid_port = port
+        
+    @classmethod
+    def get_grid_port(cls) -> int:
+        """Get the active Pylon grid port."""
+        from .constants import PYLON_DEFAULT_PORT
+        return cls._grid_port or PYLON_DEFAULT_PORT
+        
+    @classmethod
+    def get_grid_uri(cls) -> str:
+        """Get the active Pylon grid WebSocket URI."""
+        from .constants import pylon_uri
+        return pylon_uri("localhost", cls.get_grid_port())
+        
+    @classmethod
+    def connect(cls, agent_id: str):
+        """Connect agent to Khala network."""
+        return KhalaConnection(agent_id)
 
     async def transmit(
         self, message: Psi, agents: Dict[str, websockets.WebSocketServerProtocol]

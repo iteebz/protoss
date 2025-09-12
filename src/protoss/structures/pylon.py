@@ -60,7 +60,7 @@ class Pylon:
                 message = Psi.parse(raw_message)
                 if message:
                     # Forward to appropriate handler
-                    if message.target == "system" and message.type == "status":
+                    if message.pathway == "system" and message.content.startswith("status"):
                         await self._handle_status_query(message, websocket)
                     else:
                         # All coordination goes directly to Khala
@@ -99,11 +99,11 @@ class Pylon:
                 result = {"error": f"Unknown command: {command}"}
             
             # Send result back via Khala
-            response = f"§PSI:{message.source}:system:result:{json.dumps(result)}"
+            response = f"§PSI|system|pylon: {json.dumps(result)}"
             await websocket.send(response)
             
         except Exception as e:
-            error_response = f"§PSI:{message.source}:system:result:{json.dumps({'error': str(e)})}"
+            error_response = f"§PSI|system|pylon: {json.dumps({'error': str(e)})}"
             await websocket.send(error_response)
 
     # CLI INSPECTION METHODS - DELEGATE TO COMPONENTS
@@ -144,10 +144,9 @@ class Pylon:
         try:
             # Send command to Carrier via Khala
             command_psi = Psi(
-                target=carrier_id,
-                source="cli-interface",
-                type="human_command",
-                content=human_command
+                pathway=carrier_id,
+                sender="cli-interface",
+                content=f"human_command:{human_command}"
             )
             
             carrier_socket = self.agents.get(carrier_id)
@@ -198,10 +197,9 @@ class Pylon:
         try:
             # Send stop command to Carrier
             stop_psi = Psi(
-                target=carrier_id,
-                source="cli-interface", 
-                type="stop",
-                content="Despawn request from CLI"
+                pathway=carrier_id,
+                sender="cli-interface",
+                content="stop:Despawn request from CLI"
             )
             
             carrier_socket = self.agents.get(carrier_id)
@@ -231,7 +229,7 @@ class Pylon:
             if len(current_memories) > initial_count:
                 # Found new response
                 latest_message = current_memories[-1]
-                if latest_message.source == carrier_id and latest_message.type == "response":
+                if latest_message.sender == carrier_id:
                     return latest_message.content
             
             await asyncio.sleep(0.1)  # Brief polling interval
