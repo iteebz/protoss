@@ -27,8 +27,8 @@ class Nexus:
         self.archon = None
         self.carrier = None
 
-    async def initialize_infrastructure(self):
-        """Initialize all Protoss coordination infrastructure."""
+    async def build_base(self):
+        """Build all Protoss coordination infrastructure."""
         print(f"⚡ Initializing Protoss infrastructure on port {self.port}")
         
         # Core infrastructure - Khala discovers the grid
@@ -51,16 +51,10 @@ class Nexus:
 
     async def start_grid(self):
         """Start complete Protoss coordination infrastructure."""
-        await self.initialize_infrastructure()
+        await self.build_base()
         
-        print("🔹 Infrastructure running. Press Ctrl+C to stop.")
-        try:
-            await self._shutdown_event.wait()  # Wait for shutdown signal
-        except KeyboardInterrupt:
-            print("\n⚡ Stopping Protoss infrastructure...")
-        finally:
-            await self.shutdown_infrastructure()
-            print("🔹 Infrastructure offline")
+        print("🔹 Infrastructure running. Ready for coordination.")
+        print("💡 Run 'protoss stop' to shutdown.")
 
     async def shutdown_infrastructure(self):
         """Gracefully shutdown all infrastructure."""
@@ -73,7 +67,7 @@ class Nexus:
     async def spawn_carrier(self):
         """Deploy Carrier using existing infrastructure."""
         if not self.carrier:
-            await self.initialize_infrastructure()
+            await self.build_base()
         
         print("🛸 Carrier deploying...")
         
@@ -88,7 +82,7 @@ class Nexus:
     async def carrier_interface(self, command: str):
         """Clean conversational interface to Carrier using infrastructure."""
         if not self.carrier:
-            await self.initialize_infrastructure()
+            await self.build_base()
         
         try:
             response = await self.carrier.process_command(command)
