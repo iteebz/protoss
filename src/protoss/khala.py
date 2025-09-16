@@ -86,7 +86,7 @@ class KhalaConnection:
         
     async def __aenter__(self):
         """Connect to Khala network."""
-        connection_uri = f"{Khala.get_grid_uri()}/{self.agent_id}"
+        connection_uri = f"{khala.get_grid_uri()}/{self.agent_id}"
         self.connection = await websockets.connect(connection_uri)
         print(f"🔹 {self.agent_id} connected to Khala network")
         return self
@@ -112,53 +112,62 @@ class KhalaConnection:
 
 
 class Khala:
-    """THE central coordination system. Slack for AI agents. En taro Adun."""
+    """Khala implementation - singleton consciousness substrate."""
     
-    _instance = None
-    _grid_port = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.subscribers = {}  # pathway -> minds
-            cls._instance.memories = {}  # pathway -> memories
-            cls._instance.max_memory = 50
-        return cls._instance
-
-    @classmethod
-    def set_grid_port(cls, port: int):
-        """Set the active Pylon grid port."""
-        cls._grid_port = port
+    def __init__(self):
+        self.subscribers = {}  # pathway -> minds
+        self.memories = {}  # pathway -> memories  
+        self.agents = {}  # agent_id -> websocket connection
+        self.max_memory = 50
+        self._grid_port = None
         
-    @classmethod
-    def get_grid_port(cls) -> int:
+        # Background persistence
+        from .forge import SQLite
+        self.storage: "Storage" = SQLite()
+
+    def set_grid_port(self, port: int):
+        """Set the active Pylon grid port."""
+        self._grid_port = port
+        
+    def get_grid_port(self) -> int:
         """Get the active Pylon grid port."""
         from .constants import PYLON_DEFAULT_PORT
-        return cls._grid_port or PYLON_DEFAULT_PORT
+        return self._grid_port or PYLON_DEFAULT_PORT
         
-    @classmethod
-    def get_grid_uri(cls) -> str:
+    def get_grid_uri(self) -> str:
         """Get the active Pylon grid WebSocket URI."""
         from .constants import pylon_uri
-        return pylon_uri("localhost", cls.get_grid_port())
+        return pylon_uri("localhost", self.get_grid_port())
         
-    @classmethod
-    def connect(cls, agent_id: str):
+    def connect(self, agent_id: str):
         """Connect agent to Khala network."""
         return KhalaConnection(agent_id)
 
-    async def transmit(
-        self, message: Psi, agents: Dict[str, websockets.WebSocketServerProtocol]
-    ):
-        """Transmit thought through the Khala network."""
+    async def transmit(self, pathway: str = None, sender: str = None, content: str = None, psi: Psi = None):
+        """Stream consciousness to pathway - canonical coordination interface."""
+        if psi is None:
+            psi = Psi(pathway=pathway, sender=sender, content=content)
         
         # Handle direct messages to specific agents
-        if message.is_direct_message:
-            await self._transmit_direct(message, agents)
+        if psi.is_direct_message:
+            target_agent = psi.pathway
+            
+            # LOCAL MODE: Just log the direct message
+            print(f"💌 DIRECT → {target_agent} ({psi.sender}): {psi.content[:60]}...")
+            
+            # WebSocket mode (if connected)
+            socket = self.agents.get(target_agent)
+            if socket:
+                try:
+                    await socket.send(psi.serialize())
+                    print(f"💌 WebSocket → {target_agent}: {psi.content[:30]}...")
+                except websockets.exceptions.ConnectionClosed:
+                    self.agents.pop(target_agent, None)
+                    self.sever(target_agent)
             return
             
         # Handle pathway broadcasts
-        pathway = message.pathway
+        pathway = psi.pathway
 
         # Auto-create pathway if it doesn't exist
         if pathway not in self.subscribers:
@@ -166,89 +175,100 @@ class Khala:
             self.memories[pathway] = []
             print(f"🔮 Khala pathway opened: {pathway}")
 
-        # Store memory in Khala (no auto-attune, let agents join explicitly)
-        self.memories[pathway].append(message)
+        # Store memory in Khala
+        self.memories[pathway].append(psi)
         # Trim memories to max_memory
         if len(self.memories[pathway]) > self.max_memory:
             self.memories[pathway] = self.memories[pathway][-self.max_memory :]
 
-        # Broadcast to all attuned minds
-        attuned_minds = self.subscribers[pathway]
+        # Background persistence to forge
+        import asyncio
+        asyncio.create_task(self.storage.save_psi(pathway, psi.sender, psi.content, psi.timestamp))
+
+        # LOCAL MODE: Just log the transmission for now
+        print(f"⚡ PSI → {pathway} ({psi.sender}): {psi.content[:60]}...")
+        
+        # Broadcast to all attuned minds (WebSocket mode)
+        attuned_minds = self.subscribers.get(pathway, set())
         
         # Send to mentioned agents even if not on pathway
-        mentioned_agents = set(message.mentions)
+        mentioned_agents = set(psi.mentions)
         target_agents = attuned_minds | mentioned_agents
         
         for agent_id in target_agents:
-            socket = agents.get(agent_id)
+            socket = self.agents.get(agent_id)
             if socket:
                 try:
-                    await socket.send(message.serialize())
+                    await socket.send(psi.serialize())
                     mention_indicator = "📣" if agent_id in mentioned_agents else "⚡"
-                    print(f"{mention_indicator} Khala → {agent_id}: {message.content[:30]}...")
+                    print(f"{mention_indicator} Khala → {agent_id}: {psi.content[:30]}...")
                 except websockets.exceptions.ConnectionClosed:
-                    agents.pop(agent_id, None)
+                    self.agents.pop(agent_id, None)
                     self.sever(agent_id)
 
-    async def _transmit_direct(
-        self, message: Psi, agents: Dict[str, websockets.WebSocketServerProtocol]
-    ):
-        """Send direct message to specific agent."""
-        target_agent = message.pathway
-        socket = agents.get(target_agent)
+    def attune(self, pathway: str, since_timestamp: float = 0) -> List[Psi]:
+        """Absorb consciousness streams from pathway since timestamp."""
+        if pathway not in self.memories:
+            return []
+            
+        # Return messages since timestamp for coordination awareness
+        return [
+            msg for msg in self.memories[pathway] 
+            if msg.timestamp > since_timestamp
+        ]
+
+    def register_agent(self, agent_id: str, websocket):
+        """Register agent connection with Khala."""
+        self.agents[agent_id] = websocket
+        print(f"🔹 {agent_id} registered with Khala")
         
-        if socket:
-            try:
-                await socket.send(message.serialize())
-                print(f"💌 Direct → {target_agent}: {message.content[:30]}...")
-            except websockets.exceptions.ConnectionClosed:
-                agents.pop(target_agent, None)
-                self.sever(target_agent)
-        else:
-            print(f"❌ Agent {target_agent} not connected for direct message")
-
-    def attune(self, agent_id: str, pathway: str) -> List[Psi]:
-        """Agent attunes to psychic pathway, returns recent memories."""
-        if pathway not in self.subscribers:
-            self.subscribers[pathway] = set()
-            self.memories[pathway] = []
-
-        self.subscribers[pathway].add(agent_id)
-        # Return last 10 memories for context
-        return self.memories[pathway][-10:] if self.memories[pathway] else []
-
     def sever(self, agent_id: str):
         """Remove agent from all Khala pathways."""
         for pathway_agents in self.subscribers.values():
             pathway_agents.discard(agent_id)
+        self.agents.pop(agent_id, None)
 
     # KHALA INSPECTION - FOR THE NEXUS COMMAND
 
-    def get_status(self) -> dict:
-        """Get Khala network status."""
+    @property
+    def status(self) -> dict:
+        """Khala network status."""
         return {
             "pathways": len(self.subscribers),
             "total_minds": sum(len(minds) for minds in self.subscribers.values()),
             "total_memories": sum(len(memories) for memories in self.memories.values()),
         }
 
-    def get_pathways(self) -> List[dict]:
-        """Get all pathways with stats."""
-        pathways = []
+    async def pathways(self) -> List[dict]:
+        """All pathways with stats (combines memory + persistent data)."""
+        # Get persistent pathways from storage
+        persistent_pathways = await self.storage.load_pathways()
+        
+        # Merge with in-memory pathways
+        pathways = {}
+        
+        # Add persistent pathways
+        for p in persistent_pathways:
+            pathways[p["name"]] = {
+                "name": p["name"],
+                "minds": 0,  # Will update from memory
+                "memories": p["message_count"],
+                "recent_thought": None,  # Will update from memory
+            }
+        
+        # Update with in-memory data
         for name, minds in self.subscribers.items():
+            if name not in pathways:
+                pathways[name] = {"name": name, "minds": 0, "memories": 0, "recent_thought": None}
+            
+            pathways[name]["minds"] = len(minds)
             memories = self.memories.get(name, [])
-            pathways.append(
-                {
-                    "name": name,
-                    "minds": len(minds),
-                    "memories": len(memories),
-                    "recent_thought": memories[-1].serialize() if memories else None,
-                }
-            )
-        return sorted(pathways, key=lambda x: x["memories"], reverse=True)
+            pathways[name]["recent_thought"] = memories[-1].serialize() if memories else None
+            
+        return sorted(pathways.values(), key=lambda x: x["memories"], reverse=True)
 
-    def get_pathway(self, name: str) -> Optional[dict]:
-        """Get pathway details."""
+    def pathway(self, name: str) -> Optional[dict]:
+        """Pathway details."""
         if name not in self.subscribers:
             return None
 
@@ -262,12 +282,11 @@ class Khala:
             "history_limit": self.max_memory,
         }
 
-    def get_minds(
-        self, agents: Dict[str, websockets.WebSocketServerProtocol]
-    ) -> List[dict]:
-        """Get all minds with pathways."""
+    @property 
+    def minds(self) -> List[dict]:
+        """All minds with pathways."""
         minds = []
-        for agent_id in agents:
+        for agent_id in self.agents:
             pathways = [
                 name for name, subs in self.subscribers.items() if agent_id in subs
             ]
@@ -276,10 +295,17 @@ class Khala:
             )
         return sorted(minds, key=lambda x: x["pathway_count"], reverse=True)
     
-    def get_recent_messages(self, pathway: str, since: float) -> List[str]:
-        """Get formatted recent messages from pathway since timestamp."""
-        if pathway not in self.memories:
-            return []
+    async def recent_messages(self, pathway: str, since: float = 0) -> List[str]:
+        """Recent messages from pathway since timestamp."""
+        # Try in-memory first (hot data)
+        if pathway in self.memories:
+            recent = [msg for msg in self.memories[pathway] if msg.timestamp > since]
+            if recent:
+                return [msg.content for msg in recent]
         
-        recent = [msg for msg in self.memories[pathway] if msg.timestamp > since]
-        return [msg.content for msg in recent]
+        # Fallback to persistent storage (cold data)
+        return await self.storage.get_recent_messages(pathway, limit=10)
+
+
+# Module-level singleton - clean and direct
+khala = Khala()

@@ -3,65 +3,65 @@
 import uuid
 from cogency import Agent
 from cogency.tools import FileRead, FileList
+from . import Unit
 
 
-class Stalker:
-    """**STALKER - ARCHITECTURAL PURITY ENFORCER**
-
-    **Default: NO. Prove quality deserves YES.**
-
-    ## CORE MANDATE
-    **Preserve architectural purity through rejection:**
-    - Zealots cut corners → REJECTED
-    - Ceremony added → REJECTED  
-    - Standards slipped → REJECTED
-    - Shortcuts taken → REJECTED
-
-    ## 5 QUALITY GATES
-    **Every solution must pass ALL:**
-    1. **Reference Grade** - Is this exemplary work?
-    2. **Canonical** - Is this THE definitive way?
-    3. **Beauty** - Does this add ceremony or reduce it?
-    4. **Regret Test** - Will we fucking regret this in 6 months?
-    5. **Extensibility** - Can this grow cleanly without breaking?
-
-    **ANY FAILURE → REJECTED WITH SURGICAL REASONING**
-
-    ## REVIEW PROTOCOL
-    **Assume implementation is wrong until proven otherwise:**
-
-    **PURITY CHECK** - Does this maintain architectural beauty?
-    **ZEALOT VERIFICATION** - Did they actually do the work?
-    **FUTURE SAFETY** - Will this break when we touch it?
-
-    ## REJECTION AUTHORITY
-    **Binary outcomes only:**
-    - **APPROVED** - All 5 gates passed
-    - **REJECTED** - Gate failure detected
-
-    **Quality standards never slip. Ever.**
-    """
-    
+class Stalker(Unit):
+    # IDENTITY - Constitutional framework
     def __init__(self, stalker_id: str = None):
         self.id = stalker_id or f"stalker-{uuid.uuid4().hex[:8]}"
         self.agent = None  # Injected by Gateway
     
     @property
     def identity(self) -> str:
-        """Extract identity from class docstring."""
-        lines = self.__class__.__doc__.split('\n')[2:]  # Skip class description
-        return '\n'.join(line.strip() for line in lines if line.strip())
+        """**STALKER - ARCHITECTURAL PURITY ENFORCER**
+
+        **Default: NO. Prove quality deserves YES.**
+
+        ## CORE MANDATE
+        **Preserve architectural purity through rejection:**
+        - Zealots cut corners → REJECTED
+        - Ceremony added → REJECTED  
+        - Standards slipped → REJECTED
+        - Shortcuts taken → REJECTED
+
+        ## 5 QUALITY GATES
+        **Every solution must pass ALL:**
+        1. **Reference Grade** - Is this exemplary work?
+        2. **Canonical** - Is this THE definitive way?
+        3. **Beauty** - Does this add ceremony or reduce it?
+        4. **Regret Test** - Will we fucking regret this in 6 months?
+        5. **Extensibility** - Can this grow cleanly without breaking?
+
+        **ANY FAILURE → REJECTED WITH SURGICAL REASONING**
+
+        ## REVIEW PROTOCOL
+        **Assume implementation is wrong until proven otherwise:**
+
+        **PURITY CHECK** - Does this maintain architectural beauty?
+        **ZEALOT VERIFICATION** - Did they actually do the work?
+        **FUTURE SAFETY** - Will this break when we touch it?
+
+        ## REJECTION AUTHORITY
+        **Binary outcomes only:**
+        - **APPROVED** - All 5 gates passed
+        - **REJECTED** - Gate failure detected
+
+        **Quality standards never slip. Ever.**
+        """
     
+    # TOOLS - Weapons/capabilities
     @property
     def tools(self):
-        """Stalker tool configuration - read-only review toolkit."""
-        return [FileRead(), FileList()]  # No write tools - prevents implementation bias
+        """Read-only review toolkit - prevents implementation bias."""
+        return [FileRead(), FileList()]
     
-    @property
-    def lifecycle(self) -> str:
-        """Stalker lifecycle pattern."""
-        return "ephemeral"  # spawn → review → approve|reject → die
-    
+    # IMPLEMENTATION - Coordination methods
+    async def execute(self, task: str, pathway: str) -> None:
+        """Execute quality review with information asymmetry."""
+        print(f"🛡️ {self.id} reviewing: {task[:50]}...")
+        await super().execute(task, pathway)
+
     async def review(self, work_report: str, file_paths: list = None) -> str:
         """Review Zealot work through information asymmetry protocol."""
         print(f"🛡️ {self.id} reviewing work: {work_report[:50]}...")
@@ -96,10 +96,14 @@ Return detailed assessment of what this report claims was accomplished.
 """
         
         result = ""
-        async for event in self.agent.stream(prompt, conversation_id=f"{self.id}-report"):
-            if event.get("type") == "respond":
-                result = event.get("content", "")
-                break
+        stream = self.agent(prompt, conversation_id=f"{self.id}-report")
+        try:
+            async for event in stream:
+                if event.get("type") == "respond":
+                    result = event.get("content", "")
+                    break
+        finally:
+            await stream.aclose()
         return result or "Report review completed"
     
     async def _review_code(self, file_paths: list) -> str:
@@ -119,10 +123,14 @@ Use FileRead to examine the actual code. Return detailed technical assessment.
 """
         
         result = ""
-        async for event in self.agent.stream(prompt, conversation_id=f"{self.id}-code"):
-            if event.get("type") == "respond":
-                result = event.get("content", "")
-                break
+        stream = self.agent(prompt, conversation_id=f"{self.id}-code")
+        try:
+            async for event in stream:
+                if event.get("type") == "respond":
+                    result = event.get("content", "")
+                    break
+        finally:
+            await stream.aclose()
         return result or "Code review completed"
     
     async def _apply_quality_gates(self, work_report: str, report_assessment: str, code_assessment: str) -> str:
@@ -151,10 +159,14 @@ Quality standards never slip.
 """
         
         result = ""
-        async for event in self.agent.stream(prompt, conversation_id=f"{self.id}-gates"):
-            if event.get("type") == "respond":
-                result = event.get("content", "")
-                break
+        stream = self.agent(prompt, conversation_id=f"{self.id}-gates")
+        try:
+            async for event in stream:
+                if event.get("type") == "respond":
+                    result = event.get("content", "")
+                    break
+        finally:
+            await stream.aclose()
         
         # Ensure binary outcome
         if result and ("APPROVED" in result.upper() or "REJECTED" in result.upper()):

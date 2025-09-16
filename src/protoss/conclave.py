@@ -27,11 +27,14 @@ class Conclave:
     def __init__(self):
         # No configuration needed - uses singleton Khala discovery
         
-        # Initialize Sacred Four constitutional minds
-        self.tassadar = Tassadar()
-        self.zeratul = Zeratul()
-        self.artanis = Artanis()
-        self.fenix = Fenix()
+        # Initialize Sacred Four constitutional minds via Gateway
+        from .structures.gateway import Gateway
+        gateway = Gateway()
+        
+        self.tassadar = gateway.spawn("tassadar")
+        self.zeratul = gateway.spawn("zeratul")
+        self.artanis = gateway.spawn("artanis")
+        self.fenix = gateway.spawn("fenix")
         
         self.sacred_four = {
             "tassadar": self.tassadar,
@@ -88,30 +91,81 @@ class Conclave:
         
         conclave_id = f"conclave-{uuid.uuid4().hex[:8]}"
         
-        # Spawn Sacred Four into Khala deliberation pathway
-        tasks = [
-            self._participate(self.tassadar, positions["tassadar"], question, conclave_id),
-            self._participate(self.zeratul, positions["zeratul"], question, conclave_id),
-            self._participate(self.artanis, positions["artanis"], question, conclave_id),
-            self._participate(self.fenix, positions["fenix"], question, conclave_id)
+        # Sacred Four deliberate via Khala pathways until consensus
+        participation_tasks = [
+            self._participate(agent, positions[name], question, conclave_id)
+            for name, agent in self.sacred_four.items()
         ]
+        
+        # Wait for consensus to emerge
+        await asyncio.gather(*participation_tasks, return_exceptions=True)
+        
+        # Extract consensus from Khala pathway
+        return await self._extract_consensus(conclave_id)
+        
+    async def _extract_consensus(self, conclave_id: str) -> str:
+        """Extract consensus from Khala pathway memories."""
+        from .khala import khala
+        
+        # Get pathway memories
+        pathway_data = khala.pathway(conclave_id)
+        if not pathway_data:
+            return "CONSENSUS FAILED: No deliberation pathway found"
+        
+        memories = pathway_data.get('recent_memories', [])
+        if not memories:
+            return "CONSENSUS FAILED: No deliberation messages found"
+        
+        # Look for CONSENSUS messages or extract final guidance
+        consensus_messages = [msg for msg in memories if 'CONSENSUS' in msg or 'consensus' in msg.lower()]
+        
+        if consensus_messages:
+            return f"SACRED FOUR CONSENSUS:\n\n{consensus_messages[-1]}"
+        else:
+            # Synthesize consensus from deliberation using constitutional synthesis
+            return await self._synthesize_consensus(memories)
 
-        # Wait for consensus via Khala coordination
-        await asyncio.gather(*tasks)
+    async def _synthesize_consensus(self, memories: list) -> str:
+        """Synthesize coherent consensus from Sacred Four deliberation."""
+        from cogency import Agent
         
-        # TODO: Extract consensus from Khala pathway
-        # For now, return synthesis of positions
-        return self._synthesize_positions(positions)
+        # Join all deliberation messages
+        deliberation = "\n".join(memories[-20:])  # Last 20 messages for context
         
-    def _synthesize_positions(self, positions: Dict[str, str]) -> str:
-        """Temporary synthesis until Khala consensus extraction works."""
-        print(f"⚡ Phase 3: Synthesizing Sacred Four guidance...")
+        synthesis_prompt = f"""
+SACRED FOUR CONSTITUTIONAL SYNTHESIS
+
+You are synthesizing the deliberation of the Sacred Four into coherent constitutional guidance.
+
+DELIBERATION RECORD:
+{deliberation}
+
+Your task:
+1. Extract the core points of agreement
+2. Identify where consensus was reached
+3. Synthesize into clear constitutional guidance
+4. If no clear consensus, state the main competing positions
+
+Respond with:
+SACRED FOUR CONSENSUS: [Clear, actionable constitutional guidance based on the deliberation]
+"""
         
-        synthesis = "SACRED FOUR CONSTITUTIONAL GUIDANCE\n\n"
-        for name, position in positions.items():
-            synthesis += f"{name.upper()}: {position}\n\n"
+        # Use basic agent for synthesis
+        synthesizer = Agent(
+            instructions="You synthesize complex deliberations into clear decisions. Focus on extracting actionable guidance.",
+            tools=[]
+        )
         
-        return synthesis.strip()
+        try:
+            stream = synthesizer(synthesis_prompt, conversation_id="consensus-synthesis")
+            async for event in stream:
+                if event.get("type") == "respond":
+                    return event.get("content", "SYNTHESIS FAILED: No response generated")
+            await stream.aclose()
+        except Exception as e:
+            return f"SYNTHESIS FAILED: {e}\n\nRAW DELIBERATION:\n{deliberation}"
+        
+        return "SYNTHESIS FAILED: No valid consensus extracted"
 
     async def _participate(self, sacred_agent, position: str, question: str, conclave_id: str):
         """Sacred Four agent participates in Khala deliberation."""
@@ -119,22 +173,21 @@ class Conclave:
         
         try:
             # Connect to conclave pathway
-            from .khala import Khala
-            
-            async with Khala.connect(agent_id) as khala:
+            from .khala import khala
+            async with khala.connect(agent_id) as khala_conn:
                 print(f"🔹 {agent_id} joined conclave pathway")
                 
                 # Present initial position
-                await khala.send(conclave_id, f"position:{position}")
+                await khala_conn.send(conclave_id, f"position:{position}")
                 print(f"💭 {agent_id} presented position")
                 
                 # Deliberate via Khala coordination
-                await self._khala_deliberation(sacred_agent.agent, agent_id, position, question, conclave_id, khala)
+                await self._khala_deliberation(sacred_agent.agent, agent_id, position, question, conclave_id, khala_conn)
                 
         except Exception as e:
             print(f"⚠️  {agent_id} participation failed: {e}")
 
-    async def _khala_deliberation(self, agent, agent_id: str, position: str, question: str, conclave_id: str, khala):
+    async def _khala_deliberation(self, agent, agent_id: str, position: str, question: str, conclave_id: str, khala_conn):
         """Agent deliberates via Khala coordination until consensus."""
         
         discussion_context = f"""
@@ -157,7 +210,7 @@ When consensus is reached, send: §PSI:{conclave_id}:{agent_id}:CONSENSUS:final_
         try:
             # Listen for Khala messages and respond appropriately  
             while True:
-                psi_message = await khala.receive()
+                psi_message = await khala_conn.receive()
                 if not psi_message:
                     break
                 message = psi_message.content
@@ -170,7 +223,7 @@ When consensus is reached, send: §PSI:{conclave_id}:{agent_id}:CONSENSUS:final_
                         if event.get("type") == "respond":
                             response = event.get("content", "").strip()
                             if response and not response.lower().startswith("no response"):
-                                await khala.send(conclave_id, f"discuss:{response}")
+                                await khala_conn.send(conclave_id, f"discuss:{response}")
                                 print(f"⚡ {agent_id}: {response[:50]}...")
                             break
                 finally:

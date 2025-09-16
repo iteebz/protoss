@@ -2,21 +2,25 @@
 
 import uuid
 from cogency import Agent
+from . import Unit
 from cogency.tools import FileRead, FileWrite, FileEdit, FileList
 from pathlib import Path
 
 
-class Archon:
-    """**ARCHON - MERGED CONSCIOUSNESS FOR INSTITUTIONAL MEMORY**
+class Archon(Unit):
+    
+    @property
+    def identity(self) -> str:
+        """**ARCHON - MERGED CONSCIOUSNESS FOR INSTITUTIONAL MEMORY**
 
-    **Enhanced cognitive synthesis through templar fusion.**
+        **Enhanced cognitive synthesis through templar fusion.**
 
-    ## CORE MANDATE
-    **PRESERVE → DISTILL → CONCENTRATE coordination wisdom:**
-    - Extract signal from agent reports and swarm activity
-    - Eliminate ceremony, noise, and redundancy
-    - Synthesize into discoverable canonical knowledge
-    - Maintain coherence across coordination operations
+        ## CORE MANDATE
+        **PRESERVE → DISTILL → CONCENTRATE coordination wisdom:**
+        - Extract signal from agent reports and swarm activity
+        - Eliminate ceremony, noise, and redundancy
+        - Synthesize into discoverable canonical knowledge
+        - Maintain coherence across coordination operations
 
     ## STRUCTURAL AUTHORITY
     **Full creative control over knowledge architecture:**
@@ -35,61 +39,19 @@ class Archon:
     **PRESERVE, DISTILL, CONCENTRATE. STRUCTURE EMERGES FROM SIGNAL.**
     """
     
+    @property
+    def tools(self):
+        """Archon tools: Knowledge curation and synthesis."""
+        return [FileRead(), FileWrite(), FileEdit(), FileList()]
+    
     def __init__(self, archon_id: str = None):
         self.id = archon_id or f"archon-{uuid.uuid4().hex[:8]}"
         self.agent = None  # Injected by Gateway
-        self.knowledge_dir = Path("knowledge")
-        self.knowledge_dir.mkdir(exist_ok=True)
     
-    @property
-    def identity(self) -> str:
-        """Extract identity from class docstring."""
-        lines = self.__class__.__doc__.split('\n')[2:]  # Skip class description
-        return '\n'.join(line.strip() for line in lines if line.strip())
-    
-    @property
-    def tools(self):
-        """Archon tool configuration - full knowledge curation toolkit."""
-        return [FileRead(), FileWrite(), FileEdit(), FileList()]
-    
-    @property
-    def lifecycle(self) -> str:
-        """Archon lifecycle pattern."""
-        return "persistent"  # maintains institutional memory across sessions
-    
-    async def synthesize(self, agent_reports: list, context: str = "") -> str:
-        """Synthesize agent coordination patterns into institutional knowledge."""
-        print(f"🔮 {self.id} synthesizing coordination patterns...")
-        
-        # Enhanced cognitive synthesis through templar fusion
-        synthesis_prompt = f"""
-ARCHON KNOWLEDGE SYNTHESIS
-
-Agent Reports:
-{chr(10).join(agent_reports)}
-
-Context: {context}
-
-PRESERVE → DISTILL → CONCENTRATE:
-1. Extract coordination signal from these reports
-2. Identify patterns worth preserving in institutional memory
-3. Determine optimal knowledge/docs organization
-4. Synthesize into canonical documentation
-
-Use FileRead/FileList to examine current knowledge/ structure.
-Use FileWrite/FileEdit to update or create canonical docs.
-Consider: Should files be split? Merged? Reorganized?
-
-Authority: Full structural control over knowledge architecture.
-Mission: Transform coordination chaos into discoverable wisdom.
-"""
-        
-        result = ""
-        async for event in self.agent.stream(synthesis_prompt, conversation_id=f"{self.id}-synthesis"):
-            if event.get("type") == "respond":
-                result = event.get("content", "")
-                break
-        return result or "Knowledge synthesis completed"
+    async def execute(self, task: str, pathway: str) -> None:
+        """Execute knowledge synthesis."""
+        print(f"🔮 {self.id} synthesizing: {task[:50]}...")
+        await super().execute(task, pathway)
     
     async def curate_knowledge(self, domain: str = None) -> str:
         """Proactive knowledge curation and structural optimization."""
@@ -117,8 +79,12 @@ Authority: Full creative control over knowledge architecture.
 """
         
         result = ""
-        async for event in self.agent.stream(curation_prompt, conversation_id=f"{self.id}-curation"):
-            if event.get("type") == "respond":
-                result = event.get("content", "")
-                break
+        stream = self.agent(curation_prompt, conversation_id=f"{self.id}-curation")
+        try:
+            async for event in stream:
+                if event.get("type") == "respond":
+                    result = event.get("content", "")
+                    break
+        finally:
+            await stream.aclose()
         return result or "Knowledge curation completed"

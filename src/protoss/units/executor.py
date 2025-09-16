@@ -2,7 +2,7 @@
 
 import asyncio
 from cogency import Agent
-from ..khala import Khala
+from ..khala import khala
 from ..structures.gateway import Gateway
 from ..conclave import Conclave
 
@@ -13,7 +13,7 @@ class Executor:
     def __init__(self):
         self.id = "executor"  # Singleton command interface
         self.agent = Agent(instructions=self.identity)
-        self.khala = Khala()
+        self.khala = khala
         self.gateway = Gateway()
         self.conclave = Conclave()
     
@@ -48,19 +48,64 @@ class Executor:
         print(f"⚔️ {self.id} processing: {command}")
         
         # Agent reasons about command, we execute via existing infrastructure
-        agent_stream = self.agent(command)
+        stream = self.agent(command)
         result = ""
         
-        async for event in agent_stream:
+        async for event in stream:
             if event.get("type") == "respond":
                 result += event.get("content", "")
                 
         return result
     
     async def connect(self):
-        """Establish connection to Protoss coordination infrastructure."""
+        """Interactive chatbot loop."""
         print("⚔️ Executor operational - Command interface ready")
         print("🏛️ Khala pathways connected")
         print("🌀 Gateway spawning ready")
         print("🏛️ Conclave accessible")
-        print("\n> Ready for human commands")
+        print("Type 'exit' to disconnect\n")
+        
+        while True:
+            try:
+                command = input("> ")
+                if command.lower() in ['exit', 'quit']:
+                    print("⚔️ Executor disconnecting. En taro Adun!")
+                    break
+                    
+                # Simple chat with persistence
+                stream = self.agent(command, conversation_id="executor-session")
+                
+                async for event in stream:
+                    if event.get("type") == "respond":
+                        print(f"⚔️ {event.get('content', '')}")
+                        
+            except KeyboardInterrupt:
+                print("\n⚔️ Executor disconnecting. En taro Adun!")
+                break
+            except Exception as e:
+                print(f"❌ Error: {e}")
+                
+    async def coordinate(self, message: str):
+        """Atomic coordination - execute human message with conversation persistence."""
+        print(f"⚔️ Executor coordinating: {message[:60]}...")
+        
+        try:
+            # Execute with conversation persistence (fixed conversation_id)
+            stream = self.agent(message, conversation_id="executor-main")
+            
+            response = ""
+            async for event in stream:
+                if event.get("type") == "respond":
+                    content = event.get("content", "")
+                    response += content
+                    
+            # Display response using simple output for now
+            if response:
+                print(f"\n⚔️ EXECUTOR RESPONSE:")
+                print(response)
+            else:
+                print("⚔️ Coordination acknowledged")
+                
+        except Exception as e:
+            print(f"❌ Coordination failed: {e}")
+            raise
