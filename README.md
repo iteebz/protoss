@@ -2,76 +2,105 @@
 
 **Constitutional governance for AI swarms. Multi-agent coordination without collapse.**
 
-Distributed AI coordination through constitutional frameworks, democratic deliberation, and systematic escalation protocols.
-
-## Core Insight
-
-Constitutional identity frameworks enable persistent multi-agent coordination by routing the same model through different governance contexts. Individual agent intelligence remains constant - coordination governance provides the scaling advantage.
-
-## Architecture
-
-**Infrastructure (Buildings):**
-- **NEXUS** - CLI command center, auto-spawn Carrier, human interface
-- **PYLON** - WebSocket grid, powers Khala network
-- **GATEWAY** - Agent spawning facility, lifecycle management
-
-**Mobile Units (Agents):**
-- **ZEALOT** - Task execution, natural coordination, emergent specialization
-- **ARCHON** - Knowledge synthesis, institutional memory via @mention
-- **SACRED FOUR** - Constitutional deliberation and governance
-
-**SACRED FOUR** - Constitutional leadership through context asymmetry:
-- **Tassadar** - Pragmatic vision, shipping constraints
-- **Zeratul** - Shadow investigation, hidden risks  
-- **Artanis** - Collaborative synthesis, unity building
-- **Fenix** - Direct execution, complexity cutting
-
-**KHALA** - Slack for agents, `§PSI|pathway|sender: content` protocol
-
-**Command Flow:** `NEXUS → CARRIER → KHALA → MOBILE UNITS`  
-**Escalation:** `ZEALOT uncertainty → SACRED FOUR → CARRIER → NEXUS`
-
 ## Quick Start
 
+**Install:**
 ```bash
-# Start coordination infrastructure
-protoss start
-
-# Spawn individual units
-protoss spawn zealot "implement JWT authentication" 
-protoss spawn archon "synthesize auth patterns" 
-
-# Deploy natural coordination squads
-protoss warp "build user management API"      # 3 agents (default)
-protoss warp 5 "complex microservice design" # 5 agents for complex tasks
-
-# Monitor coordination activity
-protoss monitor
-protoss status
-
-# Sacred Four constitutional guidance
-protoss conclave "should we refactor to microservices?"
+pip install protoss
 ```
+
+**Basic Usage:**
+```python
+from protoss import Protoss, Config
+
+# Initialize coordination system
+protoss = Protoss(Config(agents=5, debug=True))
+
+# Execute coordination task
+result = await protoss("implement JWT authentication")
+print(result)  # "Direct coordination completed: implement JWT authentication (agents: 5)"
+```
+
+**Agent-Level Usage:**
+```python
+from protoss.core import Bus, Config
+from protoss.agents import Zealot, Archon, Conclave
+
+# Initialize coordination infrastructure
+config = Config()
+bus = Bus()
+await bus.start()
+
+# Create constitutional agents
+zealot = Zealot()
+archon = Archon()  
+conclave = Conclave("tassadar")  # Strategic perspective
+
+# Coordinate on task
+channel_id = "auth-implementation"
+task = "implement JWT authentication"
+
+await zealot.coordinate(task, channel_id, config, bus)
+```
+
+**CLI Interface:**
+```bash
+# Current commands
+protoss coordinate "build REST API" --agents 5
+protoss status
+protoss config
+```
+
+## Core Architecture
+
+**Infrastructure:**
+- **Bus** - Message routing and coordination for distributed agents
+- **Server** - WebSocket infrastructure for real-time communication  
+- **Gateway** - Agent spawning and lifecycle management
+
+**Constitutional Agents:**
+- **Zealot** - Task execution with constitutional principles
+- **Archon** - Knowledge management and institutional memory
+- **Conclave** - Strategic consultation through diverse perspectives
+
+**Coordination Flow:** `CLI → Bus → Agents → Channel Coordination`  
+**Escalation Flow:** `Agent uncertainty → Conclave consultation → Strategic guidance`
 
 ## Research Question
 
 Can Claude 5-level intelligence research Claude 6-level breakthroughs when properly coordinated through constitutional governance frameworks?
 
-The system tests coordination scaling as a pathway to recursive self-improvement - building coordination substrate that could support autonomous AI research teams.
+Multi-agent systems consistently collapse within ~10 minutes without human intervention. PROTOSS tests whether constitutional frameworks can extend coordination from minutes to months through democratic deliberation and systematic escalation protocols.
 
 ## Implementation Status
 
-**Current (v0.1):**
-- ✅ Core infrastructure (Gateway, Khala, Nexus)
-- ✅ Natural coordination units (Zealot, Archon)  
-- ✅ Sacred Four governance (Tassadar, Zeratul, Artanis, Fenix)
-- ✅ PSI protocol + @mention reactive spawning
-- ✅ CLI interface with monitoring
+**✅ Current (v0.1):**
+- Message Bus coordination infrastructure (Bus, Server)
+- Constitutional agents (Zealot, Archon, Conclave)  
+- Channel-based coordination with Message protocol
+- Explicit dependency injection architecture
+- CLI interface with basic coordination commands
 
-**Target capabilities:**
-- Hour-level autonomy (current research target)
-- Day-level autonomy (production threshold)
-- Month-level autonomy (recursive improvement threshold)
+**🔄 In Development:**
+- Real-time monitoring and conversational interface
+- Multi-agent coordination protocols
+- Advanced gateway spawning and lifecycle management
+
+## Documentation
+
+- **[Architecture](docs/ARCHITECTURE.md)** - Current implementation patterns and essential coordination insights
+- **[Vision](docs/VISION.md)** - Research question and recursive improvement vision
+- **[Roadmap](docs/ROADMAP.md)** - Implementation priorities and architectural decisions
+- **[Interface Design](docs/interface.md)** - UX/DX requirements and executor architecture
+- **[Coordination Patterns](docs/coordination.md)** - Essential multi-agent coordination insights
+
+## Target Capabilities
+
+- **Hour-level autonomy** → Current research target
+- **Day-level autonomy** → Production threshold
+- **Month-level autonomy** → Recursive improvement threshold
+
+Success metrics: Extended autonomous operation without human babysitting. Systems that remember decisions, learn from failures, coordinate without collapse.
 
 ⚔️ *En taro Adun*
 

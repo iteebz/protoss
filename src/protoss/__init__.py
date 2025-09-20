@@ -8,24 +8,24 @@ En taro Adun.
 # Load environment variables first
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
 
-from .core import Protoss, CoordinationEvent
-from .config import Config
-
-# Legacy exports for existing code
-from .structures import Nexus, Pylon, gateway
-from .units import Zealot
-from . import conclave
-from . import khala
-from .khala import Psi
+from .core import Protoss, Config
+from .agents import Zealot, Executor, Conclave
+from .core import deliberation
+from .core.bus import Bus, Message
 
 __version__ = "0.1.0"
 __all__ = [
-    # Primary API
-    "Protoss", "Config", "CoordinationEvent",
-    # Legacy exports
-    "Nexus", "gateway", "Pylon", "Zealot", "conclave", "khala", "Psi"
+    "Protoss",
+    "Config",
+    "Zealot",
+    "Executor",
+    "Conclave",
+    "deliberation",
+    "Bus",
+    "Message",
 ]

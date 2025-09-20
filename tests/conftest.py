@@ -30,22 +30,60 @@ def temp_protoss_dir():
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-@pytest.fixture(autouse=True)
-def cleanup_khala_state():
-    """Clean up Khala singleton state between tests."""
-    from protoss.khala import khala
+@pytest.fixture
+def bus():
+    """Create fresh Bus instance for testing."""
+    from protoss.core.bus import Bus
 
-    # Clear in-memory state
-    khala.subscribers.clear()
-    khala.memories.clear()
-    khala.agents.clear()
+    bus_instance = Bus()
+    yield bus_instance
 
-    yield
+    # Cleanup after test
+    if hasattr(bus_instance, "_server") and bus_instance._server:
+        asyncio.run(bus_instance.stop())
 
-    # Post-test cleanup
-    khala.subscribers.clear()
-    khala.memories.clear()
-    khala.agents.clear()
+
+@pytest.fixture
+def config():
+    """Create fresh Config instance for testing."""
+    from protoss.core.config import Config
+
+    return Config(debug=True, timeout=5)
+
+
+@pytest.fixture
+def mock_bus():
+    """Create mock Bus for unit testing."""
+    from unittest.mock import AsyncMock, Mock
+
+    mock = Mock()
+    mock.transmit = AsyncMock()
+    mock.register = Mock()
+    mock.history = Mock(return_value=[])
+    mock.channels = {}
+    mock.memories = {}
+    mock.start = AsyncMock()
+    mock.stop = AsyncMock()
+
+    return mock
+
+
+@pytest.fixture
+def mock_channel():
+    """Create mock channel with messages for testing."""
+    from protoss.core.bus import Bus, Message
+
+    bus = Bus()
+    channel_id = "test-channel"
+
+    # Add some test messages
+    msg1 = Message(channel_id, "agent1", "First message")
+    msg2 = Message(channel_id, "agent2", "Second message")
+    msg3 = Message(channel_id, "agent3", "Third message")
+
+    bus.memories[channel_id] = [msg1, msg2, msg3]
+
+    return {"bus": bus, "channel_id": channel_id, "messages": [msg1, msg2, msg3]}
 
 
 # Test configuration

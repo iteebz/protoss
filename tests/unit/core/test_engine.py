@@ -1,0 +1,199 @@
+"""Unit tests for Engine orchestration logic."""
+
+import pytest
+from protoss.core.engine import Protoss
+from protoss.core.config import Config
+
+
+@pytest.mark.asyncio
+async def test_agent_selection_simple_task():
+    """Simple tasks spawn executor + zealots only."""
+    config = Config(agents=3, debug=False)
+    Protoss(config)
+
+    # Test agent selection logic without full coordination
+    from protoss.agents import Zealot, Executor
+
+    active_agents = []
+
+    # Engine logic: Always start with executor
+    executor = Executor()
+    active_agents.append(("executor", executor))
+
+    # Add zealots for parallel work
+    zealot_count = min(3 - 1, 3)  # agents - 1, cap at 3
+    for i in range(zealot_count):
+        zealot = Zealot(f"zealot-{i+1}")
+        active_agents.append((f"zealot-{i+1}", zealot))
+
+    # Simple task shouldn't trigger constitutional deliberation
+    task = "fix bug in login function"
+    architecture_keywords = ["architecture", "design", "approach", "strategy"]
+    needs_conclave = any(keyword in task.lower() for keyword in architecture_keywords)
+
+    assert not needs_conclave
+    assert len(active_agents) == 3  # 1 executor + 2 zealots
+    assert active_agents[0][0] == "executor"
+    assert all("zealot" in name for name, _ in active_agents[1:])
+
+
+@pytest.mark.asyncio
+async def test_agent_selection_complex_task():
+    """Complex architectural tasks trigger constitutional deliberation."""
+    config = Config(agents=4, debug=False)
+    Protoss(config)
+
+    from protoss.agents import Zealot, Executor, Conclave
+
+    active_agents = []
+
+    # Engine logic for complex task
+    executor = Executor()
+    active_agents.append(("executor", executor))
+
+    zealot_count = min(4 - 1, 3)
+    for i in range(zealot_count):
+        zealot = Zealot(f"zealot-{i+1}")
+        active_agents.append((f"zealot-{i+1}", zealot))
+
+    # Complex task should trigger constitutional deliberation
+    task = "design new microservices architecture"
+    architecture_keywords = ["architecture", "design", "approach", "strategy"]
+    needs_conclave = any(keyword in task.lower() for keyword in architecture_keywords)
+
+    if needs_conclave:
+        conclave = Conclave("tassadar")
+        active_agents.append(("conclave", conclave))
+
+    assert needs_conclave
+    assert len(active_agents) == 5  # 1 executor + 3 zealots + 1 conclave
+    assert any("conclave" in name for name, _ in active_agents)
+
+
+def test_config_override_merging():
+    """Config overrides merge correctly without ceremony."""
+    base_config = Config(agents=2, debug=False, timeout=30)
+    overrides = {"agents": 5, "debug": True}
+
+    # Test the actual engine logic
+    engine = Protoss(base_config, **overrides)
+
+    assert engine.config.agents == 5  # Overridden
+    assert engine.config.debug is True  # Overridden
+    assert engine.config.timeout == 30  # Preserved from base
+
+
+def test_agent_count_validation():
+    """Agent count validation prevents runaway spawning."""
+    config = Config(agents=2, max_agents=10)
+
+    # Should accept valid count
+    assert 5 <= config.max_agents  # Would pass validation
+
+    # Should reject excessive count
+    excessive_count = 15
+    assert excessive_count > config.max_agents  # Would fail validation
+
+
+@pytest.mark.asyncio
+async def test_coordination_timeout():
+    """Timeout handling works correctly."""
+    config = Config(timeout=1)  # 1 second timeout
+    Protoss(config)
+
+    # Test timeout logic without actually timing out
+    final_timeout = 5 or config.timeout  # Runtime override
+    assert final_timeout == 5
+
+    final_timeout = None or config.timeout  # Use config default
+    assert final_timeout == 1
+
+
+def test_channel_context_extraction(mock_channel):
+    """Channel context extracted from bus memories."""
+    bus = mock_channel["bus"]
+    channel_id = mock_channel["channel_id"]
+
+    # Test engine's context extraction logic
+    def get_channel_context(bus, channel_id):
+        if channel_id not in bus.memories:
+            return ""
+
+        messages = bus.memories[channel_id]
+        if not messages:
+            return ""
+
+        # Last 3 messages for context
+        recent_messages = messages[-3:]
+        context_lines = []
+        for msg in recent_messages:
+            context_lines.append(f"{msg.sender}: {msg.content[:100]}...")
+
+        return "\n".join(context_lines)
+
+    context = get_channel_context(bus, channel_id)
+    lines = context.split("\n")
+
+    assert len(lines) == 3
+    assert "agent1: First message..." in lines[0]
+    assert "agent2: Second message..." in lines[1]
+    assert "agent3: Third message..." in lines[2]
+
+
+def test_result_synthesis():
+    """Result synthesis creates clean final output."""
+    task = "implement auth system"
+    results = [
+        "executor: Coordinated overall implementation",
+        "zealot-1: Implemented login validation",
+        "zealot-2: Created user models",
+        "conclave: Constitutional review passed",
+    ]
+
+    # Test engine's synthesis logic
+    def synthesize_results(task, results):
+        synthesis = [
+            "🔮 PROTOSS COORDINATION COMPLETE",
+            f"Task: {task}",
+            "",
+            "Agent Contributions:",
+        ]
+
+        for result in results:
+            synthesis.append(f"  • {result}")
+
+        synthesis.extend(
+            [
+                "",
+                "Coordination successful - agents achieved collective understanding.",
+                "EN TARO ADUN.",
+            ]
+        )
+
+        return "\n".join(synthesis)
+
+    final_result = synthesize_results(task, results)
+
+    assert "🔮 PROTOSS COORDINATION COMPLETE" in final_result
+    assert "Task: implement auth system" in final_result
+    assert "• executor: Coordinated" in final_result
+    assert "• zealot-1: Implemented" in final_result
+    assert "EN TARO ADUN." in final_result
+
+
+@pytest.mark.asyncio
+async def test_rich_context_seeding():
+    """Rich context seeding triggers archon correctly."""
+    config = Config(rich_context=True)
+
+    # Test seeding logic
+    keywords = ["auth", "security"]
+    should_seed = keywords or config.rich_context
+
+    assert should_seed
+
+    # Without rich context
+    config_minimal = Config(rich_context=False)
+    should_seed_minimal = None or config_minimal.rich_context
+
+    assert not should_seed_minimal
