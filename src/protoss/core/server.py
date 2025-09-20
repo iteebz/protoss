@@ -84,14 +84,9 @@ class Server:
             await self._disconnect(agent_id)
 
     async def start(self):
-        """Initialize and start the Pylon WebSocket server.
-
-        Establishes the communication infrastructure that enables distributed
-        AI agent coordination. Creates the power grid that constitutional
-        coordination depends on.
-        """
+        """Initialize and start WebSocket server for agent communication."""
         self.server = await websockets.serve(self._connection, "localhost", self.port)
-        print(f"🔹 Pylon powered up on ws://localhost:{self.port}")
+        print(f"🔹 WebSocket server started on ws://localhost:{self.port}")
 
     async def stop(self):
         """Stop WebSocket server."""
@@ -103,7 +98,7 @@ class Server:
         """Handle raw WebSocket connection."""
         agent_id = websocket.request.path.strip("/")
         self.connections[agent_id] = websocket
-        print(f"🔹 {agent_id} connected to Pylon")
+        print(f"🔹 {agent_id} connected")
 
         # Notify connection handlers
         for handler in self.connection_handlers:
@@ -120,7 +115,7 @@ class Server:
     async def _disconnect(self, agent_id: str):
         """Handle agent disconnection."""
         self.connections.pop(agent_id, None)
-        print(f"🔌 {agent_id} disconnected from Pylon")
+        print(f"🔌 {agent_id} disconnected")
 
         # Notify disconnection handlers
         for handler in self.disconnection_handlers:
@@ -128,7 +123,7 @@ class Server:
 
     @property
     def status(self) -> dict:
-        """Basic Pylon transport status."""
+        """Basic WebSocket transport status."""
         return {
             "active_connections": len(self.connections),
             "port": self.port,

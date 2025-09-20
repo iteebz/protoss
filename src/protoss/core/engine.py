@@ -111,10 +111,8 @@ class Protoss:
         agents: int,
         keywords: Optional[List[str]] = None,
     ) -> str:
-        """Internal coordination execution - real multi-agent orchestration."""
-        from .strategies import get_strategy
-
-        logger.info(f"Starting real coordination with {agents} agents")
+        """Internal coordination execution - adaptive multi-agent orchestration."""
+        logger.info(f"Starting adaptive coordination with up to {agents} agents")
 
         # 1. Rich context seeding if enabled
         archon = None
@@ -127,91 +125,37 @@ class Protoss:
             await self.bus.transmit(channel_id, "archon", context_seed)
             logger.debug("Context seeded by archon")
 
-        # 2. Select agents using strategy pattern
-        strategy = get_strategy(task, self.config)
-        agent_specs = strategy.select_agents(task, agents)
+        # 2. Start with minimal coordination team using unified spawning
+        initial_agents = min(agents, 2)  # Start minimal - agents summon the rest
 
-        # Create agent instances from specs using registry
-        active_agents = []
-        for agent_name, agent_type in agent_specs:
-            agent = self._create_agent(agent_type, agent_name)
-            active_agents.append((agent_name, agent))
+        spawned_types: List[str] = []
+        for index in range(initial_agents):
+            agent_type = "zealot" if index == 0 else "arbiter"
+            if await self.bus.spawn(
+                agent_type,
+                channel_id,
+                f"Engine coordination: {task}",
+            ):
+                spawned_types.append(agent_type)
 
-        logger.debug(f"Strategy selected agents: {[name for name, _ in active_agents]}")
+        logger.debug(f"Spawned initial coordination team: {spawned_types}")
 
-        # 3. Coordinate execution through bus
-        logger.info(
-            f"Spawned {len(active_agents)} agents: {[name for name, _ in active_agents]}"
-        )
+        # Emergent coordination is now handled through the Bus.
+        team_status = self.bus.get_team_status(channel_id)
 
-        # Register all agents to channel
-        for _, agent in active_agents:
-            self.bus.register(channel_id, agent.id)
-
-        # 4. Execute coordination cycles
-        results = []
-        for agent_name, agent in active_agents:
-            try:
-                result = await agent.coordinate(task, channel_id, self.config, self.bus)
-                results.append(f"{agent_name}: {result}")
-                logger.debug(f"{agent_name} completed coordination")
-            except Exception as e:
-                logger.error(f"{agent_name} coordination failed: {e}")
-                results.append(f"{agent_name}: FAILED - {e}")
-
-        # 5. Synthesize final result
-        final_result = self._synthesize_results(task, results)
-
-        # 6. Archive if archon was used
-        if archon is not None:
-            await archon.compress_channel(channel_id, final_summary=True)
-
-        logger.info("Multi-agent coordination completed")
-        return final_result
-
-    def _create_agent(self, agent_type: str, agent_name: str):
-        """Create agent instance using clean registry pattern."""
-
-        if agent_type == "Executor":
-            from ..agents import Executor
-
-            return Executor()
-        elif agent_type == "Zealot":
-            from ..agents import Zealot
-
-            return Zealot(agent_name)
-        elif agent_type == "Conclave":
-            from ..agents import Conclave
-
-            return Conclave("tassadar")
-        elif agent_type == "Archon":
-            from ..agents import Archon
-
-            return Archon()
-        else:
-            raise ValueError(f"Unknown agent type: {agent_type}")
-
-    def _synthesize_results(self, task: str, results: List[str]) -> str:
-        """Synthesize individual agent results into final coordination outcome."""
-        synthesis = [
-            "🔮 PROTOSS COORDINATION COMPLETE",
+        result_lines = [
+            "🔮 PROTOSS COORDINATION ENGAGED",
             f"Task: {task}",
-            "",
-            "Agent Contributions:",
+            f"Channel: {channel_id}",
+            f"Initial agents: {', '.join(spawned_types) if spawned_types else 'none'}",
+            team_status,
+            "Emergent coordination active via conversational mentions.",
         ]
 
-        for result in results:
-            synthesis.append(f"  • {result}")
+        if archon is not None:
+            result_lines.append("Archon context seed dispatched.")
 
-        synthesis.extend(
-            [
-                "",
-                "Coordination successful - agents achieved collective understanding.",
-                "EN TARO ADUN.",
-            ]
-        )
-
-        return "\n".join(synthesis)
+        return "\n".join(result_lines)
 
     async def status(self) -> Dict[str, Any]:
         """Get coordination system status."""

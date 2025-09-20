@@ -107,7 +107,7 @@ async def test_insight_extraction():
     messages = [
         MockMessage("zealot", "Working on implementation"),
         MockMessage("conclave", "Decision: Use REST architecture for API"),
-        MockMessage("executor", "Approach confirmed: microservices pattern"),
+        MockMessage("arbiter", "Approach confirmed: microservices pattern"),
         MockMessage("zealot", "Bug found in validation"),
         MockMessage("archon", "Conclusion: Implementation successful"),
     ]
@@ -115,7 +115,7 @@ async def test_insight_extraction():
     insights = await archon._extract_insights(messages)
 
     assert "conclave: Decision: Use REST architecture" in insights
-    assert "executor: Approach confirmed: microservices" in insights
+    assert "arbiter: Approach confirmed: microservices" in insights
     assert "archon: Conclusion: Implementation successful" in insights
     assert "zealot: Working on implementation" not in insights  # No decision keywords
 
@@ -133,7 +133,7 @@ async def test_insight_extraction_empty():
     # Messages without decision keywords
     messages = [
         MockMessage("zealot", "Still working"),
-        MockMessage("executor", "Making progress"),
+        MockMessage("arbiter", "Making progress"),
     ]
 
     insights = await archon._extract_insights(messages)

@@ -3,7 +3,7 @@
 from .base import Unit
 from .zealot import Zealot
 from .conclave import Conclave
-from .executor import Executor
+from .arbiter import Arbiter
 from .archon import Archon
 
-__all__ = ["Unit", "Zealot", "Conclave", "Executor", "Archon"]
+__all__ = ["Unit", "Zealot", "Conclave", "Arbiter", "Archon"]

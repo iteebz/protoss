@@ -130,12 +130,13 @@ class Archon(Unit):
         return context_seed
 
     async def compress_channel(
-        self, channel_id: str, final_summary: bool = False
+        self, channel_id: str, bus, final_summary: bool = False
     ) -> str:
         """Compress channel progress into archives.
 
         Args:
             channel_id: Channel to compress
+            bus: Bus instance to get channel history
             final_summary: Whether this is end-of-task compression
 
         Returns:
@@ -143,9 +144,8 @@ class Archon(Unit):
         """
         logger.info(f"{self.id} compressing channel {channel_id}")
 
-        # Get channel messages from bus via dependency injection
-        # This would be called with bus.get_history(channel_id) by calling code
-        messages = []  # Placeholder - bus history injected by caller
+        # Get actual channel messages from bus
+        messages = bus.history(channel_id)
 
         if not messages:
             logger.debug("No messages to compress")
@@ -312,6 +312,9 @@ EN TARO ADUN.
     ) -> str:
         """Save insights to archives."""
         archives_path = Path("archives/channels")
+        # Ensure directory exists
+        archives_path.mkdir(parents=True, exist_ok=True)
+
         timestamp = uuid.uuid4().hex[:8]
 
         if final_summary:

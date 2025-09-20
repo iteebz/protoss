@@ -22,7 +22,7 @@ class Config:
     """Default coordination timeout in seconds (1 hour)"""
 
     # LLM configuration
-    llm: str = "claude-sonnet"
+    llm: str = "openai"
     """LLM provider for agent execution"""
 
     # Storage and memory
@@ -49,9 +49,6 @@ class Config:
     # Completion signals
     complete: str = "[COMPLETE]"
     """Signal that task is fully completed"""
-
-    escalate: str = "[ESCALATE]"
-    """Signal to escalate to Sacred Four"""
 
     # Error handling
     retry: bool = True

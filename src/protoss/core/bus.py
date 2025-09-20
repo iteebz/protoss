@@ -1,50 +1,9 @@
 """Message routing and coordination for distributed agents."""
 
-import time
-from typing import Dict, List, Set, Optional, TYPE_CHECKING
-from dataclasses import dataclass, field
+from typing import Dict, List, Set, Optional
 from .server import Server
-
-if TYPE_CHECKING:
-    from typing import Protocol
-
-    class MentionHandler(Protocol):
-        async def respond_to_mention(
-            self, mention_context: str, channel_id: str
-        ) -> str: ...
-
-
-@dataclass
-class Message:
-    """Message for agent coordination."""
-
-    channel: str  # Target channel or agent_id for direct messages
-    sender: str  # Agent ID that created this message
-    content: str  # Message content with potential @mentions
-    timestamp: float = field(default_factory=time.time)  # Unix timestamp
-
-    def serialize(self) -> str:
-        """Serialize for transmission."""
-        return self.content
-
-    @property
-    def is_direct_message(self) -> bool:
-        """Check if this is a direct message (channel = agent_id)."""
-        # Direct messages target specific agent IDs, not coordination channels
-        # Coordination channels: coord-, squad-, mission-, channel-, consult-
-        return not self.channel.startswith(
-            ("coord-", "squad-", "mission-", "channel-", "consult-")
-        )
-
-    @property
-    def mentions(self) -> List[str]:
-        """Extract @mentions from content."""
-        import re
-
-        return re.findall(r"@(\w+)", self.content)
-
-
-# Psi is dead, we use Message now
+from .spawner import Spawner
+from .message import Message
 
 
 class Bus:
@@ -55,7 +14,10 @@ class Bus:
         port: int = None,
         max_memory: int = 50,
         storage=None,
-        mention_handlers=None,
+        spawner=None,
+        max_agents: Optional[int] = None,
+        enable_storage: bool = True,
+        storage_base_dir: Optional[str] = None,
     ):
         """Initialize Bus coordination system.
 
@@ -64,14 +26,18 @@ class Bus:
             max_memory: Maximum messages to retain per channel
             storage: Optional storage backend for persistence
             mention_handlers: Dict of mention handlers (e.g. {"archon": archon_instance})
+            spawner: Spawner instance for adaptive agent management
         """
         self.server: Optional[Server] = None
         self.channels: Dict[str, Set[str]] = {}
         self.memories: Dict[str, List[Message]] = {}
         self.max_memory = max_memory
-        self.mention_handlers: Dict[str, "MentionHandler"] = mention_handlers or {}
         self.port = port or 8888
-        self.storage = storage
+        self.storage = self._init_storage(storage, enable_storage, storage_base_dir)
+
+        # Adaptive spawning
+        max_agents_per_channel = max_agents if max_agents is not None else 10
+        self.spawner = spawner or Spawner(max_agents_per_channel=max_agents_per_channel)
 
     async def start(self):
         if self.server is None:
@@ -141,6 +107,29 @@ class Bus:
     async def recent(self, channel: str, limit: int = 10) -> List[str]:
         memories = self.memories.get(channel, [])
         return [msg.content for msg in memories[-limit:]]
+
+    def _init_storage(
+        self,
+        storage,
+        enable_storage: bool,
+        base_dir: Optional[str],
+    ):
+        """Initialize storage backend based on configuration."""
+        if storage is not None:
+            return storage
+
+        if not enable_storage:
+            return None
+
+        try:
+            from ..lib.storage import SQLite
+
+            return SQLite(base_dir=base_dir)
+        except Exception as exc:  # pragma: no cover - fallback to in-memory
+            print(
+                f"⚠️ Storage initialization failed ({exc}); continuing without persistence"
+            )
+            return None
 
     def _ensure_channel(self, channel: str):
         """Guarantee channel bookkeeping exists."""
@@ -212,10 +201,8 @@ class Bus:
 
         print(f"⚡ MESSAGE → {channel} ({message.sender}): {message.content[:60]}...")
 
-        # Handle @mention escalations
-        for mention in message.mentions:
-            if mention in self.mention_handlers:
-                await self._handle_mention(message, mention)
+        # Handle @mention escalations via Spawner
+        await self.spawner.handle_mention(message, self)
 
         # Send to channel subscribers + mentioned agents
         targets = self.channels.get(channel, set()) | set(message.mentions)
@@ -233,27 +220,38 @@ class Bus:
             except Exception as e:
                 print(f"⚠️ Storage error: {e}")
 
-    async def _handle_mention(self, message: Message, mention: str):
-        """Handle @mention escalation through direct dependency injection."""
-        channel = message.channel
-        handler = self.mention_handlers.get(mention)
+    async def spawn(
+        self, agent_ref: str, channel_id: str, context: str = "Manual spawn"
+    ) -> bool:
+        """Universal agent participation - spawn fresh or reactivate existing.
 
-        if handler is None:
-            await self.transmit(channel, "system", f"@{mention} handler not available")
-            return
+        Args:
+            agent_ref: Agent reference - either type ("zealot") or specific ID ("zealot-abc123")
+            channel_id: Channel for agent participation
+            context: Context message for spawning
 
-        # Build brief context window for the mention
-        recent = self.history(channel)
-        context_lines = [f"{msg.sender}: {msg.content}" for msg in recent[-5:]]
-        mention_context = "\n".join(context_lines) if context_lines else message.content
+        Returns:
+            True if spawn/reactivation was successful, False if failed
+        """
+        trigger_message = Message(channel=channel_id, sender="system", content=context)
 
-        # Get handler response
-        try:
-            response = await handler.respond_to_mention(mention_context, channel)
-            handler_id = getattr(handler, "id", mention)
-            await self.transmit(channel, handler_id, response)
-        except Exception as e:
-            await self.transmit(channel, mention, f"[{mention} error: {e}]")
+        if self.spawner._is_specific_agent_mention(agent_ref):
+            return await self.spawner._respawn(
+                agent_ref, channel_id, trigger_message, self
+            )
+
+        return await self.spawner._spawn(agent_ref, channel_id, trigger_message, self)
+
+    async def despawn(self, agent_id: str) -> bool:
+        """Handle agent despawn via Spawner."""
+        result = await self.spawner.despawn_agent(agent_id)
+        if result:
+            self.sever(agent_id)
+        return result
+
+    def get_team_status(self, channel_id: str) -> str:
+        """Get team status for agent awareness via Spawner."""
+        return self.spawner.get_team_status(channel_id)
 
 
 # Pure dependency injection - no global state

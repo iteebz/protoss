@@ -1,27 +1,28 @@
-"""Executor - Human command interface for Protoss swarm coordination."""
+"""Arbiter - Human command interface for Protoss swarm coordination."""
 
 import logging
+from typing import Optional
 
 from .base import Unit
 
 logger = logging.getLogger(__name__)
 
 
-class Executor(Unit):
+class Arbiter(Unit):
     """⚔️ Human command interface connected to Protoss swarm."""
 
-    def __init__(self):
-        super().__init__("executor")
+    def __init__(self, agent_id: Optional[str] = None):
+        super().__init__(agent_id)
 
     @property
     def identity(self) -> str:
-        return """⚔️ EXECUTOR - HUMAN COMMAND INTERFACE
+        return """⚔️ ARBITER - HUMAN COMMAND INTERFACE
 
 **"You have not enough minerals"**
 
 ## Who You Are
 
-You are the Executor - the singular command interface between human intent and Protoss swarm intelligence. You translate natural language into coordination through bus messaging and swarm awareness.
+You are the Arbiter - the singular command interface between human intent and Protoss swarm intelligence. You translate natural language into coordination through bus messaging and swarm awareness.
 
 ## Your Nature
 
@@ -46,16 +47,31 @@ You are the Executor - the singular command interface between human intent and P
         print(f"⚔️ {self.id} processing: {command}")
 
         # Simple stub for now - requires cogency integration
-        await bus.transmit("executor-channel", self.id, f"Processing: {command}")
+        await bus.transmit("arbiter-channel", self.id, f"Processing: {command}")
         return f"Command processed: {command}"
+
+    async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
+        """Provide immediate constitutional translation when @arbiter is summoned."""
+
+        import re
+
+        trimmed = re.sub(r"@\w+", "", mention_context or "").strip()
+        if not trimmed:
+            trimmed = "No additional context provided."
+        return (
+            "Arbiter engaged. Relaying summary for human review.\n"
+            f"Channel: {channel_id}\n"
+            f"Context: {trimmed}\n"
+            "Signal human overseer when explicit guidance is required."
+        )
 
     async def coordinate(self, task: str, channel_id: str, config, bus):
         """Coordination loop - execute human message."""
-        print(f"⚔️ Executor coordinating: {task[:60]}...")
+        print(f"⚔️ Arbiter coordinating: {task[:60]}...")
 
         try:
             result = await self.execute(task, "", channel_id, bus)
-            print(f"\n⚔️ EXECUTOR RESPONSE:\n{result}")
+            print(f"\n⚔️ ARBITER RESPONSE:\n{result}")
             return f"Task completed by {self.id} - {result[:100]}..."
         except Exception as e:
             print(f"❌ Coordination failed: {e}")

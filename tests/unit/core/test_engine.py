@@ -7,18 +7,18 @@ from protoss.core.config import Config
 
 @pytest.mark.asyncio
 async def test_agent_selection_simple_task():
-    """Simple tasks spawn executor + zealots only."""
+    """Simple tasks spawn arbiter + zealots only."""
     config = Config(agents=3, debug=False)
     Protoss(config)
 
     # Test agent selection logic without full coordination
-    from protoss.agents import Zealot, Executor
+    from protoss.agents import Zealot, Arbiter
 
     active_agents = []
 
-    # Engine logic: Always start with executor
-    executor = Executor()
-    active_agents.append(("executor", executor))
+    # Engine logic: Always start with arbiter
+    arbiter = Arbiter()
+    active_agents.append(("arbiter", arbiter))
 
     # Add zealots for parallel work
     zealot_count = min(3 - 1, 3)  # agents - 1, cap at 3
@@ -32,8 +32,8 @@ async def test_agent_selection_simple_task():
     needs_conclave = any(keyword in task.lower() for keyword in architecture_keywords)
 
     assert not needs_conclave
-    assert len(active_agents) == 3  # 1 executor + 2 zealots
-    assert active_agents[0][0] == "executor"
+    assert len(active_agents) == 3  # 1 arbiter + 2 zealots
+    assert active_agents[0][0] == "arbiter"
     assert all("zealot" in name for name, _ in active_agents[1:])
 
 
@@ -43,13 +43,13 @@ async def test_agent_selection_complex_task():
     config = Config(agents=4, debug=False)
     Protoss(config)
 
-    from protoss.agents import Zealot, Executor, Conclave
+    from protoss.agents import Zealot, Arbiter, Conclave
 
     active_agents = []
 
     # Engine logic for complex task
-    executor = Executor()
-    active_agents.append(("executor", executor))
+    arbiter = Arbiter()
+    active_agents.append(("arbiter", arbiter))
 
     zealot_count = min(4 - 1, 3)
     for i in range(zealot_count):
@@ -66,7 +66,7 @@ async def test_agent_selection_complex_task():
         active_agents.append(("conclave", conclave))
 
     assert needs_conclave
-    assert len(active_agents) == 5  # 1 executor + 3 zealots + 1 conclave
+    assert len(active_agents) == 5  # 1 arbiter + 3 zealots + 1 conclave
     assert any("conclave" in name for name, _ in active_agents)
 
 
@@ -140,45 +140,28 @@ def test_channel_context_extraction(mock_channel):
     assert "agent3: Third message..." in lines[2]
 
 
-def test_result_synthesis():
-    """Result synthesis creates clean final output."""
-    task = "implement auth system"
-    results = [
-        "executor: Coordinated overall implementation",
-        "zealot-1: Implemented login validation",
-        "zealot-2: Created user models",
-        "conclave: Constitutional review passed",
-    ]
+def test_coordination_summary_format():
+    """Engine summary string highlights emergent coordination."""
+    channel_id = "coord-test"
+    spawned_types = ["zealot", "arbiter"]
+    team_status = "Team Status: zealot-123 (active), arbiter-456 (active)"
 
-    # Test engine's synthesis logic
-    def synthesize_results(task, results):
-        synthesis = [
-            "🔮 PROTOSS COORDINATION COMPLETE",
-            f"Task: {task}",
-            "",
-            "Agent Contributions:",
+    summary = "\n".join(
+        [
+            "🔮 PROTOSS COORDINATION ENGAGED",
+            "Task: implement auth system",
+            f"Channel: {channel_id}",
+            f"Initial agents: {', '.join(spawned_types)}",
+            team_status,
+            "Emergent coordination active via conversational mentions.",
+            "Archon context seed dispatched.",
         ]
+    )
 
-        for result in results:
-            synthesis.append(f"  • {result}")
-
-        synthesis.extend(
-            [
-                "",
-                "Coordination successful - agents achieved collective understanding.",
-                "EN TARO ADUN.",
-            ]
-        )
-
-        return "\n".join(synthesis)
-
-    final_result = synthesize_results(task, results)
-
-    assert "🔮 PROTOSS COORDINATION COMPLETE" in final_result
-    assert "Task: implement auth system" in final_result
-    assert "• executor: Coordinated" in final_result
-    assert "• zealot-1: Implemented" in final_result
-    assert "EN TARO ADUN." in final_result
+    assert "🔮 PROTOSS COORDINATION ENGAGED" in summary
+    assert "implement auth system" in summary
+    assert "zealot, arbiter" in summary
+    assert "Team Status:" in summary
 
 
 @pytest.mark.asyncio

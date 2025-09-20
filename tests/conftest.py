@@ -8,10 +8,20 @@ import pytest
 import asyncio
 import tempfile
 import shutil
+import socket
 from pathlib import Path
 
 # Configure pytest-asyncio for async test support
 pytest_plugins = ["pytest_asyncio"]
+
+
+def get_free_port():
+    """Get a free port for test isolation."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
 
 
 @pytest.fixture(scope="session")
@@ -35,12 +45,15 @@ def bus():
     """Create fresh Bus instance for testing."""
     from protoss.core.bus import Bus
 
-    bus_instance = Bus()
+    bus_instance = Bus(port=get_free_port(), enable_storage=False)
     yield bus_instance
 
     # Cleanup after test
-    if hasattr(bus_instance, "_server") and bus_instance._server:
-        asyncio.run(bus_instance.stop())
+    if hasattr(bus_instance, "server") and bus_instance.server:
+        try:
+            asyncio.create_task(bus_instance.stop())
+        except Exception:
+            pass  # Ignore cleanup errors
 
 
 @pytest.fixture
@@ -73,7 +86,7 @@ def mock_channel():
     """Create mock channel with messages for testing."""
     from protoss.core.bus import Bus, Message
 
-    bus = Bus()
+    bus = Bus(enable_storage=False)
     channel_id = "test-channel"
 
     # Add some test messages
@@ -84,6 +97,27 @@ def mock_channel():
     bus.memories[channel_id] = [msg1, msg2, msg3]
 
     return {"bus": bus, "channel_id": channel_id, "messages": [msg1, msg2, msg3]}
+
+
+@pytest.fixture
+def mock_agent(monkeypatch):
+    """Simple mock cogency Agent fixture - minimal by default."""
+
+    class SimpleMockAgent:
+        def __init__(self, instructions=None, tools=None, **kwargs):
+            self.instructions = instructions
+            self.tools = tools or []
+
+        async def __call__(
+            self, user_message, user_id=None, conversation_id=None, chunks=False
+        ):
+            """Simple mock response."""
+            yield {"type": "respond", "content": "Mock agent response. [COMPLETE]"}
+            yield {"type": "end"}
+
+    # Patch the cogency Agent import
+    monkeypatch.setattr("cogency.core.agent.Agent", SimpleMockAgent)
+    return SimpleMockAgent
 
 
 # Test configuration

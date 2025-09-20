@@ -6,7 +6,7 @@ from protoss.core.bus import Bus
 
 def test_initialization():
     """Bus starts with clean state."""
-    bus = Bus()
+    bus = Bus(enable_storage=False)
 
     assert bus.channels == {}
     assert bus.memories == {}
@@ -17,13 +17,13 @@ def test_initialization():
 
 def test_port_config():
     """Custom port configuration."""
-    bus = Bus(port=9999)
+    bus = Bus(port=9999, enable_storage=False)
     assert bus.port == 9999
 
 
 def test_channel_registration():
     """Register agents to channels."""
-    bus = Bus()
+    bus = Bus(enable_storage=False)
 
     bus.register("squad-alpha", "agent-1")
     assert "squad-alpha" in bus.channels
@@ -33,7 +33,7 @@ def test_channel_registration():
 @pytest.mark.asyncio
 async def test_broadcast_routing():
     """Broadcast messages create channels and store memories."""
-    bus = Bus()
+    bus = Bus(enable_storage=False)
 
     await bus.transmit("squad-alpha", "agent-1", "test message")
 
@@ -45,7 +45,7 @@ async def test_broadcast_routing():
 @pytest.mark.asyncio
 async def test_memory_trimming():
     """Memory trimmed when exceeding max_memory."""
-    bus = Bus(max_memory=3)
+    bus = Bus(max_memory=3, enable_storage=False)
 
     # Send 5 messages, should keep only last 3
     for i in range(5):
@@ -65,7 +65,7 @@ async def test_memory_trimming():
 @pytest.mark.asyncio
 async def test_mention_detection():
     """@mentions are detected and stored in messages."""
-    bus = Bus()
+    bus = Bus(enable_storage=False)
     await bus.transmit("squad-discuss", "user", "Help @archon and @tassadar")
 
     message = bus.memories["squad-discuss"][0]
@@ -76,7 +76,7 @@ async def test_mention_detection():
 
 def test_get_history():
     """Retrieve channel message history."""
-    bus = Bus()
+    bus = Bus(enable_storage=False)
 
     # Empty channel returns empty list
     assert bus.get_history("nonexistent") == []
@@ -86,7 +86,7 @@ def test_get_history():
 
 def test_status():
     """Bus status reporting."""
-    bus = Bus()
+    bus = Bus(enable_storage=False)
 
     status = bus.status()
     assert status["channels"] == 0

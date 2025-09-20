@@ -34,40 +34,23 @@ class Conclave(Unit):
         """Get action verb for this perspective."""
         return self.PERSPECTIVES[self.perspective]["action"]
 
-    async def execute(
-        self, task: str, channel_context: str, channel_id: str, bus
-    ) -> str:
-        """Execute constitutional deliberation with perspective logging."""
-        print(f"{self.emoji} {self.id} {self.action}: {task[:50]}...")
+    async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
+        """Provide immediate constitutional perspective when summoned."""
 
-        # Constitutional deliberation logic
-        perspective_data = self.PERSPECTIVES[self.perspective]
+        import re
 
-        await bus.transmit(
-            channel_id, self.id, f"📋 {self.id} analyzing: {task[:100]}..."
+        summary = re.sub(r"@\w+", "", mention_context or "").strip()
+        if not summary:
+            summary = "No explicit context specified."
+        header = f"{self.emoji} {self.perspective.upper()} perspective {self.action}"
+        return (
+            f"{header}\n"
+            f"Channel: {channel_id}\n"
+            f"Context received: {summary}\n"
+            "Preparing full constitutional deliberation."
         )
 
-        lines = [
-            f"{self.emoji} {self.perspective.upper()} PERSPECTIVE",
-            "=" * 40,
-            f"Task: {task}",
-            f"Context: {channel_context if channel_context else 'None'}",
-            "",
-            "Constitutional Analysis:",
-            f"Approaching this from the {self.perspective} perspective...",
-            "",
-            "Constitutional deliberation complete - pure reasoning analysis.",
-            f"Perspective: {perspective_data['action'].title()} with {perspective_data['emoji']} energy",
-            "",
-            "[COMPLETE]",
-        ]
-
-        result = "\n".join(lines)
-
-        await bus.transmit(
-            channel_id, self.id, f"✅ {self.id} completed: {result[:100]}..."
-        )
-        return result
+    # Conclave uses base.py cogency coordination with no tools - pure constitutional reasoning
 
     # Constitutional perspectives data - Enhanced with full Sacred Four lore
     PERSPECTIVES: Dict[str, Dict[str, str]] = {

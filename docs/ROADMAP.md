@@ -94,4 +94,4 @@ await protoss("build REST API", agents=5)  # Human chooses agent count
 
 ---
 
-*Implementation strategy and future work for constitutional AI coordination.*
+*Implementation priorities and future work for constitutional AI coordination.*

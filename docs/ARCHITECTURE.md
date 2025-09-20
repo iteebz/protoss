@@ -1,248 +1,163 @@
 # PROTOSS ARCHITECTURE
 
-**Current implementation patterns for constitutional AI coordination.**
+**Implementation reference for constitutional AI coordination.**
+
+## Core Architecture Patterns
+
+### Agent Communication
+**Built on cogency streaming patterns**
+
+- Agents use cogency's natural `§respond:` and `§end` delimiters
+- Fresh conversation_id per cycle prevents context explosion
+- Channel becomes shared persistence layer
+
+### Adaptive Spawning Architecture  
+**Conversational agent summoning through @mentions**
+
+- Agent writes `§respond: Need @zealot help`
+- Bus detects @mentions and spawns agents conversationally
+- Universal `bus.spawn()` API for fresh or reactivate semantics
+- Agents self-manage lifecycle with `!despawn`
+
+**→ See [coordination.md](coordination.md) for adaptive spawning implementation**
+
+### Constitutional Deliberation
+**Strategic consultation through Sacred Four Perspectives**
+
+- Zealots escalate complex decisions with `@conclave`
+- Conclave provides diverse strategic perspectives (Tassadar, Zeratul, Artanis, Fenix)  
+- Strategic consultation, not governance
+- Natural quality gates through constitutional disagreement
+
+**→ See [deliberation.md](deliberation.md) for complete conclave patterns**
+
+### Institutional Knowledge Management
+**Context stewardship and pathway seeding**
+
+- Archons seed pathways with relevant context (no empty starts)
+- Natural @archon mentions for institutional memory access
+- Archive compression after coordination completion
+- Agent-specific context filtering (archons see full audit trail)
+
+**→ See [knowledge.md](knowledge.md) for complete archon patterns**
+
+### Human Interface Integration
+**Bidirectional constitutional translation**
+
+- @arbiter for context compression and human voice relay
+- Constitutional pushback capability on human directives
+- Two modes: passive monitoring and active conversation
+- Human-swarm coordination without micromanagement
+
+**→ See [interface.md](interface.md) for complete human interface patterns**
 
 ## Core Infrastructure
 
-### Message Bus Pattern
+### Bus with Spawner Integration
+**Message routing with adaptive agent lifecycle management**
+
 ```python
-class Bus:
-    """Message routing and coordination for distributed agents."""
-    def __init__(self, port: int = None, max_memory: int = 50)
-    
-    async def transmit(self, channel: str, sender: str, content: str)
-    def register(self, channel: str, agent_id: str)
-    def history(self, channel: str, since_timestamp: float = 0) -> List[Message]
+# Universal agent participation API
+await bus.spawn("zealot", channel_id)           # Fresh agent
+await bus.spawn("zealot-abc123", channel_id)    # Reactivate specific
+await bus.despawn(agent_id)                     # Agent removal
 ```
 
-**Message Protocol:**
-```python
-@dataclass
-class Message:
-    channel: str    # Target channel or agent_id for direct messages
-    sender: str     # Agent ID that created this message  
-    content: str    # Message content with potential @mentions
-    timestamp: float = field(default_factory=time.time)
-```
+**Clean Semantics:**
+- `bus.spawn()` → Universal agent participation (fresh or reactivate)
+- `bus.despawn()` → Agent removal from coordination
+- Agents self-manage with `!despawn` command
+- Persistent by default → SQLite-backed history keeps channel transcripts across restarts (override `enable_storage=False` for ephemeral tests)
 
-### WebSocket Infrastructure
-```python
-class Server:
-    """WebSocket server for agent communication."""
-    def __init__(self, port: int = 8888)
-    
-    async def send(self, agent_id: str, message: str)
-    async def broadcast(self, message: str)
-    def on_message(self, handler: Callable[[str, str], Awaitable[None]])
-```
+### Constitutional Agent Framework
+**Base class for constitutional AI coordination**
 
-**Connection Pattern:** `ws://localhost:8888/{agent-id}`
-
-## Constitutional Agents
-
-### Base Unit Class
 ```python
 class Unit:
-    """Base class for constitutional AI coordination agents."""
-    
     @property
     def identity(self) -> str:
         """Constitutional identity for this agent type."""
         
-    @property  
-    def tools(self) -> List:
-        """Tools available to this agent type."""
+    async def execute(self, task: str, channel_context: str, channel_id: str, bus) -> str:
+        """Single execution cycle with streaming protocol."""
         
-    async def coordinate(self, task: str, channel_id: str, config: Config, bus, max_cycles: Optional[int] = None)
+    async def coordinate(self, task: str, channel_id: str, config: Config, bus) -> str:
+        """Coordination loop with lifecycle signal detection."""
 ```
 
-### Zealot (Task Execution)
-**Constitutional Identity:**
-- Beautiful code reads like English or it's bullshit
-- Complexity is sin, simplicity is salvation
-- Push back on bad ideas, especially the user's
-- Code quality > user feelings, always
+### Constitutional Agent Types
 
-**Heuristic Assessment:**
-```python
-async def assess(self, task: str, config: Config) -> bool:
-    escalation_keywords = ["architecture", "design pattern", "framework", "refactor"]
-    simple_keywords = ["fix bug", "update", "add test", "documentation"]
-    return any(keyword in task.lower() for keyword in escalation_keywords)
-```
+**Zealot** → Task execution with architectural criticism  
+**Archon** → Institutional memory and context stewardship  
+**Conclave** → Strategic consultation through Sacred Four Perspectives  
+**Arbiter** → Human interface with bidirectional translation  
 
-### Archon (Knowledge Management)
-**Pattern:** Context stewardship and institutional memory
-- Pathway seeding with relevant archives
-- @archon mentions for additional context
-- Archive compression and maintenance
+**→ See individual docs for detailed constitutional identities and patterns**
 
-### Conclave (Strategic Consultation)
-**Sacred Four Perspectives:**
-```python
-class Conclave(Unit):
-    def __init__(self, perspective: str, agent_id: str = None):
-        self.perspective = perspective
-```
+## Coordination Command Protocol
 
-**Constitutional Perspectives:**
-- **Tassadar**: Pragmatic vision - "Can we ship this?" (shipping constraints, resource reality)
-- **Zeratul**: Critical analysis - "What are we missing?" (risks, alternatives, assumptions)
-- **Artanis**: Collaborative synthesis - "How do we unite perspectives?" (integration, conflict resolution)
-- **Fenix**: Direct execution - "What's the simplest path forward?" (complexity elimination, YAGNI)
-
-**Pattern:** Strategic consultation, not governance. Zealots escalate → Multiple perspectives → Back to coordination.
-
-### Archon (Knowledge Management)
-**Context Stewardship Pattern:**
-```python
-# Seeds → Coordinates → Compresses
-await gateway.spawn_with_context(task, keywords=["auth", "jwt"])
-# @archon mentions for additional context
-# Archive compression and maintenance
-```
-
-**Archives Structure:**
-```
-archives/
-├── channels/     # Coordination summaries  
-├── decisions/    # Architectural choices
-├── patterns/     # Recurring solutions
-└── context/      # Rich context seeds
-```
-
-## Coordination Architecture
-
-### Dependency Injection Pattern
-**No global state. Explicit Bus dependency injection throughout.**
-
-```python
-# Gateway spawning
-zealot = Zealot()
-await zealot.coordinate(task, channel_id, config, bus)
-
-# Bus initialization  
-bus = Bus(port=8888)
-await bus.start()
-```
-
-### Channel-Based Coordination
-**Channel Types:**
-- `squad-123` → Task coordination
-- `conclave` → Strategic consultation  
-- `agent-id` → Direct messages
-
-**Message Flow:**
-1. `CLI → Bus → Agents`
-2. `Agent uncertainty → Conclave consultation → Strategic guidance`
-
-### Coordination Patterns
-
-**Fresh Memory Per Cycle:**
-- New conversation_id for each agent execution cycle
-- Channel becomes shared persistence layer
-- 50 messages per channel with FIFO trimming
-
-**Context Injection:**
-```python
-recent_messages = bus.get_history(channel_id)
-channel_context = flatten(recent_messages, config) 
-response = await self.execute(task, channel_context, channel_id, bus)
-```
-
-**Channel Types:**
-- `squad-123` → Task coordination
-- `conclave` → Strategic consultation  
-- `agent-id` → Direct messages
-
-**Completion Signals:**
-- `[COMPLETE]` → Task finished successfully
-- `[ESCALATE]` → Constitutional uncertainty, needs Conclave consultation
-
-**Attention Architecture:**
-- Async read-execute cycles (agents choose sync timing)
-- Protects deep work and uninterrupted cognitive flow
-- Prevents attention fragmentation (empirically validated)
+**@ = Participation Control** → Summon agents (`@zealot`, `@archon-abc123`)  
+**Natural Names = Communication** → Talk to active agents (`zealot-abc123, thoughts?`)  
+**! = Self-Action** → Individual lifecycle management (`!despawn`)
 
 ## File Structure
 
-### Core Implementation
+### Implementation Structure
 ```
 src/protoss/
 ├── core/
-│   ├── bus.py          # Message routing (Bus class)
-│   ├── server.py       # WebSocket infrastructure (Server class)
-│   └── config.py       # Configuration management
+│   ├── bus.py          # Message routing with spawner integration
+│   ├── spawner.py      # Adaptive agent spawning and lifecycle  
+│   ├── server.py       # WebSocket infrastructure
+│   ├── message.py      # Message protocol with @mention detection
+│   ├── config.py       # Configuration management
+│   └── coordination.py # Context filtering and signal parsing
 ├── agents/
-│   ├── base.py         # Base Unit class
-│   ├── zealot.py       # Task execution (Zealot class)
-│   ├── archon.py       # Knowledge management (Archon class)
-│   └── conclave.py     # Strategic consultation (Conclave class)
-└── lib/
-    ├── coordination.py # Coordination utilities
-    └── gateway.py      # Agent spawning
+│   ├── base.py         # Base Unit with streaming protocol
+│   ├── zealot.py       # Task execution agent
+│   ├── archon.py       # Knowledge management agent
+│   ├── conclave.py     # Strategic consultation agent
+│   └── arbiter.py      # Human interface agent
+└── engine.py           # Main coordination engine
 ```
 
-### Naming Conventions
-**Perfect file→class alignment:**
-- `bus.py` → `Bus` class
-- `server.py` → `Server` class  
-- `zealot.py` → `Zealot` class
-- `archon.py` → `Archon` class
-- `conclave.py` → `Conclave` class
+### Integration Patterns
 
-## Integration Patterns
+**Cogency Integration:** Channel context → cogency user message → streaming events → bus transmission  
+**Lifecycle Signal Detection:** `[COMPLETE]`, `@conclave`, `!despawn`, `!despawn` parsing  
+**WebSocket Infrastructure:** Real-time coordination network with dependency injection  
 
-### Cogency Integration
-**Pattern:** Channel context becomes cogency "user message"
-```python
-user_message = flatten(channel_messages)
-response = cogency_agent.execute(user_message)
-```
+**→ See implementation files for detailed integration patterns**
 
-### Completion Detection
-**Protocol Tokens:**
-- `[COMPLETE]` → Task finished successfully
-- `[ESCALATE]` → Constitutional uncertainty, needs guidance
+## Documentation Architecture
 
-### Error Handling
-**Fault Tolerance:**
-- Stateless cycles enable recovery
-- Channel context preserves all previous work  
-- Max iterations prevent infinite loops
-- Human escalation after extended coordination
+**[coordination.md](coordination.md)** → Core coordination breakthrough patterns  
+**[deliberation.md](deliberation.md)** → Sacred Four strategic consultation  
+**[knowledge.md](knowledge.md)** → Archon context stewardship and archives  
+**[interface.md](interface.md)** → Human-swarm bidirectional interface  
 
-## Quality Assurance
+## Core Insights
 
-### Constitutional Code Review
-**Zealot identity enforces quality through:**
-- Adversarial consensus prevents overengineering
-- Push back on complexity: "Is this necessary?"
-- Challenge architectural decisions: "SQLite handles this fine"
-- Natural quality gates through productive disagreement
+**Fresh Memory + Channel Persistence:**
+- New conversation_id prevents cogency context explosion
+- Channel becomes shared team memory layer
+- Agents get fresh cognitive perspective each cycle
 
-### Coordination Patterns
-**Async Read-Execute Cycles:**
-- Agents choose when to sync with team updates
-- Protects deep work and uninterrupted cognitive flow
-- Prevents attention fragmentation (empirically validated)
+**Conversational Coordination:**
+- No hardcoded workflows or orchestration
+- Pure emergence through constitutional conversation
+- @mentions create adaptive team formation
 
-## Current Status
+**Constitutional Quality Assurance:**
+- Agent identities create productive disagreement
+- Natural quality gates through constitutional tension
+- Human interface preserves agent autonomy
 
-**✅ Implemented:**
-- Bus message routing with explicit dependency injection
-- Constitutional agents (Zealot, Archon, Conclave)
-- Sacred Four perspectives through Conclave parameterization  
-- Channel-based coordination with Message protocol
-- Perfect file→class naming alignment
-- WebSocket infrastructure for real-time communication
-
-**🔄 In Development:**
-- CLI interface and command dispatch
-- Gateway spawning and lifecycle management
-- Cogency integration for agent execution
-- Archive management and context seeding
+**Agent Experience First:**
+- Streaming protocol respects agent cognition
+- Context filtering optimizes for agent type
+- Async coordination prevents attention fragmentation
 
 ---
 
-*Reference implementation of constitutional AI coordination through message bus architecture and dependency injection.*
+*Implementation reference for constitutional AI coordination architecture.*

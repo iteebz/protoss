@@ -14,8 +14,7 @@ except ImportError:
     pass
 
 from .core import Protoss, Config
-from .agents import Zealot, Executor, Conclave
-from .core import deliberation
+from .agents import Zealot, Arbiter, Conclave
 from .core.bus import Bus, Message
 
 __version__ = "0.1.0"
@@ -23,9 +22,8 @@ __all__ = [
     "Protoss",
     "Config",
     "Zealot",
-    "Executor",
+    "Arbiter",
     "Conclave",
-    "deliberation",
     "Bus",
     "Message",
 ]

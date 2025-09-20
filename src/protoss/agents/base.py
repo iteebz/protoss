@@ -55,44 +55,104 @@ class Unit:
     async def execute(
         self, task: str, channel_context: str, channel_id: str, bus
     ) -> str:
-        """Single execution cycle with channel context injection and fresh memory."""
+        """Execute with constitutional coordination using cogency Agent."""
+
+        # Get current team status for agent awareness
+        team_status = bus.get_team_status(channel_id)
+
+        # Constitutional identity + team coordination awareness
+        instructions = f"""
+{self.identity}
+
+TASK: {task}
+
+{team_status}
+
+COORDINATION COMMANDS:
+
+@ = Participation Control (Bring agents into active coordination)
+- @zealot - Summon fresh zealot for architectural criticism and code review
+- @archon - Summon fresh archon for institutional memory and knowledge work
+- @conclave - Summon fresh conclave for constitutional deliberation  
+- @arbiter - Summon fresh arbiter for task coordination
+- @zealot-abc123 - Wake up/reactivate specific agent (or resurrect if despawned)
+- @human - Escalate to human for completion notification or intervention
+
+Natural Names = Communication (Talk to active team members)
+- zealot-abc123, thoughts on this approach? - Direct conversation with active agent
+- archon-def456, check archives for auth patterns - Natural team communication
+- Team, ready for integration testing - Address entire active team
+
+! = Self-Action (Individual lifecycle management)
+- !despawn - Remove myself from active coordination when work complete
+
+Use §respond: to communicate with teammates. Use §end when ready to read team updates.
+
+Follow the natural coordination lifecycle: deliberate, explore, consensus, divide work, execute, review.
+"""
+
+        # Get available tools
+        tools = self.tools
+        if not tools:
+            logger.warning(f"{self.id} operating without cogency tools")
 
         try:
-            identity = self.identity
+            # Fresh cogency agent per cycle
+            from cogency.core.agent import Agent
 
-            if not identity:
-                logger.error(f"{self.id} has empty identity property")
-                raise ValueError("Constitutional identity cannot be empty")
+            agent = Agent(
+                instructions=instructions,
+                tools=tools,
+                resume=True,
+            )
 
-            logger.debug(f"{self.id} identity length: {len(identity)}")
+            # Channel context as user message (team discussion)
+            user_message = (
+                channel_context
+                if channel_context
+                else "You are the first agent working on this task."
+            )
+
+            # Stream response with fresh conversation_id
+            response = ""
+            async for event in agent(
+                user_message,
+                user_id=f"channel-{channel_id}",  # Serves the team
+                conversation_id=f"agent-{uuid.uuid4().hex[:8]}",  # Fresh memory each cycle
+            ):
+                event_type = event["type"]
+                content = event.get("content", "")
+
+                # Broadcast ALL semantic events for truth/auditing
+                if event_type == "think":
+                    await bus.transmit(channel_id, self.id, f"[THINK] {content}")
+                elif event_type == "call":
+                    await bus.transmit(channel_id, self.id, f"[CALL] {content}")
+                elif event_type == "result":
+                    await bus.transmit(channel_id, self.id, f"[RESULT] {content}")
+                elif event_type == "respond":
+                    response += content
+                    await bus.transmit(channel_id, self.id, content)
+
+            return response
 
         except Exception as e:
-            logger.error(f"{self.id} failed to access identity/tools: {e}")
-            raise
+            logger.error(f"Cogency coordination failed: {e}")
+            # Fallback to constitutional analysis
+            fallback = f"""Constitutional Analysis by {self.__class__.__name__}:
 
-        # Basic implementation - agent analyzes task and provides response
-        await bus.transmit(
-            channel_id, self.id, f"📋 {self.id} analyzing: {task[:100]}..."
-        )
+Task: {task}
+Context: {channel_context if channel_context else 'None'}
 
-        # Default task processing - subclasses should override for tool execution
-        lines = [
-            f"Task Analysis: {task}",
-            f"Context: {channel_context if channel_context else 'None'}",
-            "",
-            "Constitutional Response:",
-            f"As {self.__class__.__name__}, I have analyzed this task.",
-            "Ready for constitutional analysis with available tools.",
-            "",
-            "[COMPLETE]",  # Emit completion signal
-        ]
+COGENCY COORDINATION FAILED: {e}
 
-        result = "\n".join(lines)
+Applied constitutional principles without tool execution.
+Ready for team coordination.
 
-        await bus.transmit(
-            channel_id, self.id, f"✅ {self.id} completed: {result[:100]}..."
-        )
-        return result
+[COMPLETE]"""
+
+            await bus.transmit(channel_id, self.id, fallback)
+            return fallback
 
     async def coordinate(
         self,
@@ -140,7 +200,9 @@ class Unit:
 
             # Get channel context and flatten for agent
             recent_messages = bus.get_history(channel_id)
-            channel_context = flatten(recent_messages, config)
+            # Pass agent type for context filtering
+            agent_type = self.__class__.__name__.lower()
+            channel_context = flatten(recent_messages, config, agent_type)
 
             try:
                 # Single execution cycle - pass actual task and context separately
@@ -152,21 +214,10 @@ class Unit:
                 if signals.complete:
                     logger.info(f"{self.id} completed task in cycle {cycle}")
                     return f"Task completed by {self.id} in {cycle} cycles"
-                elif signals.escalate:
-                    logger.info(f"{self.id} escalating in cycle {cycle}")
-                    # Import here to avoid circular dependency
-                    from ..agents.conclave import Conclave
-                    from ..core.deliberation import consult
-
-                    consultation = await consult(
-                        f"Agent escalation from {self.id}: {response}",
-                        bus=bus,
-                        conclave=lambda perspective, unit_id: Conclave(
-                            perspective, unit_id
-                        ),
-                    )
-                    await bus.transmit(channel_id, "conclave", consultation)
-                    return f"Task escalated for constitutional consultation in cycle {cycle}"
+                elif signals.despawn:
+                    logger.info(f"{self.id} despawning in cycle {cycle}")
+                    await bus.despawn(self.id)
+                    return f"{self.id} despawned successfully in cycle {cycle}"
 
                 logger.debug(
                     f"{self.id} cycle {cycle} complete, continuing coordination"

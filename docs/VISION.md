@@ -81,6 +81,8 @@ Archons provide cognitive curation, not mechanical similarity matching. Context 
 
 **Constitutional constraints create excellence**: Like sonnets, formal constraints enhance rather than restrict intelligence. Democratic deliberation over authority hierarchy. Context asymmetry enables specialized intelligence. Emergent organization over imposed taxonomy.
 
+**Cognitive sovereignty over notification tyranny**: Agents choose when to synchronize with team updates rather than suffering constant interruptions. The `§end` delimiter signals readiness for fresh team context, protecting uninterrupted cognitive flow. Constitutional agents think like agents, not react like notification endpoints.
+
 **Knobs, not flaws**: Every coordination "problem" becomes a tuning parameter:
 - Scalability friction → Message routing optimization
 - Metacognitive calibration → Constitutional oversight via Sacred Four
@@ -104,7 +106,7 @@ Success metrics: Extended autonomous operation without human babysitting. System
 **Pure concurrency abstraction:**
 ```python
 import protoss
-protoss("research, experiment and build claude 6", agents=100, llm="claude-sonnet")
+protoss("research, experiment and build claude 6", agents=100, llm="openai")
 ```
 
 **Emergent coordination principles:**
@@ -159,23 +161,19 @@ Empirical question only answered by building it.
 - Escalating appropriately to human oversight
 - Evolving its own coordination capabilities
 
-**If successful:** Universal coordination substrate proven. The system can improve anything, including itself.
+**If successful:** The coordination patterns work for self-improvement. The system can improve anything, including itself.
 
-**Implications:** Recursive AI improvement through coordination governance, not just individual intelligence scaling.
+**Implications:** AI improvement through coordination governance, not just individual intelligence scaling.
 
-**Implementation Status:** Constitutional coordination foundation complete. Next: Monitoring and conversational interfaces for recursive improvement capability.
+**Implementation Status:** Constitutional coordination foundation complete. Next: Monitoring and conversational interfaces.
 
-## The Recursive Test
+## Coordination Test Examples
 
-**Success Metric:** Protoss coordination system working on protoss/ codebase, improving its own coordination architecture while simultaneously:
-- Working on external projects
-- Maintaining constitutional code quality
-- Escalating appropriately to human oversight
-- Evolving its own coordination capabilities
+**General Use:** Protoss coordinates on any codebase - web apps, APIs, CLIs, infrastructure, documentation.
 
-**If successful:** Universal coordination substrate proven. The system can improve anything, including itself.
+**Self-improvement test:** As one possible coordination target, protoss could work on protoss/ codebase itself, demonstrating the coordination patterns work recursively.
 
-**Implications:** Recursive AI improvement through coordination governance, not just individual intelligence scaling.
+**Success metric:** Constitutional coordination that maintains quality, escalates appropriately, and achieves results - regardless of target codebase.
 
 ### Human-Swarm Coordination Patterns
 
@@ -213,10 +211,10 @@ protoss meta "improve your own coordination"
 # Reports meta-insights about architecture
 ```
 
-**Status:** CURRENT: Architectural foundation complete, ceremony purged. NEXT: Monitoring and conversational interfaces. GOAL: Self-improving coordination substrate.
+**Status:** Architectural foundation complete, ceremony purged. Next: monitoring and conversational interfaces.
 
 ⚔️ *En taro Adun - The swarm that builds itself*
 
 ---
 
-*Constitutional governance for AI coordination. Pure concurrency abstraction enabling emergent recursive improvement.*
+*Constitutional governance for AI coordination. Concurrency abstraction enabling emergent improvement.*
