@@ -5,10 +5,10 @@ install:
     @poetry install
 
 dev:
-    @poetry run python tests/integration/test_nexus.py
+    @poetry run protoss start
 
-command task:
-    @poetry run python -m protoss.command "{{task}}"
+cmd task:
+    @poetry run protoss "{{task}}"
 
 format:
     @poetry run ruff format .

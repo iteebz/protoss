@@ -2,6 +2,6 @@
 
 from .nexus import Nexus
 from .pylon import Pylon
-from .gateway import Gateway
+from . import gateway
 
-__all__ = ["Nexus", "Pylon", "Gateway"]
+__all__ = ["Nexus", "Pylon", "gateway"]

@@ -1,14 +1,12 @@
 # Protoss
 
-**Constitutional governance for AI swarms. StarCraft-inspired coordination architecture.**
+**Constitutional governance for AI swarms. Multi-agent coordination without collapse.**
 
-Same model, different context asymmetry. Democratic deliberation, escalation safety, month-level autonomy.
+Distributed AI coordination through constitutional frameworks, democratic deliberation, and systematic escalation protocols.
 
 ## Core Insight
 
-**Individual LLM reasoning isn't the secret sauce - governance for reasoning is.**
-
-Context asymmetry + coordination + escalation = emergent error correction.
+Constitutional identity frameworks enable persistent multi-agent coordination by routing the same model through different governance contexts. Individual agent intelligence remains constant - coordination governance provides the scaling advantage.
 
 ## Architecture
 
@@ -18,10 +16,9 @@ Context asymmetry + coordination + escalation = emergent error correction.
 - **GATEWAY** - Agent spawning facility, lifecycle management
 
 **Mobile Units (Agents):**
-- **ZEALOT** - Task execution, uncertainty escalation
-- **STALKER** - Quality enforcement via Guardian Protocol
-- **CARRIER** - Human-swarm bridge, launches Interceptors
-- **ARCHON** - Knowledge synthesis, institutional memory
+- **ZEALOT** - Task execution, natural coordination, emergent specialization
+- **ARCHON** - Knowledge synthesis, institutional memory via @mention
+- **SACRED FOUR** - Constitutional deliberation and governance
 
 **SACRED FOUR** - Constitutional leadership through context asymmetry:
 - **Tassadar** - Pragmatic vision, shipping constraints
@@ -37,27 +34,46 @@ Context asymmetry + coordination + escalation = emergent error correction.
 ## Quick Start
 
 ```bash
-protoss start                    # Infrastructure online
-protoss "build tokenizer"        # 🛸 Auto-spawn Carrier, natural coordination
-protoss "should we use React?"   # → Carrier routes to Sacred Four internally
-protoss "coordinate 5 agents"    # → Carrier deploys squad internally
+# Start coordination infrastructure
+protoss start
+
+# Spawn individual units
+protoss spawn zealot "implement JWT authentication" 
+protoss spawn archon "synthesize auth patterns" 
+
+# Deploy natural coordination squads
+protoss warp "build user management API"      # 3 agents (default)
+protoss warp 5 "complex microservice design" # 5 agents for complex tasks
+
+# Monitor coordination activity
+protoss monitor
+protoss status
+
+# Sacred Four constitutional guidance
+protoss conclave "should we refactor to microservices?"
 ```
 
-## The Test
+## Research Question
 
-**Can Claude 5-level intelligence research Claude 6-level breakthroughs when properly coordinated?**
+Can Claude 5-level intelligence research Claude 6-level breakthroughs when properly coordinated through constitutional governance frameworks?
 
-Not building AGI - building coordination substrate for recursive improvement.
+The system tests coordination scaling as a pathway to recursive self-improvement - building coordination substrate that could support autonomous AI research teams.
 
-That's an empirical question only answered by building it.
+## Implementation Status
 
-## Status
+**Current (v0.1):**
+- ✅ Core infrastructure (Gateway, Khala, Nexus)
+- ✅ Natural coordination units (Zealot, Archon)  
+- ✅ Sacred Four governance (Tassadar, Zeratul, Artanis, Fenix)
+- ✅ PSI protocol + @mention reactive spawning
+- ✅ CLI interface with monitoring
 
-**v0.1** - Core architecture, speculative features documented  
-**Implementation:** Gateway/Khala/basic Zealots operational  
-**Vision:** Month-level AI autonomy through constitutional coordination
+**Target capabilities:**
+- Hour-level autonomy (current research target)
+- Day-level autonomy (production threshold)
+- Month-level autonomy (recursive improvement threshold)
 
-**My life for Aiur.** ⚔️
+⚔️ *En taro Adun*
 
 ---
 *Built by Tyson Chan - tyson.chan@proton.me*

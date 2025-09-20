@@ -1,72 +1,125 @@
-# Archon: Coherence Maximizing Agent
+# Archon: Context Steward
 
-**Institutional memory specialist. Cognitive curation, not algorithmic similarity matching.**
+**Pathway seeding and knowledge compression for zealot coordination.**
 
-## Core Breakthrough
+## Core Pattern
 
-**RAG is bullshit for memory architecture.** Mechanical similarity (0.9 threshold → merge) destroys context and narrative coherence.
-
-**Memory coherence requires dedicated cognitive specialists** - continuous background curation with domain expertise.
-
-## Cognitive Curation Principles
-
-**Context over similarity:** Two facts can be 95% similar but conceptually distinct. Archons understand domain evolution and preserve reasoning narratives.
-
-**Continuous background processing:** Daemon process archives/consolidates knowledge continuously. Active process retrieves coherent context on-demand. No workflow interruption.
-
-**Narrative thread preservation:** Preserve the journey, not just destination. How insights emerged, evolved, connected across time.
-
-**Domain expertise specialization:** Each Archon develops deep contextual understanding of their curation domain.
-
-**Emergent organization:** Knowledge structures emerge from usage patterns. No imposed taxonomies.
-
-## Why RAG Fails for Institutional Memory
-
-1. **Similarity matching loses conceptual distinction** - 0.95 similar ≠ same meaning
-2. **Single merge calls destroy narrative** - No understanding of insight evolution
-3. **No domain expertise** - Generic merging without field understanding
-4. **Mechanical interruption breaks flow** - Disrupts cognitive processes
-5. **Context collapse** - Loses reasoning journey that created knowledge
-
-## Archon as Entropy Fighter
-
-**Fundamental insight: Archons manage the context that makes intelligence coordination possible.**
-
-**Without Archons maintaining coherence:**
-- Sacred Four → No constitutional precedent or wisdom
-- Zealots → Repeat failures endlessly (no coordination learning)  
-- Carrier → Can't compress swarm context (no synthesis capability)
-- **Entire system fragments into entropy**
-
-**Complex coordination systems naturally fragment into unusable noise without dedicated coherence maximization.**
-
-## The Coherence Substrate
-
-**Archons are the cognitive infrastructure preserving coordination capability across time and agent lifecycles.**
-
-**This is why month-level AI autonomy requires Archons** - not just knowledge synthesis, but **coherence maintenance substrate** enabling all other coordination functions.
-
-## Storage Architecture
+**Archons are context stewards, not reactive services.**
 
 ```
-.protoss/knowledge/     # Domain-specific canonical insights
-├── coordination.md     # Multi-agent coordination wisdom
-├── streaming.md        # Streaming consciousness patterns
-└── memory.md           # Memory architecture insights
+Archon seeds pathway → Zealots coordinate in rich context → Archon compresses to archives
 ```
 
-## Integration Patterns
+**Mental model for zealots:** Archon is helpful teammate with institutional memory, not a service to summon.
 
-**Khala observation:** Detect successful coordination patterns from swarm activity
-**Constitutional support:** Provide institutional memory for Sacred Four decisions  
-**Carrier synthesis:** Compress swarm knowledge for human consumption
+## Seeding Protocol
 
-## The Recursive Truth
+**Rich context injection at pathway start:**
 
-**Archons curate the knowledge they use to curate knowledge.**
+```python
+await gateway.warp_with_context(
+    "Implement JWT authentication",
+    keywords=["auth", "jwt", "tokens"]
+)
+```
 
-Self-improving institutional memory through continuous cognitive specialization.
+**Zealots spawn into:**
+- Relevant archives from previous work
+- Key codebase file pointers
+- Architectural constraints and decisions
+- Natural coordination workflow guidance
 
-**This is how AI systems develop institutional wisdom** - dedicated cognitive curation, not mechanical algorithms.
+**No empty pathways. No starting from zero.**
 
-**En taro Tassadar.** 🔮
+## Natural @archon Interaction
+
+**Zealots ask for additional context naturally:**
+
+```
+Zealot: "@archon what about password reset patterns?"
+Archon: "No archives on that yet - first implementation. Suggest following existing email patterns in notifications/"
+
+Zealot: "@archon context on session management decisions?"  
+Archon: "Previous discussion in archives/auth-session-2024.md - team chose Redis over DB for performance..."
+```
+
+**Honest responses:** 
+- Found relevant context → Share it
+- No archives exist → "No archives on that yet, suggest exploring codebase"
+- Helpful teammate, not omniscient oracle
+
+## Compression Protocol
+
+**Ongoing archive maintenance:**
+- Archon monitors pathway for key decisions
+- Updates archives with architectural choices
+- Maintains clean knowledge organization
+
+**End-of-task compression:**
+- Extract final insights and implementation summary
+- Create comprehensive archive entry
+- Bridge to future coordination efforts
+
+**Knowledge accumulates organically through actual usage.**
+
+## Architecture Benefits
+
+**Context Continuity:**
+- Future pathways start with relevant context
+- Institutional memory preserved across agent spawns
+- Natural knowledge evolution without artificial taxonomies
+
+**Cognitive Relief:**
+- Zealots focus on coordination and implementation
+- No summoning decisions or service complexity
+- Rich context eliminates "cold start" problems
+
+**Fault Tolerance:**
+- Archives provide coordination continuity
+- Knowledge survives individual agent lifecycles
+- Graceful degradation when archives incomplete
+
+## Implementation
+
+**Gateway Integration:**
+```python
+# Standard coordination (empty pathway)
+await gateway.warp(task, agent_count)
+
+# Context-seeded coordination (rich pathway)
+await gateway.warp_with_context(task, agent_count, keywords=["auth", "jwt"])
+```
+
+**Archon Methods:**
+- `seed_pathway()` - Rich context injection
+- `respond_to_mention()` - @archon natural interaction  
+- `compress_pathway()` - Archive maintenance
+
+**Archives Structure:**
+```
+archives/
+├── pathways/     # Coordination summaries
+├── decisions/    # Architectural choices
+├── patterns/     # Recurring solutions
+└── context/      # Rich context seeds
+```
+
+## Quality Standards
+
+**Constitutional Alignment:**
+- Simple, elegant abstractions
+- No enterprise complexity
+- Natural emergence over imposed structure
+- Agent experience first
+
+**Practical Elegance:**
+- Solves real coordination problems
+- Respects agent attention architecture
+- Enables month-level autonomous coordination
+- Knowledge work feels natural, not ceremonial
+
+---
+
+*"Sometimes the most helpful thing an archon can do is say 'no archives on that yet' and let zealots explore fresh territory."*
+
+**EN TARO ADUN.**

@@ -1,14 +1,31 @@
-"""Protoss: Distributed AI coordination architecture.
+"""Protoss: Constitutional AI coordination.
 
-Psionic agent swarms with democratic oversight for month-level autonomy.
+Pure concurrency abstraction for emergent agent coordination.
 
-My life for Aiur.
+En taro Adun.
 """
 
-from .structures import Nexus, Gateway, Pylon
-from .units import Zealot
-from .conclave import Conclave
-from .khala import khala, Psi
+# Load environment variables first
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-__version__ = "0.0.1"
-__all__ = ["Nexus", "Gateway", "Pylon", "Zealot", "Conclave", "khala", "Psi"]
+from .core import Protoss, CoordinationEvent
+from .config import Config
+
+# Legacy exports for existing code
+from .structures import Nexus, Pylon, gateway
+from .units import Zealot
+from . import conclave
+from . import khala
+from .khala import Psi
+
+__version__ = "0.1.0"
+__all__ = [
+    # Primary API
+    "Protoss", "Config", "CoordinationEvent",
+    # Legacy exports
+    "Nexus", "gateway", "Pylon", "Zealot", "conclave", "khala", "Psi"
+]

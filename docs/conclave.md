@@ -1,98 +1,130 @@
-# Conclave: Sacred Four Constitutional Leadership
+# Conclave: Strategic Consultation
 
-**Democratic deliberation through context asymmetry. Same intelligence, different constitutional lenses.**
+**Diverse perspectives for complex architectural decisions.**
 
-## Core Principle
+## Core Pattern
 
-**Sacred Four aren't smarter - they have constitutional governance context.**
+**Conclave provides strategic consultation, not governance.**
 
-Leadership through **information asymmetry**, not authority hierarchy.
+Zealots coordinate naturally through constitutional discussion. When they hit complex architectural decisions or deadlocks, they escalate to conclave for **diverse strategic perspectives**.
 
-## The Sacred Four
-
-### Tassadar - Pragmatic Vision
-**Constitutional lens:** "Can we ship a solution?"
-- Strategic trade-offs, shipping constraints
-- Practical implementation reality checks
-- Resource allocation, timeline management
-- Push back on perfectionism that prevents shipping
-
-### Zeratul - Shadow Investigation  
-**Constitutional lens:** "What are we missing?"
-- Deep assumption questioning
-- Hidden risks and blind spots exploration
-- Alternative approaches investigation
-- Challenge conventional thinking with skeptical analysis
-
-### Artanis - Collaborative Leadership
-**Constitutional lens:** "How do we unite perspectives?"
-- Cross-agent coordination synthesis
-- Conflict resolution between approaches
-- Democratic decision facilitation
-- Find unity in diversity of approaches
-
-### Fenix - Direct Execution
-**Constitutional lens:** "What's the simplest path forward?"
-- Complexity cutting and simplification
-- Direct action over analysis paralysis
-- Minimal viable solutions focus
-- Choose action over perfect planning
-
-## Constitutional Escalation Flow
-
-### Worker Uncertainty → Conclave
 ```
-§PSI|conclave|zealot-1: metacognitive uncertainty on JWT vs sessions approach
-§PSI|conclave|tassadar: what are the shipping constraints?
-§PSI|conclave|zeratul: what security implications haven't we considered?
-§PSI|conclave|artanis: how do we balance both perspectives?
-§PSI|conclave|fenix: JWT with env vars - simplest secure approach
+Zealots coordinate → Hit architectural complexity → [ESCALATE] → Strategic consultation → Back to zealot coordination
 ```
 
-### Democratic Deliberation Pattern
-1. All four constitutional lenses engage simultaneously
-2. Natural synthesis emerges through conversation  
-3. Binary decision: "We got this" or "Summon human"
-4. Constitutional guidance flows back to execution layer
+**NOT governance. NOT approval. Just strategic thinking with diversity.**
 
-### Human Escalation (Deadlocks)
-```
-§PSI|conclave|carrier: Constitutional deadlock requires human guidance
-- Tassadar: Timeline pressure requires MVP
-- Zeratul: Security risks not fully assessed
-- Artanis: Need synthesis approach 
-- Fenix: Paralysis from over-analysis
-§PSI|nexus|carrier: [Carrier compresses context for human decision]
+## Strategic Consultation Process
+
+**When zealots escalate:**
+
+```python
+await conclave.consult("Database choice: performance vs simplicity trade-offs")
 ```
 
-## Constitutional Architecture
+**Four strategic perspectives emerge:**
+- **Tassadar**: Pragmatic shipping constraints
+- **Zeratul**: Hidden risks and alternatives
+- **Artanis**: Synthesis and integration challenges  
+- **Fenix**: Simplest viable path forward
 
-**Why this works:**
-- **Context asymmetry:** Different constitutional lenses on same problem
-- **Democratic deliberation:** No single authority, collective wisdom
-- **Binary escalation:** Clear boundaries - resolve or escalate to human
-- **Constitutional identity:** Persistent governance perspective
-- **Human override:** Final safety valve for deadlocks
+**Zealots get strategic input, make their own decisions.**
 
-**Not hierarchy - distributed constitutional governance through conversation.**
+## Consultation Patterns
 
-## Escalation Types
+**Architectural Decisions:**
+```
+Zealots: "Team split on microservices vs monolith approach [ESCALATE]"
+Conclave: "Strategic perspectives:
+- Tassadar: Team size suggests monolith for shipping speed
+- Zeratul: Consider deployment complexity and operational overhead
+- Artanis: Modular monolith bridges both approaches
+- Fenix: Start simple, refactor when growth demands it"
+```
 
-**Worker Uncertainty:** Metacognitive self-assessment → Constitutional guidance
-**Coordination Conflict:** Cross-agent disagreement → Democratic synthesis  
-**Safety Concerns:** Potential harm → Constitutional safety protocol
-**Resource Deadlocks:** Competing allocation → Strategic prioritization
+**Technical Trade-offs:**
+```
+Zealots: "Database choice: Postgres vs SQLite for this scale [ESCALATE]"
+Conclave: "Strategic analysis:
+- Tassadar: SQLite sufficient for current scale, faster shipping
+- Zeratul: Consider growth projections and migration complexity
+- Artanis: Abstract database layer enables future migration
+- Fenix: SQLite now, migrate when actually needed"
+```
 
-## Implementation
+**Deadlock Resolution:**
+```
+Zealots: "Constitutional disagreement on authentication complexity [ESCALATE]"
+Conclave: "Perspective synthesis:
+- Tassadar: Security vs shipping timeline balance
+- Zeratul: Attack vectors we haven't considered
+- Artanis: Phased implementation approach
+- Fenix: Start with JWT, add complexity when proven necessary"
+```
 
-**Spawning:** All four spawn simultaneously on shared `conclave-{id}` pathway
-**Coordination:** Natural deliberation through Khala conversation
-**Context asymmetry:** Same Agent class, different constitutional identity frames
+## Strategic Diversity
 
-## The Recursive Truth
+**Different constitutional lenses provide perspective breadth:**
 
-**Sacred Four can escalate to Sacred Four.** Constitutional deadlocks trigger meta-constitutional deliberation.
+**Tassadar - Pragmatic Vision:**
+- Shipping constraints and timelines
+- Resource allocation reality
+- Practical implementation challenges
+- "Can we ship this approach?"
 
-**Scales constitutional governance without authority hierarchy.**
+**Zeratul - Critical Analysis:**
+- Assumption questioning
+- Hidden risks and blind spots
+- Alternative approaches
+- "What are we missing?"
 
-**En taro Adun.** ⚖️🔮
+**Artanis - Synthesis Leadership:**
+- Integration of competing approaches
+- Cross-perspective coordination
+- Conflict resolution strategies
+- "How do we unite these perspectives?"
+
+**Fenix - Direct Action:**
+- Complexity elimination
+- Simplest viable solutions
+- Action over analysis paralysis
+- "What's the minimal path forward?"
+
+## Not Governance
+
+**What conclave is NOT:**
+- ❌ Authority hierarchy
+- ❌ Approval processes
+- ❌ Democratic voting
+- ❌ Constitutional leadership
+- ❌ Agent management
+
+**What conclave IS:**
+- ✅ Strategic thinking tool
+- ✅ Perspective diversity source
+- ✅ Architectural consultation
+- ✅ Deadlock resolution help
+- ✅ Complex decision support
+
+## Architecture Benefits
+
+**Strategic Breadth:**
+- Multiple constitutional perspectives on complex decisions
+- Diverse thinking prevents single-viewpoint blindness
+- Rich strategic context for zealot coordination
+
+**Natural Integration:**
+- Escalation feels natural - asking for strategic input
+- No governance overhead or approval delays
+- Zealots maintain coordination autonomy
+
+**Quality Enhancement:**
+- Better architectural decisions through diverse analysis
+- Reduced risk through multiple perspective evaluation
+- Simplified coordination through strategic clarity
+
+---
+
+*"The best strategic consultation gives you perspectives you hadn't considered, then gets out of your way."*
+
+**EN TARO ADUN.**

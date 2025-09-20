@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 from .paths import Paths
-from .protocols import Storage
+from ..protocols import Storage
 
 
 class DB:
@@ -55,7 +55,9 @@ class SQLite(Storage):
     def __init__(self, base_dir: str = None):
         self.base_dir = base_dir
 
-    async def save_psi(self, pathway: str, sender: str, content: str, timestamp: float = None) -> None:
+    async def save_psi(
+        self, pathway: str, sender: str, content: str, timestamp: float = None
+    ) -> None:
         """Save psi transmission to pathway with retry logic."""
         import asyncio
 
@@ -82,7 +84,9 @@ class SQLite(Storage):
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
-    async def load_pathway_psi(self, pathway: str, since: float = 0, limit: int = None) -> list[dict]:
+    async def load_psi(
+        self, pathway: str, since: float = 0, limit: int = None
+    ) -> list[dict]:
         """Load psi transmissions from pathway since timestamp."""
         import asyncio
 
@@ -98,7 +102,14 @@ class SQLite(Storage):
                     params.append(limit)
 
                 rows = db.execute(query, params).fetchall()
-                return [{"sender": row["sender"], "content": row["content"], "timestamp": row["timestamp"]} for row in rows]
+                return [
+                    {
+                        "sender": row["sender"],
+                        "content": row["content"],
+                        "timestamp": row["timestamp"],
+                    }
+                    for row in rows
+                ]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
@@ -135,12 +146,12 @@ class SQLite(Storage):
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
-    async def get_recent_messages(self, pathway: str, limit: int = 10) -> list[str]:
+    async def recent(self, pathway: str, limit: int = 10) -> list[str]:
         """Get recent message content from pathway."""
-        psi_data = await self.load_pathway_psi(pathway, limit=limit)
+        psi_data = await self.load_psi(pathway, limit=limit)
         return [psi["content"] for psi in psi_data[-limit:]]  # Most recent
 
 
-def default_storage():
-    """Get default storage instance."""
+def storage():
+    """Get storage instance."""
     return SQLite()

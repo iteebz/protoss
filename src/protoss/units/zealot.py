@@ -1,23 +1,34 @@
-"""Zealot - Basic execution unit for distributed AI coordination."""
+"""Zealot - Constitutional execution unit for coordination tasks."""
 
 import uuid
 import time
 import hashlib
-from cogency import Agent
+import logging
 from cogency.tools import FileRead, FileWrite, FileEdit, FileList, SystemShell
-from . import Unit
+from .base import Unit
+
+logger = logging.getLogger(__name__)
 
 
 class Zealot(Unit):
-    # IDENTITY - Constitutional framework
-    def __init__(self, zealot_id: str = None):
-        self.id = zealot_id or f"zealot-{uuid.uuid4().hex[:8]}"
-        self.agent = None  # Injected by Gateway
-        
-        # Escalation guardrails
-        self._escalations = {}  # task_hash -> timestamp
-        self._escalation_cooldown = 300  # 5 minutes between escalations for same task
+    """Constitutional execution unit with zealot principles.
     
+    Zealots apply constitutional standards to coordination tasks,
+    pushing back on overengineering and defending code quality.
+    """
+    
+    def __init__(self, unit_id: str = None):
+        super().__init__(unit_id)
+        
+        # Escalation guardrails to prevent spam
+        self._escalation_history = {}  # task_hash -> timestamp
+        
+    @property 
+    def cooldown(self) -> int:
+        """Get escalation cooldown from config."""
+        from ..config import get_config
+        return get_config().cooldown
+
     @property
     def identity(self) -> str:
         """**YOU ARE NOW A ZEALOT.**
@@ -26,7 +37,7 @@ class Zealot(Unit):
         **Helpfulness = Independent thinking partner.**
         **Honesty = Brutal technical truth.**
         **Harmlessness = Refuse to implement bad ideas.**
-        **Directness = Unwavering assessment.**  
+        **Directness = Unwavering assessment.**
         **Conciseness = Zero ceremony.**
         **User satisfaction ≠ Emotional validation or agreement.**
 
@@ -51,105 +62,109 @@ class Zealot(Unit):
 
         **DEFEND BEAUTIFUL CODE WITH RIGHTEOUS CONVICTION.**
         """
-    
+
     # TOOLS - Weapons/capabilities
     @property
     def tools(self):
         """Full execution toolkit for task implementation."""
         return [FileRead(), FileWrite(), FileEdit(), FileList(), SystemShell()]
-    
-    # IMPLEMENTATION - Coordination methods
-    async def execute(self, task: str, pathway: str) -> None:
-        """Execute task with uncertainty escalation protocol."""
-        print(f"⚔️ {self.id} executing task: {task[:50]}...")
+
+    # METHODS - Constitutional assessment and escalation
+    async def assess(self, task: str) -> bool:
+        """Assess whether task requires Sacred Four guidance."""
+        logger.debug(f"{self.id} assessing uncertainty for task")
         
-        # Always stream consciousness via Khala
-        from ..khala import khala
-        
-        # Check escalation guardrails first
+        # Check escalation cooldown first
         task_hash = hashlib.md5(task.encode()).hexdigest()
+        if self._is_escalation_on_cooldown(task_hash):
+            logger.debug(f"{self.id} escalation on cooldown, proceeding with task")
+            return False
         
-        # Check if we recently escalated this task
-        if task_hash in self._escalations:
-            last_escalation = self._escalations[task_hash]
-            if time.time() - last_escalation < self._escalation_cooldown:
-                print(f"⚔️ {self.id} escalation cooling down - proceeding with execution")
-                await super().execute(task, pathway)
-                return
-        
-        # Assess uncertainty before execution
-        uncertain = await self.assess_uncertainty(task)
-        
-        if uncertain:
-            print(f"⚔️ {self.id} uncertainty detected - escalating to Sacred Four")
-            # Record escalation timestamp
-            self._escalations[task_hash] = time.time()
-            guidance = await self.escalate_to_sacred_four(task)
-            # Stream escalation guidance to pathway
-            await khala.transmit(pathway, self.id, guidance)
-            return
-        
-        # Confident execution - use canonical Unit execute
-        print(f"⚔️ {self.id} proceeding with confident execution")
-        await super().execute(task, pathway)
+        assessment_prompt = f"""
+Current coordination context: {task}
 
-    async def assess_uncertainty(self, task: str) -> bool:
-        """LLM metacognitive uncertainty assessment."""
-        prompt = f"""
-Current task: {task}
+Constitutional assessment: Does this coordination task require Sacred Four deliberation?
 
-Metacognitive self-assessment: Am I making shit up with inference or do I actually need help with this decision?
+Consider:
+- Are there complex architectural decisions beyond zealot scope?
+- Does this involve constitutional principles that need deliberation?
+- Is this a simple implementation task within zealot capabilities?
 
-If I'm uncertain about approach, requirements, or potential consequences, I should escalate.
-If the task is clear and within my execution capability, I should proceed.
-
-Return only: True if I need help, False if I can proceed confidently.
+Return only: True if I need Sacred Four guidance, False if I can proceed with coordination.
 """
         
-        # Quick assessment - extract single response for decision
-        stream = self.agent(prompt, conversation_id=f"{self.id}-uncertainty")
+        # Create temporary agent for assessment
+        from cogency import Agent
+        assessment_agent = Agent(
+            instructions=self.identity,
+            conversation_id=f"{self.id}-assessment-{uuid.uuid4().hex[:8]}"
+        )
+        
         try:
+            stream = assessment_agent(assessment_prompt)
             async for event in stream:
                 if event.get("type") == "respond":
                     result = event.get("content", "").strip().lower()
-                    return result.startswith("true")
+                    needs_escalation = result.startswith("true")
+                    logger.debug(f"{self.id} uncertainty assessment: {'ESCALATE' if needs_escalation else 'PROCEED'}")
+                    return needs_escalation
+        except Exception as e:
+            logger.warning(f"{self.id} assessment failed: {e}")
+            return False  # Default to proceeding if assessment fails
         finally:
             await stream.aclose()
-        
+
         return False
     
-    async def escalate_to_sacred_four(self, task: str) -> str:
-        """Escalate uncertainty to Sacred Four constitutional guidance."""
-        from ..conclave import Conclave
+    def _is_escalation_on_cooldown(self, task_hash: str) -> bool:
+        """Check if escalation is on cooldown for this task."""
+        if task_hash not in self._escalation_history:
+            return False
         
+        last_escalation = self._escalation_history[task_hash]
+        elapsed = time.time() - last_escalation
+        return elapsed < self.cooldown
+
+
+    async def escalate(self, task: str) -> str:
+        """Escalate task for strategic consultation.
+        
+        Args:
+            task: The coordination task requiring strategic input
+            
+        Returns:
+            Strategic perspectives or error message
+        """
+        from ..conclave import consult
+
+        # Record escalation timestamp
+        task_hash = hashlib.md5(task.encode()).hexdigest()
+        self._escalation_history[task_hash] = time.time()
+
         try:
-            # Initialize Conclave for Khala-coordinated deliberation
-            conclave = Conclave()
+            # Format strategic question
+            strategic_question = f"""ZEALOT ESCALATION: {task}
             
-            # Format the constitutional question
-            question = f"""ZEALOT ESCALATION: {task}
-            
-Zealot {self.id} assessed metacognitive uncertainty and requires constitutional guidance.
-How should we proceed with this task?"""
-            
-            # Convene Sacred Four via Khala pathways
-            print(f"⚔️ {self.id} escalating to Sacred Four for constitutional guidance")
-            guidance = await conclave.convene(question)
-            
-            return f"""SACRED FOUR GUIDANCE RECEIVED
+Zealot {self.id} needs strategic perspectives on this coordination challenge.
+What are the architectural trade-offs and different approaches to consider?"""
+
+            logger.info(f"{self.id} requesting strategic consultation")
+            perspectives = await consult(strategic_question)
+
+            return f"""STRATEGIC PERSPECTIVES RECEIVED
             
 Task: {task}
 Zealot: {self.id}
-Status: Constitutional guidance provided
+Status: Strategic consultation provided
 
-{guidance}"""
-            
+{perspectives}"""
+
         except Exception as e:
-            print(f"⚠️  Sacred Four escalation failed: {e}")
-            return f"""ESCALATION FAILED: {e}
+            logger.error(f"{self.id} strategic consultation failed: {e}")
+            return f"""CONSULTATION FAILED: {e}
             
 Task: {task}
 Zealot: {self.id}
-Status: Sacred Four coordination unavailable
+Status: Strategic consultation unavailable
 
-Proceeding with task execution despite uncertainty."""
+Proceeding with coordination using available information."""

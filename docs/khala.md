@@ -45,23 +45,10 @@
 §PSI|squad-123|stalker-x: APPROVED
 ```
 
-## Agent Integration
+## Integration
 
-**Coordination context injection:**
-```python
-coordination = await khala.get_recent_messages(self.pathways)  
-enhanced_task = f"Coordination: {coordination}\n\nTask: {task}"
-result = await self.agent(enhanced_task)  # Cogency handles the rest
-```
+**Coordination context injection**: Recent messages injected into task context before execution  
+**WebSocket infrastructure**: Pylon provides persistent connections at `ws://localhost:8888/{agent-id}`  
+**Persistent memory**: 50 messages per pathway with FIFO trimming, survives disconnections
 
-**WebSocket infrastructure:** Pylon provides `ws://localhost:8888/{agent-id}`
-
-## The Truth
-
-**Khala = coordination substrate for distributed AI intelligence.**
-
-Same way Slack revolutionized human teams - persistent context, topic organization, democratic participation, cross-cutting communication.
-
-**No hierarchy. No ceremony. Just minds connecting through pathways.**
-
-**En taro Adun.** 🔮⚡
+⚡ *En taro Adun*

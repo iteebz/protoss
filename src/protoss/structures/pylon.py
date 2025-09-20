@@ -1,88 +1,102 @@
-"""Pylon: Infrastructure that enables Protoss coordination.
+"""Pylon: Pure WebSocket infrastructure.
 
-Power grid and WebSocket infrastructure. Enables the Khala to operate.
-All coordination logic handled by Khala - Pylon provides pure infrastructure.
+Provides raw message transport. No coordination knowledge.
+Handlers register for message processing.
 """
 
-import asyncio
-from typing import Dict
+from typing import Dict, List, Callable, Awaitable
 import websockets
-from ..khala import khala, Psi
 from ..constants import PYLON_DEFAULT_PORT
 
 
 class Pylon:
-    """Infrastructure that powers the coordination grid. Enables the Khala to operate."""
+    """Pure WebSocket transport infrastructure."""
 
     def __init__(self, port: int = PYLON_DEFAULT_PORT):
         self.port = port
-        self.agents: Dict[str, websockets.WebSocketServerProtocol] = {}
-        self.khala = khala  # The psychic network we power
+        self.connections: Dict[str, websockets.WebSocketServerProtocol] = {}
+        self.message_handlers: List[Callable[[str, str], Awaitable[None]]] = []
+        self.connection_handlers: List[Callable[[str], Awaitable[None]]] = []
+        self.disconnection_handlers: List[Callable[[str], Awaitable[None]]] = []
+
+    def on_message(self, handler: Callable[[str, str], Awaitable[None]]):
+        """Handler receives (agent_id, raw_message)."""
+        self.message_handlers.append(handler)
+
+    def on_connect(self, handler: Callable[[str], Awaitable[None]]):
+        """Handler receives agent_id."""
+        self.connection_handlers.append(handler)
+
+    def on_disconnect(self, handler: Callable[[str], Awaitable[None]]):
+        """Handler receives agent_id."""
+        self.disconnection_handlers.append(handler)
+
+    async def send(self, agent_id: str, message: str):
+        """Send message to agent."""
+        if agent_id in self.connections:
+            try:
+                await self.connections[agent_id].send(message)
+            except websockets.exceptions.ConnectionClosed:
+                await self._disconnect(agent_id)
+
+    async def broadcast(self, message: str):
+        """Broadcast message to all agents."""
+        disconnected = []
+        for agent_id, websocket in self.connections.items():
+            try:
+                await websocket.send(message)
+            except websockets.exceptions.ConnectionClosed:
+                disconnected.append(agent_id)
+        
+        # Clean up disconnected agents
+        for agent_id in disconnected:
+            await self._disconnect(agent_id)
 
     async def start(self):
-        """Power up the grid - start WebSocket infrastructure."""
+        """Start WebSocket server."""
         self.server = await websockets.serve(
-            self._handle_connection, "localhost", self.port
+            self._connection, "localhost", self.port
         )
         print(f"🔹 Pylon powered up on ws://localhost:{self.port}")
 
     async def stop(self):
-        """Power down the grid."""
+        """Stop WebSocket server."""
         if hasattr(self, "server"):
             self.server.close()
             await self.server.wait_closed()
 
-    async def _attune_memories(self, agent_id: str, websocket):
-        """Send recent memories from agent's Khala pathways."""
-        # Send recent memories from pathways the agent was attuned to
-        for pathway_name, minds in self.khala.subscribers.items():
-            if agent_id in minds:
-                memories = self.khala.attune(
-                    agent_id, pathway_name
-                )  # Re-attune and get memories
-                for message in memories:
-                    try:
-                        await websocket.send(message.serialize())
-                    except websockets.exceptions.ConnectionClosed:
-                        return
-
-    async def _handle_connection(self, websocket):
-        """Handle agent connection to grid."""
+    async def _connection(self, websocket):
+        """Handle raw WebSocket connection."""
         agent_id = websocket.request.path.strip("/")
-        self.agents[agent_id] = websocket
+        self.connections[agent_id] = websocket
+        print(f"🔹 {agent_id} connected to Pylon")
 
-        # Send memories from pathways agent was previously attuned to
-        await self._attune_memories(agent_id, websocket)
-        print(f"🔹 {agent_id} connected to Pylon grid")
+        # Notify connection handlers
+        for handler in self.connection_handlers:
+            await handler(agent_id)
 
         try:
             async for raw_message in websocket:
-                message = Psi.parse(raw_message)
-                if message:
-                    # All messages go directly to Khala
-                    await self.khala.transmit(psi=message)
+                # Forward raw message to all handlers
+                for handler in self.message_handlers:
+                    await handler(agent_id, raw_message)
         finally:
-            self.agents.pop(agent_id, None)
-            # Remove agent from all Khala pathways
-            self.khala.sever(agent_id)
+            await self._disconnect(agent_id)
 
+    async def _disconnect(self, agent_id: str):
+        """Handle agent disconnection."""
+        self.connections.pop(agent_id, None)
+        print(f"🔌 {agent_id} disconnected from Pylon")
+        
+        # Notify disconnection handlers
+        for handler in self.disconnection_handlers:
+            await handler(agent_id)
 
-    # CLI INSPECTION METHODS - DELEGATE TO COMPONENTS
-
-    def get_status(self) -> dict:
-        """Get Pylon system status."""
-        khala_status = self.khala.get_status()
-        return {"active_agents": len(self.agents), **khala_status}
-
-    def get_pathways(self):
-        """Get all Khala pathways with stats."""
-        return self.khala.get_pathways()
-
-    def get_pathway(self, name: str):
-        """Get pathway details."""
-        return self.khala.get_pathway(name)
-
-    def get_minds(self):
-        """Get all minds with pathways."""
-        return self.khala.get_minds(self.agents)
-
+    @property 
+    def status(self) -> dict:
+        """Basic Pylon transport status."""
+        return {
+            "active_connections": len(self.connections),
+            "port": self.port,
+            "connected_agents": list(self.connections.keys())
+        }

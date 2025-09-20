@@ -51,51 +51,21 @@ Executor: "⚔️ Zealot-7f3a: JWT implementation complete"
 - Agent reasons naturally about human intent
 - Direct use of Gateway/Khala/Conclave primitives
 
-**STREAM NATIVE:**
-- Executor tunes into Khala for swarm awareness
-- Real-time unit consciousness streaming
-- Human feels connected to swarm intelligence
+**STREAM CONSCIOUSNESS:**
+- Executor tunes into Khala for real-time swarm awareness
+- Unit consciousness streaming creates human connection to distributed intelligence
+- Human feels coordinated with swarm, not commanding it
 
 **CONSTITUTIONAL ESCALATION:**
 - Strategic uncertainty → Conclave deliberation
 - Sacred Four wisdom → Human guidance
 - Democratic governance bridge
 
-## UX Vision
+## Integration
 
-```bash
-protoss executor connect
-> "build auth system"
+**Natural conversation**: Agent reasoning drives coordination, no keyword matching  
+**Stream consciousness**: Real-time Khala awareness, unit progress streaming to human  
+**Constitutional escalation**: Strategic uncertainty → Sacred Four deliberation → Human guidance  
+**Pure interface**: Gateway/Khala/Conclave access without tools or ceremony
 
-⚔️ EXECUTOR: Spawning zealot for auth implementation
-⚔️ Zealot-7f3a: JWT middleware implementation started
-⚔️ Zealot-7f3a: Tests passing, auth system complete
-✅ MISSION COMPLETE
-
-> "should we add OAuth?"
-⚔️ EXECUTOR: Strategic decision detected, consulting Conclave
-🏛️ Sacred Four deliberating on OAuth integration...
-🏛️ TASSADAR: OAuth adds complexity but enables federation
-🏛️ ZERATUL: Security implications require careful analysis
-🏛️ ARTANIS: Team unity requires consistent auth strategy
-🏛️ FENIX: Just implement it - OAuth is proven technology
-🏛️ CONSENSUS: Implement OAuth with security review
-⚔️ EXECUTOR: Spawning squad for OAuth implementation
-```
-
-## Implementation Notes
-
-**PURE INTERFACE:**
-- No tools - just Gateway/Khala/Conclave access
-- Natural conversation flow
-- Agent reasoning drives coordination
-- Clean abstraction boundaries
-
-**STREAM CONSCIOUSNESS:**
-- Khala connection for real-time awareness
-- Unit progress streaming to human
-- Constitutional wisdom when needed
-
-**STATUS: ARCHITECTURAL DESIGN - READY FOR IMPLEMENTATION**
-
-**⚔️ "Additional supply depots required" - En taro Adun!**
+⚔️ *En taro Adun*
