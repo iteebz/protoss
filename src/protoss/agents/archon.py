@@ -25,7 +25,7 @@ import uuid
 import logging
 from pathlib import Path
 from typing import List, Optional
-from .base import Unit
+from .unit import Unit
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +93,8 @@ class Archon(Unit):
             ["file_read", "file_write", "file_edit", "file_list"]
         )
 
-    def __init__(self, unit_id: str = None):
-        super().__init__(unit_id)
+    def __init__(self, agent_id: str = None, max_cycles: int = 100):
+        super().__init__(agent_id, max_cycles=max_cycles)
         self._init()
 
     async def seed_channel(

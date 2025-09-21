@@ -91,14 +91,9 @@ class Unit:
 **Archon** → Institutional memory and context stewardship  
 **Conclave** → Strategic consultation through Sacred Four Perspectives  
 **Arbiter** → Human interface with bidirectional translation  
+**Executor** → Task coordination, workflow management  
 
 **→ See individual docs for detailed constitutional identities and patterns**
-
-## Coordination Command Protocol
-
-**@ = Participation Control** → Summon agents (`@zealot`, `@archon-abc123`)  
-**Natural Names = Communication** → Talk to active agents (`zealot-abc123, thoughts?`)  
-**! = Self-Action** → Individual lifecycle management (`!despawn`)
 
 ## File Structure
 

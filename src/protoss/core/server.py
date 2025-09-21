@@ -2,6 +2,9 @@
 
 from typing import Dict, List, Callable, Awaitable
 import websockets
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Server:
@@ -86,7 +89,7 @@ class Server:
     async def start(self):
         """Initialize and start WebSocket server for agent communication."""
         self.server = await websockets.serve(self._connection, "localhost", self.port)
-        print(f"🔹 WebSocket server started on ws://localhost:{self.port}")
+        logger.info(f"🔹 WebSocket server started on ws://localhost:{self.port}")
 
     async def stop(self):
         """Stop WebSocket server."""
@@ -98,7 +101,7 @@ class Server:
         """Handle raw WebSocket connection."""
         agent_id = websocket.request.path.strip("/")
         self.connections[agent_id] = websocket
-        print(f"🔹 {agent_id} connected")
+        logger.info(f"🔹 {agent_id} connected")
 
         # Notify connection handlers
         for handler in self.connection_handlers:
@@ -115,11 +118,15 @@ class Server:
     async def _disconnect(self, agent_id: str):
         """Handle agent disconnection."""
         self.connections.pop(agent_id, None)
-        print(f"🔌 {agent_id} disconnected")
+        logger.info(f"🔌 {agent_id} disconnected")
 
         # Notify disconnection handlers
         for handler in self.disconnection_handlers:
             await handler(agent_id)
+
+    def is_running(self) -> bool:
+        """Check if the WebSocket server is currently running."""
+        return hasattr(self, "server") and self.server is not None
 
     @property
     def status(self) -> dict:

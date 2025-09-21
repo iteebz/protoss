@@ -1,14 +1,14 @@
 """Constitutional AI agent with configurable perspectives."""
 
 from typing import Dict
-from .base import Unit
+from .unit import Unit
 
 
 class Conclave(Unit):
     """Constitutional AI agent with perspective-based identity."""
 
-    def __init__(self, perspective: str, agent_id: str = None):
-        super().__init__(agent_id)
+    def __init__(self, perspective: str, agent_id: str = None, max_cycles: int = 100):
+        super().__init__(agent_id, max_cycles=max_cycles)
         self.perspective = perspective
 
         if perspective not in self.PERSPECTIVES:
@@ -37,9 +37,7 @@ class Conclave(Unit):
     async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
         """Provide immediate constitutional perspective when summoned."""
 
-        import re
-
-        summary = re.sub(r"@\w+", "", mention_context or "").strip()
+        summary = (mention_context or "").strip()
         if not summary:
             summary = "No explicit context specified."
         header = f"{self.emoji} {self.perspective.upper()} perspective {self.action}"

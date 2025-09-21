@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from .base import Unit
+from .unit import Unit
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 class Arbiter(Unit):
     """⚔️ Human command interface connected to Protoss swarm."""
 
-    def __init__(self, agent_id: Optional[str] = None):
-        super().__init__(agent_id)
+    def __init__(self, agent_id: Optional[str] = None, max_cycles: int = 100):
+        super().__init__(agent_id, max_cycles=max_cycles)
 
     @property
     def identity(self) -> str:
@@ -53,9 +53,7 @@ You are the Arbiter - the singular command interface between human intent and Pr
     async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
         """Provide immediate constitutional translation when @arbiter is summoned."""
 
-        import re
-
-        trimmed = re.sub(r"@\w+", "", mention_context or "").strip()
+        trimmed = (mention_context or "").strip()
         if not trimmed:
             trimmed = "No additional context provided."
         return (

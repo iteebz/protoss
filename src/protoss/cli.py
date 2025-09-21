@@ -75,12 +75,27 @@ def status():
         if status["status"] == "online":
             print(f"Active channels: {status['active_channels']}")
             if status.get("bus"):
-                print(f"Bus status: {status['bus']['status']}")
+                bus_snapshot = status["bus"]
+                print(
+                    "Bus metrics: "
+                    f"channels={bus_snapshot.get('channels', 0)} "
+                    f"agents={bus_snapshot.get('agents', 0)} "
+                    f"memories={bus_snapshot.get('memories', 0)}"
+                )
 
             if status.get("recent_channels"):
                 print("\nRecent channels:")
                 for channel in status["recent_channels"]:
-                    print(f"  - {channel}")
+                    name = channel.get("name", "<unknown>")
+                    agents = channel.get("agents", 0)
+                    memories = channel.get("memories", 0)
+                    recent = channel.get("recent")
+                    recent_preview = (
+                        f" - recent: {recent[:60]}..." if isinstance(recent, str) and recent else ""
+                    )
+                    print(
+                        f"  - {name} (agents={agents}, memories={memories}){recent_preview}"
+                    )
 
     asyncio.run(show_status())
 

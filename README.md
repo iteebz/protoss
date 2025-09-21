@@ -1,6 +1,6 @@
 # Protoss
 
-**Constitutional governance for AI swarms. Multi-agent coordination without collapse.**
+**Constitutional governance for AI swarms. Self-governing telepathic alien civilization for complex coordination.**
 
 ## Quick Start
 
@@ -51,26 +51,40 @@ protoss status
 protoss config
 ```
 
+## Core Principles
+
+Protoss is built on three core principles that differentiate it from traditional multi-agent systems:
+
+- **Constitutional Governance**: Agents are guided by distinct identities and roles, creating a system of natural checks and balances. This prevents groupthink and enhances collective intelligence by embedding a purpose-driven philosophy into each agent.
+
+- **Emergent Coordination**: Complex workflows and team structures arise naturally from conversation (`@mentions`) rather than being dictated by rigid, top-down orchestration. The system adapts to the task, allowing for flexible and intelligent problem-solving.
+
+- **Cognitive Sovereignty**: Agents possess autonomy over their own cognitive processes. They choose when to synchronize with the team, allowing for uninterrupted periods of "thought" and protecting against the "notification tyranny" that degrades reasoning in other systems.
+
 ## Core Architecture
 
-**Infrastructure:**
-- **Bus** - Message routing and coordination for distributed agents
-- **Server** - WebSocket infrastructure for real-time communication  
-- **Gateway** - Agent spawning and lifecycle management
+**Infrastructure:** (See [Architecture](docs/ARCHITECTURE.md) for details)
+- **Bus** - Message routing and coordination
+- **Server** - WebSocket communication
+- **Gateway** - Agent spawning and lifecycle
 
-**Constitutional Agents:**
-- **Zealot** - Task execution with constitutional principles
-- **Archon** - Knowledge management and institutional memory
-- **Conclave** - Strategic consultation through diverse perspectives
+**Constitutional Agents:** (See [Architecture](docs/ARCHITECTURE.md) for details)
+- **Zealot** - Task execution
+- **Archon** - Knowledge management
+- **Conclave** - Strategic consultation
 
-**Coordination Flow:** `CLI → Bus → Agents → Channel Coordination`  
-**Escalation Flow:** `Agent uncertainty → Conclave consultation → Strategic guidance`
+**Coordination Flow:** (See [Coordination Patterns](docs/coordination.md) for details)
+**Escalation Flow:** (See [Constitutional Deliberation](docs/deliberation.md) for details)
 
 ## Research Question
 
-Can Claude 5-level intelligence research Claude 6-level breakthroughs when properly coordinated through constitutional governance frameworks?
+**Constitutional agent swarm for complex work.** Better than Claude/Cursor/Codex through:
+- Multiple constitutional perspectives preventing groupthink
+- Adaptive expertise spawning via @mention protocols  
+- Institutional memory across coordination sessions
+- Democratic deliberation for hard problems
 
-Multi-agent systems consistently collapse within ~10 minutes without human intervention. PROTOSS tests whether constitutional frameworks can extend coordination from minutes to months through democratic deliberation and systematic escalation protocols.
+RSI capabilities emerge naturally from constitutional coordination, but the immediate value is **coordinated constitutional intelligence** for complex tasks humans can't handle alone.
 
 ## Implementation Status
 
@@ -93,14 +107,6 @@ Multi-agent systems consistently collapse within ~10 minutes without human inter
 - **[Roadmap](docs/ROADMAP.md)** - Implementation priorities and architectural decisions
 - **[Interface Design](docs/interface.md)** - UX/DX requirements and executor architecture
 - **[Coordination Patterns](docs/coordination.md)** - Essential multi-agent coordination insights
-
-## Target Capabilities
-
-- **Hour-level autonomy** → Current research target
-- **Day-level autonomy** → Production threshold
-- **Month-level autonomy** → Recursive improvement threshold
-
-Success metrics: Extended autonomous operation without human babysitting. Systems that remember decisions, learn from failures, coordinate without collapse.
 
 ⚔️ *En taro Adun*
 

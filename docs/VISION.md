@@ -1,13 +1,13 @@
 # PROTOSS - Constitutional AI Coordination Architecture
 
-**Vision**: Month-level AI autonomy through constitutional governance  
+**Vision**: Recursive self-improvement in autonomous AI swarms through constitutional governance  
 **Core insight**: Constitutional limitations enhance rather than restrict intelligence - like sonnets create better poetry through formal constraints
 
 ## Research Question
 
 **Can Claude 5-level intelligence research Claude 6-level breakthroughs when properly coordinated?**
 
-Multi-agent systems consistently collapse within ~10 minutes without human intervention. Individual AI intelligence scaling plateaus, but coordination scaling could enable organizational intelligence. PROTOSS tests whether constitutional governance frameworks can extend coordination from minutes to months.
+Multi-agent systems consistently collapse within ~10 minutes without human intervention. Individual AI intelligence scaling plateaus, but coordination scaling could enable organizational intelligence. PROTOSS tests whether constitutional governance frameworks can create truly robust, long-term coordination.
 
 ## Constitutional Governance Architecture
 
@@ -28,18 +28,13 @@ Constitutional identity frameworks prevent sycophantic collapse in homogeneous m
 
 ### Constitutional Units
 
-**Zealot** - Task execution with uncertainty escalation (constitutional principles)  
-**Archon** - Knowledge synthesis specialist, institutional memory curation  
-
-**Conclave** - Constitutional leadership through perspective diversity:
-- **Tassadar** - Pragmatic vision: "Can we ship a solution?"
-- **Zeratul** - Critical analysis: "What are we missing?"  
-- **Artanis** - Collaborative synthesis: "How do we unite perspectives?"
-- **Fenix** - Direct execution: "What's the simplest path forward?"
+Protoss operates with a set of constitutional agents, each embodying a distinct role in the coordination process. For detailed descriptions of each agent, refer to [Architecture](docs/ARCHITECTURE.md). The Conclave's strategic perspectives are elaborated in [deliberation.md](docs/deliberation.md).
 
 Not hierarchy - distributed constitutional governance through conversation.
 
 ## Coordination Protocols
+
+These protocols define the philosophical intent behind how agents coordinate and escalate. For technical implementation details, refer to [Coordination Patterns](coordination.md) and [Constitutional Deliberation](deliberation.md).
 
 ### Three-Layer Error Correction
 1. **Individual metacognition** - Zealots assess own uncertainty
@@ -93,13 +88,16 @@ Archons provide cognitive curation, not mechanical similarity matching. Context 
 
 **Coordination substrate for recursive improvement**: Not building AGI - building infrastructure that could support autonomous AI research teams through proper governance frameworks.
 
-## Target Capabilities
+## Core Goals
 
-- **Hour-level autonomy** → Current research target
-- **Day-level autonomy** → Production threshold  
-- **Month-level autonomy** → Recursive self-improvement threshold
+The goal of Protoss is not a specific duration of autonomy, but the development of a system with the following capabilities:
 
-Success metrics: Extended autonomous operation without human babysitting. Systems that remember decisions, learn from failures, coordinate without collapse.
+- **Robust, Long-Term Coordination:** Move beyond the typical collapse point of multi-agent systems to achieve stable coordination that persists through complex tasks.
+- **Emergent Self-Governance:** Foster a system where agents can self-correct, self-heal, and manage their own coordination through the principles of Constitutional Governance and Emergent Coordination.
+- **Institutional Knowledge:** Develop a persistent, evolving knowledge base via the Archon agents, allowing the swarm to accumulate experience and learn from past successes and failures.
+- **Recursive Self-Improvement:** Create a coordination substrate that is capable of operating on and improving its own source code, demonstrating the ultimate goal of autonomous capability.
+
+Success is measured by the system's ability to manage complexity, learn, and self-improve, rather than by a simple metric of unsupervised runtime.
 
 ## Target API
 
@@ -118,9 +116,8 @@ protoss("research, experiment and build claude 6", agents=100, llm="openai")
 
 ## The Test
 
-Building coordination substrate that scales from current 5-10 agent coordination to empirically validated limits through constitutional governance and institutional memory.
+Building a coordination substrate that scales from 5-10 agents to empirically validated limits, proving that robust, self-improving swarms can be achieved through the core principles of governance, knowledge accumulation, and emergence.
 
-**Current target**: Prove month-level autonomy with realistic agent counts.
 **Ultimate vision**: `protoss("task", agents=N)` where N is whatever actually works.
 
 Empirical question only answered by building it.
@@ -181,7 +178,6 @@ Empirical question only answered by building it.
 ```bash
 protoss monitor    # Live Bus stream
 # ⚔️ Zealot-a1b2: Implementing JWT auth
-# 🛡️ Stalker-c3d4: Reviewing zealot's code  
 # 🔮 Archon-e5f6: Synthesizing auth patterns
 # ⚡ Bus: Consensus - auth system approved
 ```

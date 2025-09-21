@@ -112,7 +112,7 @@ def mock_agent(monkeypatch):
             self, user_message, user_id=None, conversation_id=None, chunks=False
         ):
             """Simple mock response."""
-            yield {"type": "respond", "content": "Mock agent response. [COMPLETE]"}
+            yield {"type": "respond", "content": "Mock agent response. !despawn"}
             yield {"type": "end"}
 
     # Patch the cogency Agent import

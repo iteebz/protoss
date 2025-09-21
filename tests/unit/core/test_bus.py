@@ -71,7 +71,7 @@ async def test_mention_detection():
     message = bus.memories["squad-discuss"][0]
     assert "@archon" in message.content
     assert "@tassadar" in message.content
-    assert message.mentions == ["archon", "tassadar"]
+    assert mentions.extract_mentions(message.content) == ["archon", "tassadar"]
 
 
 def test_get_history():
@@ -82,6 +82,17 @@ def test_get_history():
     assert bus.get_history("nonexistent") == []
 
     # TODO: Test with actual messages after implementing sync message storage
+
+
+def test_channel_task_tracking():
+    """Channel task tracking stores canonical task statement."""
+    bus = Bus(enable_storage=False)
+
+    bus.set_channel_task("squad-alpha", "Implement auth system")
+    assert bus.get_channel_task("squad-alpha") == "Implement auth system"
+
+    # Unknown channel returns None
+    assert bus.get_channel_task("squad-beta") is None
 
 
 def test_status():

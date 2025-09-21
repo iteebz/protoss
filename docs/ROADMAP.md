@@ -28,7 +28,7 @@ await protoss("build REST API", agents=5)  # Human chooses agent count
 ## Implementation Priorities
 
 ### Phase 1: Monitoring Foundation
-- `protoss monitor` - Real-time Bus stream
+- `protoss monitor` - Lightweight swarm minimap (active agents, channels, recent activity)
 - `protoss status` - Current swarm state
 - Basic visibility into coordination
 
@@ -37,10 +37,17 @@ await protoss("build REST API", agents=5)  # Human chooses agent count
 - Escalation protocol - Units can summon human
 - Constitutional guidance integration
 
+### Phase 2.5: Resource Infrastructure
+- lib/resources.py - Token usage, cost tracking, rate limiting
+- Model call accounting across swarm coordination
+- Budget awareness for task planning
+- Performance metrics (tokens/task, coordination efficiency)
+
 ### Phase 3: Git Coordination
 - Branch per unit strategy
 - Bus-coordinated merges
 - Conflict resolution protocol
+- Rollback mechanisms for catastrophic failures
 
 ### Phase 4: Self-Improvement
 - Meta-units that analyze coordination

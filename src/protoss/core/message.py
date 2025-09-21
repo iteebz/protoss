@@ -18,18 +18,5 @@ class Message:
         """Serialize for transmission."""
         return self.content
 
-    @property
-    def is_direct_message(self) -> bool:
-        """Check if this is a direct message (channel = agent_id)."""
-        # Direct messages target specific agent IDs, not coordination channels
-        # Coordination channels: coord-, squad-, mission-, channel-, consult-
-        return not self.channel.startswith(
-            ("coord-", "squad-", "mission-", "channel-", "consult-")
-        )
 
-    @property
-    def mentions(self) -> List[str]:
-        """Extract @mentions from content."""
-        import re
 
-        return re.findall(r"@(\w+)", self.content)

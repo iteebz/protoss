@@ -1,6 +1,6 @@
 """Constitutional AI agents for distributed coordination."""
 
-from .base import Unit
+from .unit import Unit
 from .zealot import Zealot
 from .conclave import Conclave
 from .arbiter import Arbiter

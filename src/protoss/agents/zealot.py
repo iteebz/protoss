@@ -1,7 +1,7 @@
 """Zealot: Constitutional AI Agent with Righteous Conviction"""
 
 import logging
-from .base import Unit
+from .unit import Unit
 from ..core.config import Config
 
 logger = logging.getLogger(__name__)
@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class Zealot(Unit):
     """Constitutional AI Agent with Zealot Principles"""
 
-    def __init__(self, unit_id: str = None):
-        super().__init__(unit_id)
+    def __init__(self, agent_id: str = None, max_cycles: int = 100):
+        super().__init__(agent_id, max_cycles=max_cycles)
         self._escalation_history = {}
 
     @property

@@ -1,94 +1,46 @@
 """Protoss coordination configuration."""
 
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
+import os
+from typing import Dict, Any
+import dataclasses # Added for dataclasses.fields
 
 @dataclass(frozen=True)
 class Config:
-    """Immutable Protoss coordination configuration.
-
-    Separates system setup (config) from runtime parameters (per-task).
-    Configuration cannot be modified after creation.
-    """
-
-    # Core coordination
-    agents: int = 5
-    """Default number of agents for coordination"""
-
-    max_agents: int = 50
-    """Maximum agents allowed (safety limit)"""
-
-    timeout: int = 3600
-    """Default coordination timeout in seconds (1 hour)"""
-
-    # LLM configuration
-    llm: str = "openai"
-    """LLM provider for agent execution"""
-
-    # Storage and memory
-    archives: str = "./archives"
-    """Directory for institutional memory storage"""
-
-    rich_context: bool = True
-    """Whether to use archon context seeding by default"""
-
-    # Execution control
+    agents: int = 2
+    max_agents: int = 10
+    timeout: int = 300
     debug: bool = False
-    """Enable debug logging and enhanced monitoring"""
+    bus_url: str = "ws://localhost:8888"
 
-    # Coordination limits
-    max_context: int = 20
-    """Maximum recent messages to include in channel context"""
+    @classmethod
+    def from_env(cls) -> 'Config':
+        """Load configuration from environment variables."""
+        return cls(
+            agents=int(os.getenv("PROTOSS_AGENTS", cls.agents)),
+            max_agents=int(os.getenv("PROTOSS_MAX_AGENTS", cls.max_agents)),
+            timeout=int(os.getenv("PROTOSS_TIMEOUT", cls.timeout)),
+            debug=os.getenv("PROTOSS_DEBUG", str(cls.debug)).lower() == "true",
+            bus_url=os.getenv("PROTOSS_BUS_URL", cls.bus_url),
+        )
 
-    max_cycles: int = 10
-    """Maximum coordination cycles before giving up"""
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        return dataclasses.asdict(self) # Use asdict for frozen dataclasses
 
-    cooldown: int = 300
-    """Cooldown in seconds between repeated escalations for the same task"""
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Config':
+        """Create config from dictionary."""
+        # Filter out keys not in the dataclass constructor
+        valid_keys = {f.name for f in dataclasses.fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return cls(**filtered_data)
 
-    # Completion signals
-    complete: str = "[COMPLETE]"
-    """Signal that task is fully completed"""
-
-    # Error handling
-    retry: bool = True
-    """Whether to retry on execution failures"""
-
-    # Quality control
-    constitutional_strictness: str = "standard"
-    """Constitutional adherence level: relaxed, standard, strict"""
-
-    escalation_enabled: bool = True
-    """Whether to enable strategic consultation escalation"""
-
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        if self.agents < 1:
-            raise ValueError("agents must be at least 1")
-
-        if self.max_agents < self.agents:
-            raise ValueError("max_agents must be >= agents")
-
-        if self.timeout < 1:
-            raise ValueError("timeout must be at least 1 second")
-
-        valid_strictness = ["relaxed", "standard", "strict"]
-        if self.constitutional_strictness not in valid_strictness:
-            raise ValueError(
-                f"constitutional_strictness must be one of {valid_strictness}"
-            )
-
-        if not self.archives.strip():
-            raise ValueError("archives path cannot be empty")
-
-        if self.cooldown < 0:
-            raise ValueError("cooldown must be non-negative")
-
-    def override(self, **kwargs) -> "Config":
-        """Create new Config with overridden values."""
-        from dataclasses import replace
-
-        return replace(self, **kwargs)
+    def override(self, **kwargs) -> 'Config':
+        """Create a new Config instance with overridden values."""
+        current_data = self.to_dict()
+        current_data.update(kwargs)
+        return self.from_dict(current_data)
 
 
 # No ceremony - use Config() directly

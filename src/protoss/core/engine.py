@@ -20,16 +20,18 @@ class Protoss:
         print(result)  # "Task completed successfully"
     """
 
-    def __init__(self, config: Config, **overrides):
+    def __init__(self, config: Optional[Config] = None, bus: Bus = None, **overrides):
         """Initialize coordination engine with configuration.
 
         Args:
-            config: Base configuration object
+            config: Base configuration object (defaults to loading from env)
+            bus: Optional Bus instance for dependency injection
             **overrides: Override specific config fields
         """
-        # Clean config override merge
-        self.config = config.override(**overrides) if overrides else config
-        self.bus = Bus()
+        # Load config from environment if not provided, then apply overrides
+        base_config = config or Config.from_env()
+        self.config = base_config.override(**overrides)
+        self.bus = bus or Bus()
         self._initialized = False
 
         if self.config.debug:
@@ -40,7 +42,8 @@ class Protoss:
         """Lazy initialization of coordination infrastructure."""
         if not self._initialized:
             logger.info("Initializing Protoss coordination infrastructure")
-            await self.bus.start()
+            if not self.bus.is_running(): # Check if bus is already running
+                await self.bus.start()
             self._initialized = True
             logger.info("🔮 Protoss coordination online")
 
@@ -111,60 +114,65 @@ class Protoss:
         agents: int,
         keywords: Optional[List[str]] = None,
     ) -> str:
-        """Internal coordination execution - adaptive multi-agent orchestration."""
-        logger.info(f"Starting adaptive coordination with up to {agents} agents")
+        """Internal coordination execution: seed context and request initial agents."""
+        logger.info(f"Requesting coordination for up to {agents} agents")
+
+        # The Protoss engine transmits the task to the channel for agents to consume.
+        await self.bus.transmit(channel_id, "protoss_engine", f"TASK: {task}")
 
         # 1. Rich context seeding if enabled
-        archon = None
         if keywords or self.config.rich_context:
-            # Import here to avoid circular dependency
-            from ..agents import Archon
+            spawn_request = {
+                "type": "spawn_req",
+                "channel": channel_id,
+                "content": {
+                    "agent_type": "archon",
+                    "task": f"Seed channel context for: {task}",
+                    "keywords": keywords,
+                },
+            }
+            await self.bus.transmit("gateway_commands", "protoss_engine", json.dumps(spawn_request))
+            logger.debug("Context seeding requested via Archon")
 
-            archon = Archon()
-            context_seed = await archon.seed_channel(task, channel_id, keywords)
-            await self.bus.transmit(channel_id, "archon", context_seed)
-            logger.debug("Context seeded by archon")
-
-        # 2. Start with minimal coordination team using unified spawning
-        initial_agents = min(agents, 2)  # Start minimal - agents summon the rest
-
+        # 2. Request initial agents by sending spawn requests to the dedicated gateway_commands channel
+        initial_agents = min(agents, 2)
         spawned_types: List[str] = []
         for index in range(initial_agents):
             agent_type = "zealot" if index == 0 else "arbiter"
-            if await self.bus.spawn(
-                agent_type,
-                channel_id,
-                f"Engine coordination: {task}",
-            ):
-                spawned_types.append(agent_type)
+            spawn_request = {
+                "type": "spawn_req",
+                "channel": channel_id,
+                "content": {
+                    "agent_type": agent_type,
+                    "task": f"Engine coordination: {task}",
+                },
+            }
+            # The Gateway listens for this message type on the gateway_commands channel
+            await self.bus.transmit("gateway_commands", "protoss_engine", json.dumps(spawn_request))
+            spawned_types.append(agent_type)
 
-        logger.debug(f"Spawned initial coordination team: {spawned_types}")
+        logger.debug(f"Requested initial coordination team: {spawned_types}")
 
-        # Emergent coordination is now handled through the Bus.
-        team_status = self.bus.get_team_status(channel_id)
-
+        # The engine's responsibility ends here. The Gateway and Agents are autonomous.
         result_lines = [
             "🔮 PROTOSS COORDINATION ENGAGED",
             f"Task: {task}",
             f"Channel: {channel_id}",
-            f"Initial agents: {', '.join(spawned_types) if spawned_types else 'none'}",
-            team_status,
-            "Emergent coordination active via conversational mentions.",
+            f"Initial agent types requested: {', '.join(spawned_types) if spawned_types else 'none'}",
+            "Engine has requested the swarm. The Gateway is now responsible for spawning.",
+            "Monitor the bus for emergent coordination.",
         ]
 
-        if archon is not None:
-            result_lines.append("Archon context seed dispatched.")
-
         return "\n".join(result_lines)
+
 
     async def status(self) -> Dict[str, Any]:
         """Get coordination system status."""
         if not self._initialized:
             return {"status": "not_initialized"}
 
-        bus_status = self.bus.status()
-        channels = await self.bus.channels_list()
-
+        # The Bus no longer exposes direct status or channel lists.
+        # This information would need to be gathered via message passing.
         return {
             "status": "online",
             "config": {
@@ -173,9 +181,9 @@ class Protoss:
                 "timeout": self.config.timeout,
                 "debug": self.config.debug,
             },
-            "bus": bus_status,
-            "active_channels": len(channels),
-            "recent_channels": channels[:5] if channels else [],
+            "bus": "Status to be gathered via message passing",
+            "active_channels": "To be gathered via message passing",
+            "recent_channels": "To be gathered via message passing",
         }
 
     async def shutdown(self):

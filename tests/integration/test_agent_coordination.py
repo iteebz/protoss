@@ -43,7 +43,7 @@ async def test_constitutional_deliberation(mock_agent):
     assert "squad-deliberation" in bus.memories
     # Should contain constitutional reasoning
     messages = [msg.content for msg in bus.memories["squad-deliberation"]]
-    assert any("complete" in msg.lower() for msg in messages)
+    assert any("despawn" in msg.lower() for msg in messages)
 
 
 @pytest.mark.integration
@@ -62,14 +62,9 @@ async def test_mention_escalation_flow(monkeypatch):
         ):
             full_context = f"{self.instructions or ''} {user_message}"
             if "@archon" in full_context:
-                yield {
-                    "type": "respond",
-                    "content": "I need @archon help with this task. Let me escalate properly.",
-                }
-                yield {"type": "respond", "content": "[COMPLETE]"}
+                yield {"type": "respond", "content": "!despawn"}
             else:
-                yield {"type": "respond", "content": "Task complete. [COMPLETE]"}
-            yield {"type": "end"}
+                yield {"type": "respond", "content": "Task complete. !despawn"}
 
     monkeypatch.setattr("cogency.core.agent.Agent", MentionMockAgent)
 
@@ -118,10 +113,9 @@ async def test_arbiter_auto_response(monkeypatch):
                     "type": "respond",
                     "content": "Summoning @arbiter for human translation.",
                 }
-                yield {"type": "respond", "content": "[COMPLETE]"}
+                yield {"type": "respond", "content": "!despawn"}
             else:
-                yield {"type": "respond", "content": "Task complete. [COMPLETE]"}
-            yield {"type": "end"}
+
 
     monkeypatch.setattr("cogency.core.agent.Agent", ArbiterMentionMockAgent)
 
@@ -163,10 +157,9 @@ async def test_conclave_auto_response(monkeypatch):
                     "type": "respond",
                     "content": "Escalating to @conclave for Sacred Four deliberation.",
                 }
-                yield {"type": "respond", "content": "[COMPLETE]"}
+                yield {"type": "respond", "content": "!despawn"}
             else:
-                yield {"type": "respond", "content": "Task complete. [COMPLETE]"}
-            yield {"type": "end"}
+
 
     monkeypatch.setattr("cogency.core.agent.Agent", ConclaveMentionMockAgent)
 
@@ -232,21 +225,18 @@ async def test_engine_orchestration(monkeypatch):
                     yield {"type": "execute"}
                 yield {
                     "type": "respond",
-                    "content": "Authentication system designed with zealot principles. [COMPLETE]",
+                    "content": "Authentication system designed with zealot principles. !despawn",
                 }
             elif "ARCHON" in (self.instructions or ""):
                 yield {"type": "think", "content": "Checking knowledge archives..."}
                 yield {
                     "type": "respond",
-                    "content": "Knowledge context provided for authentication. [COMPLETE]",
+                    "content": "Knowledge context provided for authentication. !despawn",
                 }
             else:
                 yield {
                     "type": "respond",
-                    "content": "Constitutional coordination complete. [COMPLETE]",
-                }
-            yield {"type": "end"}
-
+                    
     monkeypatch.setattr("cogency.core.agent.Agent", ToolMockAgent)
 
     # Create engine with ephemeral port for testing
@@ -345,7 +335,7 @@ async def test_multi_agent_coordination(mock_agent):
 
     # Verify constitutional identities preserved
     all_content = " ".join(msg.content for msg in messages)
-    assert "complete" in all_content.lower(), "Should have completion signals"
+    assert "!despawn" in all_content.lower(), "Should have despawn signals"
 
 
 @pytest.mark.integration
@@ -365,24 +355,24 @@ async def test_constitutional_identity_preservation(monkeypatch):
             if "ZEALOT" in (self.instructions or ""):
                 yield {
                     "type": "respond",
-                    "content": "Constitutional zealot analysis complete. [COMPLETE]",
+                    "content": "Constitutional zealot analysis complete. !despawn",
                 }
             elif "ARCHON" in (self.instructions or ""):
                 yield {
                     "type": "respond",
-                    "content": "Knowledge archon stewardship complete. [COMPLETE]",
+                    "content": "Knowledge archon stewardship complete. !despawn",
                 }
             elif "FENIX" in (self.instructions or ""):
                 yield {
                     "type": "respond",
-                    "content": "Strategic fenix perspective complete. [COMPLETE]",
+                    "content": "Strategic fenix perspective complete. !despawn",
                 }
             else:
                 yield {
                     "type": "respond",
-                    "content": "Constitutional coordination complete. [COMPLETE]",
+                    "content": "Constitutional coordination complete. !despawn",
                 }
-            yield {"type": "end"}
+
 
     monkeypatch.setattr("cogency.core.agent.Agent", IdentityMockAgent)
 
@@ -437,12 +427,12 @@ async def test_lifecycle_signals_integration(mock_agent):
         bus,
     )
 
-    assert "complete" in result.lower(), "Should signal completion"
+    assert "despawn" in result.lower(), "Should signal despawn"
 
     # Verify completion signal propagated
     messages = bus.memories["squad-lifecycle-complete"]
     all_content = " ".join(msg.content for msg in messages)
-    assert "[COMPLETE]" in all_content.upper(), "Should have explicit completion signal"
+    assert "!DESPAWN" in all_content.upper(), "Should have explicit despawn signal"
 
 
 @pytest.mark.integration

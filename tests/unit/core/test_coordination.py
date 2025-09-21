@@ -95,37 +95,13 @@ def test_parse_despawn_signal():
     signals = parse("Work complete. !despawn", config)
 
     assert signals.despawn is True
-    assert signals.complete is False
-
-
-def test_parse_complete_signal():
-    """Test parsing [COMPLETE] signal."""
-    config = Config(complete="[COMPLETE]")
-
-    signals = parse("Task finished. [COMPLETE]", config)
-
-    assert signals.complete is True
-    assert signals.despawn is False
 
 
 def test_parse_idle_signal_ignored():
-    """[IDLE] markers are ignored in minimalist protocol."""
+    """Markers are ignored in minimalist protocol."""
     config = Config()
 
-    signals = parse("No work remaining. [IDLE]", config)
-
-    assert signals.complete is False
     assert signals.despawn is False
-
-
-def test_parse_multiple_signals():
-    """Test parsing multiple signals in one response."""
-    config = Config(complete="[COMPLETE]")
-
-    signals = parse("Task done. !despawn [COMPLETE]", config)
-
-    assert signals.complete is True
-    assert signals.despawn is True
 
 
 def test_parse_case_insensitive_despawn():
@@ -147,5 +123,4 @@ def test_parse_no_signals():
 
     signals = parse("Just a normal response", config)
 
-    assert signals.complete is False
     assert signals.despawn is False

@@ -30,7 +30,7 @@ async def test_mention_spawning(monkeypatch):
                 # Spawned agents respond normally
                 yield {
                     "type": "respond",
-                    "content": "Architectural review complete. [COMPLETE]",
+                    "content": "Architectural review complete. !despawn",
                 }
             yield {"type": "end"}
 

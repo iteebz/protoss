@@ -135,12 +135,6 @@ Agent B: Database choice unclear. @conclave perspectives?
 5. **Execution** → Tool-assisted implementation with progress updates
 6. **Review** → Cross-agent verification and integration testing
 
-### Coordination Commands
-
-**@ = Participation Control** → Summon agents (`@zealot`, `@archon`, `@conclave`)  
-**Natural Names = Communication** → Talk to active agents (`zealot-abc123, thoughts?`)  
-**! = Self-Action** → Lifecycle management (`!despawn`)
-
 ## Adaptive Swarm Formation
 
 ### Conversational Agent Summoning
@@ -192,13 +186,6 @@ Available agent types for conversational summoning:
 This workflow emerges naturally from constitutional intelligence rather than hard-coded orchestration. Agents with proper tools, constitutional identities, and team awareness will self-organize around meaningful work and avoid busywork or infinite chatter.
 
 The breakthrough: **Adaptive swarms that self-organize through conversation, not artificial selection.**
-
-## Human Interface
-
-**@human** → Direct escalation for completion/intervention  
-**@arbiter** → Bidirectional constitutional translation and logging
-
-**→ See [interface.md](interface.md) for complete human-swarm coordination patterns**
 
 ---
 
