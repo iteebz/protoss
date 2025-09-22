@@ -1,10 +1,13 @@
 """Protoss CLI interface."""
 
 import asyncio
+import json
 import typer
+import websockets
 
-from .core import Protoss
+from protoss import protoss
 from .core.config import Config
+
 
 app = typer.Typer(
     help="""Constitutional AI coordination through emergent agent swarms.
@@ -28,25 +31,19 @@ def coordinate(
     """Coordinate agents on task with real-time updates."""
 
     async def run_coordination():
-        config = Config(
-            agents=agents,
-            max_agents=max_agents,
-            timeout=timeout,
-            debug=debug,
-            rich_context=rich_context,
-        )
-        protoss = Protoss(config)
-
-        print("🔮 Protoss coordination starting...")
-        print(f"📋 Task: {task}")
-        print(f"⚔️ Agents: {agents}")
-        print()
-
         try:
-            result = await protoss(task)
-            print("✅ Coordination completed successfully!")
-            print()
-            print(result)
+            async with protoss(
+                task,
+                agents=agents,
+                max_agents=max_agents,
+                timeout=timeout,
+                debug=debug,
+                rich_context=rich_context,
+            ) as swarm:
+                result = await swarm
+                print("✅ Coordination completed successfully!")
+                print()
+                print(result)
 
         except KeyboardInterrupt:
             print("\n🛑 Coordination interrupted by user")
@@ -65,56 +62,69 @@ def status():
     """Show Protoss coordination system status."""
 
     async def show_status():
-        config = Config()  # Use default config
-        protoss = Protoss(config)
-        status = await protoss.status()
+        config = Config()
+        uri = f"{config.bus_url}/status_client"
+        try:
+            async with websockets.connect(uri) as websocket:
+                await websocket.send(json.dumps({"type": "status_req"}))
+                response = await websocket.recv()
+                status_data = json.loads(response)
 
-        print("🔮 Protoss Status")
-        print(f"Status: {status['status']}")
+                print("🔮 Protoss Status")
+                print(f"Status: {status_data.get('status', 'unknown')}")
 
-        if status["status"] == "online":
-            print(f"Active channels: {status['active_channels']}")
-            if status.get("bus"):
-                bus_snapshot = status["bus"]
-                print(
-                    "Bus metrics: "
-                    f"channels={bus_snapshot.get('channels', 0)} "
-                    f"agents={bus_snapshot.get('agents', 0)} "
-                    f"memories={bus_snapshot.get('memories', 0)}"
-                )
-
-            if status.get("recent_channels"):
-                print("\nRecent channels:")
-                for channel in status["recent_channels"]:
-                    name = channel.get("name", "<unknown>")
-                    agents = channel.get("agents", 0)
-                    memories = channel.get("memories", 0)
-                    recent = channel.get("recent")
-                    recent_preview = (
-                        f" - recent: {recent[:60]}..." if isinstance(recent, str) and recent else ""
-                    )
+                if status_data.get("status") == "online":
+                    bus_snapshot = status_data.get("bus", {})
                     print(
-                        f"  - {name} (agents={agents}, memories={memories}){recent_preview}"
+                        "Bus metrics: "
+                        f"channels={bus_snapshot.get('channels', 0)} "
+                        f"agents={bus_snapshot.get('agents', 0)} "
+                        f"messages={bus_snapshot.get('messages', 0)}"
                     )
+
+        except (ConnectionRefusedError, websockets.exceptions.InvalidURI, websockets.exceptions.InvalidHandshake):
+            print("Could not connect to Protoss Bus. Is it running?")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
 
     asyncio.run(show_status())
 
 
 @app.command()
-def config():
-    """Show default configuration."""
-    from .core.config import Config
+def monitor():
+    """Monitor the Protoss Bus in real-time."""
 
-    default_config = Config()
+    async def run_monitor():
+        config = Config()
+        uri = f"{config.bus_url}/cli_monitor"
+        print(f"👁️  Connecting to Protoss Bus at {uri}...")
+        try:
+            async with websockets.connect(uri) as websocket:
+                await websocket.send(json.dumps({"type": "monitor_req"}))
+                response = await websocket.recv()
+                if json.loads(response).get("status") != "monitoring":
+                    print("❌ Failed to subscribe to monitor stream.")
+                    return
+                
+                print("✅ Connected. Monitoring swarm activity...")
+                async for message in websocket:
+                    data = json.loads(message)
+                    channel = data.get("channel", "unknown")
+                    sender = data.get("sender", "unknown")
+                    content = data.get("content", "")
+                    
+                    # Simple formatting
+                    print(f"[{channel}] {sender}: {content}")
 
-    print("🔮 Protoss Default Configuration")
-    print(f"Agents: {default_config.agents}")
-    print(f"Max agents: {default_config.max_agents}")
-    print(f"Timeout: {default_config.timeout}s")
-    print(f"LLM: {default_config.llm}")
-    print(f"Archives: {default_config.archives}")
-    print(f"Rich context: {default_config.rich_context}")
-    print(f"Debug: {default_config.debug}")
+        except (ConnectionRefusedError, websockets.exceptions.InvalidURI, websockets.exceptions.InvalidHandshake):
+            print("Could not connect to Protoss Bus. Is it running?")
+        except KeyboardInterrupt:
+            print("\n🛑 Monitor stopped by user.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    asyncio.run(run_monitor())
 
 
 def main():

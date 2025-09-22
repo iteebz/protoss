@@ -4,7 +4,7 @@ import uuid
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
 
-from ..message import Message
+from .message import Message
 from ..agents import Conclave
 
 
@@ -17,6 +17,7 @@ class AgentState:
     agent_type: str
     channel_id: str
     active: bool = True
+    completed: bool = False
     conversation_id: Optional[str] = None
 
 
@@ -63,6 +64,8 @@ class Lifecycle:
         status_parts = []
         for agent_state in self.agents[channel_id]:
             state = "active" if agent_state.active else "inactive"
+            if agent_state.completed:
+                state += ", completed"
             status_parts.append(f"{agent_state.agent_id} ({state})")
 
         if not status_parts:
@@ -147,4 +150,10 @@ class Lifecycle:
         agent_state.active = False
         return True
 
-
+    def mark_as_complete(self, agent_id: str) -> bool:
+        """Mark an agent as having completed its task. Returns True if the agent was found."""
+        agent_state = self.agent_registry.get(agent_id)
+        if not agent_state:
+            return False
+        agent_state.completed = True
+        return True

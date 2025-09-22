@@ -60,6 +60,7 @@ class Unit:
             ],
             "! = Self-Action": [
                 "despawn - Remove myself from active coordination",
+                "complete - Signal that my current task is complete",
             ],
         }
         command_section = "COORDINATION COMMANDS:\n\n"
@@ -121,6 +122,7 @@ TASK: {task}
             ):
                 event_type = event["type"]
                 content = event.get("content", "")
+                logger.debug(f"Cogency event: {event}")
 
                 if event_type == "think":
                     await self._transmit("msg", channel_id, {"content": f"[THINK] {content}"})
@@ -136,6 +138,8 @@ TASK: {task}
             signal = "continue"
             if "!despawn" in response_text:
                 signal = "despawn"
+            elif "!complete" in response_text:
+                signal = "complete"
 
             return {"response": response_text, "signal": signal}
 
@@ -143,6 +147,8 @@ TASK: {task}
             logger.warning(f"Cogency not available for {self.id}. Checking task for direct signals.")
             if "!despawn" in task:
                 return {"response": "Despawning as requested by task due to Cogency unavailability.", "signal": "despawn"}
+            elif "!complete" in task:
+                return {"response": "Completing as requested by task due to Cogency unavailability.", "signal": "complete"}
             else:
                 return {"response": "Continuing without Cogency.", "signal": "continue"}
         except Exception as e:
@@ -243,52 +249,4 @@ TASK: {task}
         finally:
             self.websocket = None
 
-import argparse
 
-def main():
-    """Entrypoint for running a Unit as a standalone process."""
-    parser = argparse.ArgumentParser(description="Protoss Agent Unit")
-    parser.add_argument("--agent-id", required=True, help="The unique ID for this agent.")
-    parser.add_argument("--agent-type", required=True, help="The type of agent to run (e.g., zealot).")
-    parser.add_argument("--channel", required=True, help="The channel this agent will operate in.")
-    parser.add_argument("--bus-url", required=True, help="The WebSocket URL of the Bus.")
-    parser.add_argument("--task", required=True, help="The initial task or prompt for the agent.")
-    parser.add_argument("--config-json", required=True, help="JSON string of the agent's Config.")
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format=f'%(asctime)s - {args.agent_id} - %(levelname)s - %(message)s')
-
-    # Deserialize Config
-    from ..core.config import Config
-    config_data = json.loads(args.config_json)
-    config = Config.from_dict(config_data)
-
-    # Dynamically find the agent factory
-    from . import Zealot, Archon, Arbiter, Conclave # Ensure all agents are available
-    factories = {
-        "zealot": Zealot,
-        "archon": Archon,
-        "arbiter": Arbiter,
-        "conclave": Conclave,
-    }
-    factory = factories.get(args.agent_type)
-
-    if not factory:
-        logger.error(f"Unknown agent type: {args.agent_type}")
-        return
-
-    # Instantiate and run the agent
-    # Note: The base Unit class is not directly instantiated, only its subclasses.
-    if args.agent_type == "conclave":
-        # Conclave has a special constructor
-        agent = factory(perspective="fenix", agent_id=args.agent_id, max_cycles=config.timeout)
-    else:
-        agent = factory(agent_id=args.agent_id, max_cycles=config.timeout)
-    try:
-        asyncio.run(agent.coordinate(args.task, args.channel, args.bus_url))
-        sys.exit(0) # Ensure process exits after coordination loop
-    except KeyboardInterrupt:
-        logger.info(f"{args.agent_id} shutting down.")
-
-if __name__ == "__main__":
-    main()

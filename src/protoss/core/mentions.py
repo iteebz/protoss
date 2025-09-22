@@ -27,6 +27,8 @@ def resolve_agent_type(base: str) -> str:
     """Map mention prefix to canonical agent type."""
     if base in {"tassadar", "zeratul", "artanis", "fenix"}:
         return "conclave"
+    if base == "human":
+        return "arbiter"
     return base
 
 def mention_tokens_for_agent(

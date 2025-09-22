@@ -115,7 +115,7 @@ Agent C: Login UI done, integrated with auth API
 Agent A: [CALL] {"name": "shell", "args": {"command": "npm test auth"}}
 Agent A: [RESULT] 15 tests passed, 0 failed
 Agent A: Session management complete. Integration tested successfully.
-Agent A: @human authentication system complete and fully tested
+Agent A: @arbiter authentication system complete and fully tested
 ```
 
 ### Strategic Consultation

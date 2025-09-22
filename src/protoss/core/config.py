@@ -12,6 +12,9 @@ class Config:
     timeout: int = 300
     debug: bool = False
     bus_url: str = "ws://localhost:8888"
+    rich_context: bool = True
+    max_context: int = 20 # Max messages for agent context
+    complete: str = "!COMPLETE" # Signal for task completion
 
     @classmethod
     def from_env(cls) -> 'Config':
@@ -22,6 +25,7 @@ class Config:
             timeout=int(os.getenv("PROTOSS_TIMEOUT", cls.timeout)),
             debug=os.getenv("PROTOSS_DEBUG", str(cls.debug)).lower() == "true",
             bus_url=os.getenv("PROTOSS_BUS_URL", cls.bus_url),
+            rich_context=os.getenv("PROTOSS_RICH_CONTEXT", str(cls.rich_context)).lower() == "true",
         )
 
     def to_dict(self) -> Dict[str, Any]:

@@ -1,138 +1,87 @@
-"""WebSocket server for agent communication."""
+"""WebSocket server for the Protoss Bus."""
 
-from typing import Dict, List, Callable, Awaitable
-import websockets
+import asyncio
+import json
 import logging
+import websockets
+from typing import Callable, Dict, Set
 
 logger = logging.getLogger(__name__)
 
-
 class Server:
-    """WebSocket server for agent communication."""
+    """Manages WebSocket connections for the Bus."""
 
-    def __init__(self, port: int = 8888):
+    def __init__(self, port: int):
         self.port = port
+        self.server = None
         self.connections: Dict[str, websockets.WebSocketServerProtocol] = {}
-        self.message_handlers: List[Callable[[str, str], Awaitable[None]]] = []
-        self.connection_handlers: List[Callable[[str], Awaitable[None]]] = []
-        self.disconnection_handlers: List[Callable[[str], Awaitable[None]]] = []
+        self.agent_to_ws: Dict[str, websockets.WebSocketServerProtocol] = {}
 
-    def on_message(self, handler: Callable[[str, str], Awaitable[None]]):
-        """Register message event handler.
+        # Callbacks
+        self._on_message: Callable[[str, str], None] = None
+        self._on_connect: Callable[[str], None] = None
+        self._on_disconnect: Callable[[str], None] = None
 
-        Handlers receive all messages from connected agents for processing
-        by higher-level coordination systems (like Khala).
+    def on_message(self, callback: Callable[[str, str], None]):
+        """Register a callback for incoming messages."""
+        self._on_message = callback
 
-        Args:
-            handler: Async function that receives (agent_id, raw_message)
-        """
-        self.message_handlers.append(handler)
+    def on_connect(self, callback: Callable[[str], None]):
+        """Register a callback for new connections."""
+        self._on_connect = callback
 
-    def on_connect(self, handler: Callable[[str], Awaitable[None]]):
-        """Register connection event handler.
-
-        Handlers are notified when agents establish WebSocket connections
-        to enable coordination layer initialization and state synchronization.
-
-        Args:
-            handler: Async function that receives agent_id
-        """
-        self.connection_handlers.append(handler)
-
-    def on_disconnect(self, handler: Callable[[str], Awaitable[None]]):
-        """Register disconnection event handler.
-
-        Handlers are notified when agents disconnect to enable coordination
-        layer cleanup and graceful degradation of multi-agent systems.
-
-        Args:
-            handler: Async function that receives agent_id
-        """
-        self.disconnection_handlers.append(handler)
-
-    async def send(self, agent_id: str, message: str):
-        """Send direct message to specific agent.
-
-        Core message delivery function for point-to-point communication.
-        Automatically handles disconnected agents with graceful cleanup.
-
-        Args:
-            agent_id: Target agent identifier
-            message: Raw message content to deliver
-        """
-        if agent_id in self.connections:
-            try:
-                await self.connections[agent_id].send(message)
-            except websockets.exceptions.ConnectionClosed:
-                await self._disconnect(agent_id)
-
-    async def broadcast(self, message: str):
-        """Broadcast message to all connected agents.
-
-        Sends message to every active connection simultaneously.
-        Automatically cleans up any agents that have disconnected.
-
-        Args:
-            message: Raw message content to broadcast
-        """
-        disconnected = []
-        for agent_id, websocket in self.connections.items():
-            try:
-                await websocket.send(message)
-            except websockets.exceptions.ConnectionClosed:
-                disconnected.append(agent_id)
-
-        # Clean up disconnected agents
-        for agent_id in disconnected:
-            await self._disconnect(agent_id)
+    def on_disconnect(self, callback: Callable[[str], None]):
+        """Register a callback for disconnections."""
+        self._on_disconnect = callback
 
     async def start(self):
-        """Initialize and start WebSocket server for agent communication."""
-        self.server = await websockets.serve(self._connection, "localhost", self.port)
-        logger.info(f"🔹 WebSocket server started on ws://localhost:{self.port}")
+        """Start the WebSocket server."""
+        if self.server:
+            return
+        self.server = await websockets.serve(
+            self._handler, "localhost", self.port
+        )
+        logger.info(f"Protoss Server started on port {self.port}")
 
     async def stop(self):
-        """Stop WebSocket server."""
-        if hasattr(self, "server"):
+        """Stop the WebSocket server."""
+        if self.server:
             self.server.close()
             await self.server.wait_closed()
+            self.server = None
+            logger.info("Protoss Server stopped")
 
-    async def _connection(self, websocket):
-        """Handle raw WebSocket connection."""
-        agent_id = websocket.request.path.strip("/")
-        self.connections[agent_id] = websocket
-        logger.info(f"🔹 {agent_id} connected")
-
-        # Notify connection handlers
-        for handler in self.connection_handlers:
-            await handler(agent_id)
-
-        try:
-            async for raw_message in websocket:
-                # Forward raw message to all handlers
-                for handler in self.message_handlers:
-                    await handler(agent_id, raw_message)
-        finally:
-            await self._disconnect(agent_id)
-
-    async def _disconnect(self, agent_id: str):
-        """Handle agent disconnection."""
-        self.connections.pop(agent_id, None)
-        logger.info(f"🔌 {agent_id} disconnected")
-
-        # Notify disconnection handlers
-        for handler in self.disconnection_handlers:
-            await handler(agent_id)
+    async def send(self, agent_id: str, message: str):
+        """Send a message to a specific agent."""
+        websocket = self.agent_to_ws.get(agent_id)
+        if websocket and websocket.open:
+            try:
+                await websocket.send(message)
+            except websockets.ConnectionClosed:
+                # The connection might have closed between the check and the send
+                pass
 
     def is_running(self) -> bool:
-        """Check if the WebSocket server is currently running."""
-        return hasattr(self, "server") and self.server is not None
+        """Check if the server is running."""
+        return self.server is not None
 
-    @property
-    def status(self) -> dict:
-        """Basic WebSocket transport status."""
-        return {
-            "active_connections": len(self.connections),
-            "port": self.port,
-            "connected_agents": list(self.connections.keys()),
-        }
+    async def _handler(self, websocket: websockets.WebSocketServerProtocol, path: str):
+        """Handle incoming WebSocket connections."""
+        agent_id = path.lstrip("/")
+        self.connections[agent_id] = websocket
+        self.agent_to_ws[agent_id] = websocket
+
+        if self._on_connect:
+            await self._on_connect(agent_id)
+
+        try:
+            async for message in websocket:
+                if self._on_message:
+                    await self._on_message(agent_id, message)
+        except websockets.ConnectionClosed:
+            pass
+        finally:
+            del self.connections[agent_id]
+            del self.agent_to_ws[agent_id]
+            if self._on_disconnect:
+                await self._on_disconnect(agent_id)

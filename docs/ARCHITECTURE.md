@@ -53,20 +53,12 @@
 
 ## Core Infrastructure
 
-### Bus with Spawner Integration
-**Message routing with adaptive agent lifecycle management**
+### Bus
+**Message routing and coordination network**
 
-```python
-# Universal agent participation API
-await bus.spawn("zealot", channel_id)           # Fresh agent
-await bus.spawn("zealot-abc123", channel_id)    # Reactivate specific
-await bus.despawn(agent_id)                     # Agent removal
-```
+The Bus serves as the central communication hub (the Khala) for all agents. It routes messages between agents and channels, maintains message history, and provides a real-time coordination substrate. It does not directly manage agent lifecycles or spawning.
 
 **Clean Semantics:**
-- `bus.spawn()` → Universal agent participation (fresh or reactivate)
-- `bus.despawn()` → Agent removal from coordination
-- Agents self-manage with `!despawn` command
 - Persistent by default → SQLite-backed history keeps channel transcripts across restarts (override `enable_storage=False` for ephemeral tests)
 
 ### Constitutional Agent Framework

@@ -7,9 +7,7 @@ import re
 import websockets
 import subprocess
 from typing import Dict, Any, Callable
-import argparse # Added for main() function
-import json # Added for main() function
-
+from .config import Config
 from .lifecycle import Lifecycle
 from . import mentions
 
@@ -31,6 +29,7 @@ class Gateway:
             max_agents_per_channel=max_agents_per_channel,
             factories=factories or self._default_factories(),
         )
+        self._listen_task = None
 
     def _default_factories(self) -> Dict[str, Callable[[str], Any]]:
         """Default agent factories for dependency injection."""
@@ -44,7 +43,11 @@ class Gateway:
         }
 
     async def _send_to_bus(self, channel: str, content: str):
-        """Send a system message to a channel on the Bus."""
+        """Send a system message to a channel on the Bus using the existing websocket."""
+        if not self.websocket or not self.websocket.open:
+            logger.warning("Gateway websocket not open, cannot send message to Bus.")
+            return
+
         message = {
             "type": "msg",
             "channel": channel,
@@ -52,9 +55,7 @@ class Gateway:
             "content": content,
         }
         try:
-            # Use a short-lived connection for sending messages
-            async with websockets.connect(f"{self.config.bus_url}/gateway") as ws:
-                await ws.send(json.dumps(message))
+            await self.websocket.send(json.dumps(message))
         except Exception as e:
             logger.error(f"Gateway failed to send message to Bus: {e}")
 
@@ -111,6 +112,30 @@ class Gateway:
         """Parse and dispatch incoming messages from the bus."""
         try:
             msg = json.loads(raw_message)
+            msg_type = msg.get("type")
+
+            if msg_type == "vision":
+                channel_id = msg.get("channel")
+                vision = msg.get("content")
+                logger.info(f"Gateway received vision: {vision}")
+                asyncio.create_task(self._spawn_process("zealot", channel_id, vision))
+                return
+
+            if msg_type == "lifecycle_status_req":
+                channel_id = msg.get("channel")
+                status = self.lifecycle.get_team_status(channel_id)
+                response = {
+                    "type": "lifecycle_status_resp",
+                    "channel": channel_id,
+                    "status": status,
+                }
+                # This is a request from the engine, so we need to send a direct message back
+                # The sender is the client_id of the engine
+                sender = msg.get("sender")
+                if self.websocket and self.websocket.open:
+                    await self.websocket.send(json.dumps(response))
+                return
+
             if msg.get("type") != "msg":
                 return # The gateway only cares about standard messages
 
@@ -118,13 +143,19 @@ class Gateway:
             channel = msg.get("channel")
             sender = msg.get("sender")
 
-            # Handle !spawn command
-            spawn_match = re.search(r"!spawn\s+(\w+)\s*(.*)", content)
-            if spawn_match:
-                agent_type = spawn_match.group(1)
-                task = spawn_match.group(2) or "Assigned to coordinate."
-                asyncio.create_task(self._spawn_process(agent_type, channel, task))
+            if "!complete" in content:
+                if self.lifecycle.mark_as_complete(sender):
+                    asyncio.create_task(self._send_to_bus(channel, f"✅ {sender} has completed its task."))
                 return
+
+            # Handle !spawn command
+            if content.startswith("!spawn"):
+                spawn_match = re.search(r"!spawn\s+(\w+)\s*(.*)", content)
+                if spawn_match:
+                    agent_type = spawn_match.group(1)
+                    task = spawn_match.group(2) or "Assigned to coordinate."
+                    asyncio.create_task(self._spawn_process(agent_type, channel, task))
+                    return
 
             # Handle !despawn command
             despawn_match = re.search(r"!despawn\s+@?([\w-]+)", content)
@@ -183,37 +214,28 @@ class Gateway:
             logger.warning(f"Gateway received invalid JSON: {raw_message}")
 
     async def listen(self):
-        """Connect to the Bus and listen for messages indefinitely."""
+        """Connect to the Bus and listen for messages."""
         uri = f"{self.config.bus_url}/gateway"
-        while True:
-            try:
-                async with websockets.connect(uri) as websocket:
-                    self.websocket = websocket
-                    logger.info(f"Gateway connected to Bus at {self.config.bus_url}")
-                    async for raw_message in websocket:
-                        await self._handle_message(raw_message)
-            except (websockets.exceptions.ConnectionClosed, ConnectionRefusedError) as e:
-                logger.error(f"Gateway connection to Bus failed: {e}. Reconnecting in 5s...")
-                await asyncio.sleep(5)
-            except Exception as e:
-                logger.error(f"An unexpected error occurred in the Gateway: {e}")
-                break # Exit on unexpected errors
+        try:
+            async with websockets.connect(uri) as websocket:
+                self.websocket = websocket
+                logger.info(f"Gateway connected to Bus at {self.config.bus_url}")
+                async for raw_message in websocket:
+                    await self._handle_message(raw_message)
+        except (websockets.exceptions.ConnectionClosed, ConnectionRefusedError) as e:
+            logger.error(f"Gateway connection to Bus failed: {e}.")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred in the Gateway: {e}")
 
+    async def start(self):
+        """Start the Gateway's listening task."""
+        if self._listen_task is None:
+            self._listen_task = asyncio.create_task(self.listen())
 
-async def main():
-    """Entrypoint for running the Gateway daemon."""
-    parser = argparse.ArgumentParser(description="Protoss Gateway Daemon")
-    parser.add_argument("--config-json", required=True, help="JSON string of the Gateway's Config.")
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    from .config import Config
-    config_data = json.loads(args.config_json)
-    config = Config.from_dict(config_data)
-
-    gateway = Gateway(config=config)
-    await gateway.listen()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    async def stop(self):
+        """Stop the Gateway's listening task."""
+        if self._listen_task:
+            self._listen_task.cancel()
+            self._listen_task = None
+        if self.websocket and self.websocket.open:
+            await self.websocket.close()

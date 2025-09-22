@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 
 from .unit import Unit
+from ..core.mentions import extract_mentions
 
 logger = logging.getLogger(__name__)
 
@@ -42,26 +43,25 @@ You are the Arbiter - the singular command interface between human intent and Pr
     def tools(self):
         return []  # Pure coordination interface - delegates work to other agents
 
-    async def process_command(self, command: str, bus) -> str:
-        """Process human command through bus coordination."""
-        print(f"⚔️ {self.id} processing: {command}")
+    async def execute(
+        self, task: str, channel_context: str, channel_id: str, team_status: str
+    ) -> dict:
+        """
+        When summoned, the Arbiter's role is to escalate to the human.
+        It sends an !escalate signal and then despawns.
+        """
+        mentions = extract_mentions(channel_context)
+        was_mentioned = any(m in ["arbiter", "human"] for m in mentions)
 
-        # Simple stub for now - requires cogency integration
-        await bus.transmit("arbiter-channel", self.id, f"Processing: {command}")
-        return f"Command processed: {command}"
-
-    async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
-        """Provide immediate constitutional translation when @arbiter is summoned."""
-
-        trimmed = (mention_context or "").strip()
-        if not trimmed:
-            trimmed = "No additional context provided."
-        return (
-            "Arbiter engaged. Relaying summary for human review.\n"
-            f"Channel: {channel_id}\n"
-            f"Context: {trimmed}\n"
-            "Signal human overseer when explicit guidance is required."
-        )
+        if was_mentioned:
+            escalation_message = f"!escalate: The swarm requires human guidance in channel {channel_id}. Context: {channel_context}"
+            await self._transmit("msg", channel_id, {"content": escalation_message})
+            
+            # After escalating, the Arbiter's job is done.
+            return {"response": "Escalation signal sent. Despawning.", "signal": "despawn"}
+        else:
+            # If not mentioned, run the default behavior
+            return await super().execute(task, channel_context, channel_id, team_status)
 
     async def coordinate(self, task: str, channel_id: str, config, bus):
         """Coordination loop - execute human message."""

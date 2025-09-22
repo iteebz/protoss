@@ -36,6 +36,7 @@ class Bus:
         """Initialize Bus coordination system."""
         self.server: Optional[Server] = None
         self.channels: Dict[str, Channel] = {}
+        self.monitor_clients: Set[str] = set()
         self.max_history = max_history
         self.port = port or 8888
         self.storage = self._init_storage(storage, enable_storage, storage_base_dir)
@@ -138,20 +139,6 @@ class Bus:
         if self.server:
             await self.server.send(agent_id, json.dumps(response))
 
-    async def _handle_status_request(self, agent_id: str, data: dict):
-        """Handles a request for team status."""
-        channel_id = data.get("channel")
-        if not channel_id:
-            logger.warning(f"Status request from {agent_id} missing channel.")
-        status = "Team status: Placeholder from Bus (spawner removed)."
-        response = {
-            "type": "status_resp",
-            "channel": channel_id,
-            "status": status,
-        }
-        if self.server:
-            await self.server.send(agent_id, json.dumps(response))
-
     async def _message(self, agent_id: str, raw_message: str):
         """Handle incoming WebSocket message from agent."""
         try:
@@ -159,10 +146,27 @@ class Bus:
             msg_type = data.get("type", "msg")
             channel = data.get("channel", "general")
 
+            if msg_type == "status_req" and agent_id == "status_client":
+                status_data = self.status()
+                response = {
+                    "type": "status_resp",
+                    "status": "online",
+                    "bus": status_data,
+                }
+                if self.server:
+                    await self.server.send(agent_id, json.dumps(response))
+                return
+            
+            if msg_type == "monitor_req":
+                self.monitor_clients.add(agent_id)
+                logger.info(f"👁️ {agent_id} is now monitoring the bus.")
+                response = {"type": "monitor_ack", "status": "monitoring"}
+                if self.server:
+                    await self.server.send(agent_id, json.dumps(response))
+                return
+
             if msg_type == "history_req":
                 await self._handle_history_request(agent_id, data)
-            elif msg_type == "status_req":
-                await self._handle_status_request(agent_id, data)
             elif msg_type == "join_channel":
                 self.register(channel, agent_id)
                 await self.transmit(channel, "system", f"🔮 {agent_id} has joined the coordination on channel {channel}")
@@ -174,7 +178,11 @@ class Bus:
                 if content is None:
                     logger.warning(f"Message from {agent_id} has no content.")
                     return
-                await self.transmit(channel, agent_id, content)
+                # The gateway listens on a special channel
+                if channel == "gateway_commands":
+                    await self.transmit(channel, agent_id, content)
+                else:
+                    await self.transmit(channel, agent_id, content)
             else:
                 logger.warning(f"Unknown message type '{msg_type}' from {agent_id}.")
 
@@ -188,6 +196,7 @@ class Bus:
     async def _disconnect(self, agent_id: str):
         """Handle agent disconnection from coordination network."""
         self.deregister(agent_id)
+        self.monitor_clients.discard(agent_id)
         logger.info(f"🔌 {agent_id} disconnected from Bus")
 
     async def _direct(self, message: Message):
@@ -208,37 +217,10 @@ class Bus:
 
         logger.info(f"⚡ MESSAGE → {message.channel} ({message.sender}): {message.content[:60]}...")
 
-        # Signals like mentions and commands are processed before broadcasting
-        await self._process_signals(message)
-
         await self._send_to_subscribers(message)
 
-    def _append_to_history(self, message: Message):
-        """Append a message to the in-memory history for a channel."""
-        channel = self.channels[message.channel]
-        channel.history.append(message)
-        if len(channel.history) > self.max_history:
-            channel.history = channel.history[-self.max_history:]
-
-    async def _persist_message(self, message: Message):
-        """Save a message to the persistent storage backend, if configured."""
-        if self.storage:
-            try:
-                await self.storage.save_message(
-                    message.channel, message.sender, message.content, message.timestamp
-                )
-            except Exception as e:
-                logger.error(f"⚠️ Storage error: {e}")
-
-    async def _process_signals(self, message: Message):
-        """Process signals within a message, like mentions and commands."""
-        # This is a placeholder for the Spawner/Gateway logic which is now external
-        # In a fully integrated system, this might emit events for a gateway to catch
-        # For now, we acknowledge that this responsibility has moved.
-        pass
-
     async def _send_to_subscribers(self, message: Message):
-        """Send the message to all agents subscribed to the channel."""
+        """Send the message to all agents subscribed to the channel and all monitors."""
         if not self.server:
             return
 
@@ -250,10 +232,12 @@ class Bus:
         }
         json_payload = json.dumps(broadcast_payload)
         
-        # Mentions can also add targets to a broadcast
         subscribers = self.channels.get(message.channel, Channel()).subscribers
-        targets = subscribers | set(mentions.extract_mentions(message.content))
+        targets = subscribers | set(mentions.extract_mentions(message.content)) | self.monitor_clients
+
         for agent_id in targets:
+            if agent_id == message.sender:
+                continue
             await self.server.send(agent_id, json_payload)
 
     def is_running(self) -> bool:

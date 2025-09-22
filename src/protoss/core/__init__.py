@@ -1,6 +1,6 @@
 """Protoss core coordination components."""
 
-from .engine import Protoss
+from .protoss import Protoss
 from .config import Config
 from .bus import Bus, Message
 
