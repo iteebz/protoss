@@ -3,155 +3,101 @@
 import asyncio
 import json
 import logging
+import websockets
+import uuid
 from typing import Any, Optional
-from .config import Config
-from .bus import Bus
-from .gateway import Gateway
-from .server import Server
+from ..core.config import Config
 
 logger = logging.getLogger(__name__)
 
 
 class Protoss:
-    """Constitutional coordination context manager.
-    
-    The Cathedral Interface that transforms vision into reality through 
-    constitutional dialogue.
-    
-    Usage:
-        async with Protoss("build authentication system") as swarm:
-            result = await swarm
+    """The Cathedral Interface for constitutional AI swarm coordination.
+
+    This class provides the primary entry point for interacting with the Protoss
+    system, enabling users to define a 'vision' (task) and engage with the swarm
+    through an asynchronous context manager.
+
+    The `Protoss` class embodies the constitutional principle of the Cathedral
+    Interface, offering a simple yet powerful way to initiate and oversee
+    constitutional AI coordination.
     """
-    
-    def __init__(self, vision: str, **config_overrides):
-        """Initialize constitutional coordination.
-        
-        Args:
-            vision: The constitutional vision to manifest
-            **config_overrides: Optional configuration overrides (port, etc.)
-        """
+
+    def __init__(self, vision: str, config: Config):
         self.vision = vision
-        self.config = Config(**config_overrides)
-        self.constitutional_destiny: Optional[Any] = None
-        
-        # Constitutional infrastructure
-        self._bus: Optional[Bus] = None
-        self._gateway: Optional[Gateway] = None
-        self._server: Optional[Server] = None
-        self._channel_id: Optional[str] = None
-        
+        self.config = config
+        self._channel_id = f"cathedral_{uuid.uuid4().hex[:8]}"
+        self._websocket: Optional[websockets.WebSocketClientProtocol] = None
+        logger.info(f"Protoss instance created for vision: {vision}")
+
     async def __aenter__(self) -> "Protoss":
         """Constitutional infrastructure genesis."""
-        logger.info(f"Initializing constitutional coordination for vision: {self.vision}")
-        
-        # Initialize Bus coordination network  
-        self._bus = Bus()
-        await self._bus.start()
-        
-        # Initialize Gateway spawning facility
-        self._gateway = Gateway(self.config)
-        
-        # Start gateway listening
-        await self._gateway.start()
-        
-        # Create coordination channel and seed constitutional vision
-        import uuid
-        self._channel_id = f"cathedral_{uuid.uuid4().hex[:8]}"
-        await self._seed_constitutional_vision()
-        
-        # Spawn genesis agent
-        await self._spawn_genesis()
-        
-        logger.info("Constitutional infrastructure active")
-        return self
-        
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Constitutional resource sanctification."""
-        logger.info("Sanctifying constitutional resources")
-        
-        # Clean shutdown of constitutional infrastructure
-        if self._gateway:
-            await self._gateway.stop()
-            
-        if self._bus and self._bus.server:
-            await self._bus.server.stop()
-            
-        logger.info("Constitutional coordination complete")
-        
-    def __await__(self):
-        """Sacred awaitable interface - enables 'await swarm' syntax."""
-        return self._await_constitutional_completion().__await__()
-        
-    async def _seed_constitutional_vision(self):
-        """Seed constitutional vision in coordination channel."""
-        if not self._channel_id:
-            raise RuntimeError("No coordination channel available")
-            
-        # Send vision message to trigger agent spawning
-        # Gateway expects 'vision' type message format
+        logger.info(
+            f"Initializing constitutional coordination for vision: {self.vision}"
+        )
+
+        # Connect to the Bus
+        uri = f"{self.config.bus_url}/protoss_engine"
+        self._websocket = await websockets.connect(uri)
+        logger.info("Connected to the Bus.")
+
+        # Register as an engine client
+        await self._websocket.send(json.dumps({"type": "engine_req"}))
+        ack = await self._websocket.recv()
+        if json.loads(ack).get("type") == "engine_ack":
+            logger.info("Registered as engine client.")
+        else:
+            raise ConnectionRefusedError("Failed to register as engine client.")
+
+        # Seed the initial vision onto the Bus
         vision_message = {
             "type": "vision",
             "channel": self._channel_id,
-            "content": self.vision
+            "content": self.vision,
+            "params": {},  # Future: allow initial parameters for vision
         }
-        # Send directly to gateway through bus infrastructure
-        if self._bus.server:
-            await self._bus.transmit("gateway_commands", "protoss_engine", json.dumps(vision_message))
-    
-    async def _spawn_genesis(self):
-        """Spawn genesis zealot - constitutional analysis first."""
-        logger.info("Spawning genesis zealot for constitutional emergence")
-        
-        try:
-            await self._gateway.spawn_agent(
-                agent_type="zealot",
-                channel_id=self._channel_id,
-                task=self.vision
-            )
-            logger.info("Genesis zealot spawned - constitutional emergence begins")
-        except Exception as e:
-            logger.error(f"Genesis zealot spawn failed: {e}")
-            raise RuntimeError(f"Constitutional genesis failed: {e}")
-        
-    async def _await_completion(self) -> Any:
-        """Monitor coordination dialogue for completion signals."""
-        completion_signals = ["!complete"]
-        
-        logger.info("Awaiting completion...")
-        
+        await self._transmit("msg", "gateway_commands", vision_message)
+        logger.info(f"Initial vision '{self.vision}' seeded onto the Bus.")
+
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Constitutional infrastructure dissolution."""
+        logger.info("Dissolving constitutional coordination.")
+        if self._websocket:
+            await self._websocket.close()
+            logger.info("Disconnected from the Bus.")
+
+    async def _transmit(self, msg_type: str, channel: str, content: Any):
+        """Transmit a message to the Bus."""
+        if self._websocket and self._websocket.open:
+            message = {"type": msg_type, "channel": channel, "content": content}
+            await self._websocket.send(json.dumps(message))
+        else:
+            logger.warning("WebSocket not connected. Message not transmitted.")
+
+    async def _await_completion(self):
+        """Await the completion of the constitutional coordination."""
+        logger.info(f"Awaiting completion for channel {self._channel_id}...")
+        # This is a placeholder. Real implementation would involve listening
+        # for completion signals on the Bus.
         while True:
-            # Get recent constitutional dialogue
-            constitutional_dialogue = self._bus.history(self._channel_id)
-            
-            if self._constitutional_completion_detected(constitutional_dialogue):
-                self.constitutional_destiny = self._extract_constitutional_wisdom(
-                    constitutional_dialogue
-                )
-                logger.info("Constitutional completion detected")
-                return self.constitutional_destiny
-                
-            # Constitutional patience
-            await asyncio.sleep(1)
-            
-    def _constitutional_completion_detected(self, dialogue: list) -> bool:
-        """Check if constitutional completion signals are present."""
-        completion_signals = ["!complete"]
-        
-        for message in dialogue[-10:]:  # Check last 10 messages
-            if "!complete" in message.content.lower():
-                return True
-                
-        return False
-        
-    def _extract_constitutional_wisdom(self, dialogue: list) -> str:
-        """Extract constitutional wisdom from coordination dialogue."""
-        # Find completion message and extract result
-        for message in reversed(dialogue):
-            content = message.content
-            if "!complete" in content.lower():
-                # Return the message content as the result
-                return content
-                
-        # Fallback: return summary of recent dialogue
-        recent_messages = dialogue[-5:]
-        return "\n".join([f"{msg.sender}: {msg.content}" for msg in recent_messages])
+            try:
+                message = await self._websocket.recv()
+                parsed_message = json.loads(message)
+                if (
+                    parsed_message.get("type") == "signal"
+                    and parsed_message.get("content") == "complete"
+                    and parsed_message.get("channel") == self._channel_id
+                ):
+                    logger.info(
+                        f"Completion signal received for channel {self._channel_id}."
+                    )
+                    break
+            except websockets.exceptions.ConnectionClosed:
+                logger.warning("Bus connection closed while awaiting completion.")
+                break
+            except Exception as e:
+                logger.error(f"Error while awaiting completion: {e}")
+                break
+            await asyncio.sleep(0.1)  # Prevent busy-waiting

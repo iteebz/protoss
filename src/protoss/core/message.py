@@ -1,7 +1,6 @@
 """Message data structures for agent coordination."""
 
 import time
-from typing import List
 from dataclasses import dataclass, field
 
 
@@ -17,6 +16,3 @@ class Message:
     def serialize(self) -> str:
         """Serialize for transmission."""
         return self.content
-
-
-

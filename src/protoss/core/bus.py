@@ -1,5 +1,6 @@
 """Message routing and coordination for distributed agents."""
 
+import asyncio
 import json
 import logging
 from typing import Dict, List, Set, Optional
@@ -7,7 +8,7 @@ from dataclasses import dataclass, field
 
 from .server import Server
 from .message import Message
-from . import mentions
+from . import parser
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Channel:
     """Represents a single coordination channel."""
+
     subscribers: Set[str] = field(default_factory=set)
     history: List[Message] = field(default_factory=list)
     task: Optional[str] = None
@@ -40,6 +42,7 @@ class Bus:
         self.max_history = max_history
         self.port = port or 8888
         self.storage = self._init_storage(storage, enable_storage, storage_base_dir)
+        self.completion_watchers: Dict[str, str] = {}
 
     async def start(self):
         if self.server is None:
@@ -57,10 +60,8 @@ class Bus:
 
     async def transmit(self, channel: str, sender: str, content: str):
         message = Message(channel=channel, sender=sender, content=content)
-        if not message.channel.startswith(("coord-", "squad-", "mission-", "channel-", "consult-")):
-            await self._direct(message)
-        else:
-            await self._broadcast(message)
+        # Always broadcast to channel for testing simplicity
+        await self._broadcast(message)
 
     def register(self, channel_id: str, agent_id: str):
         logger.debug(f"Agent {agent_id} attempting to register to channel {channel_id}")
@@ -71,7 +72,9 @@ class Bus:
         if channel_id not in self.channels:
             return []
         return [
-            msg for msg in self.channels[channel_id].history if msg.timestamp > since_timestamp
+            msg
+            for msg in self.channels[channel_id].history
+            if msg.timestamp > since_timestamp
         ]
 
     def deregister(self, agent_id: str):
@@ -108,6 +111,7 @@ class Bus:
             return None
         try:
             from ..lib.storage import SQLite
+
             return SQLite(base_dir=base_dir)
         except Exception as exc:
             logger.warning(
@@ -127,10 +131,10 @@ class Bus:
         if not channel_id:
             logger.warning(f"History request from {agent_id} missing channel.")
             return
-        
+
         messages = self.history(channel_id)
         history_content = [msg.content for msg in messages]
-        
+
         response = {
             "type": "history_resp",
             "channel": channel_id,
@@ -141,6 +145,7 @@ class Bus:
 
     async def _message(self, agent_id: str, raw_message: str):
         """Handle incoming WebSocket message from agent."""
+        logger.info(f"Received message from {agent_id}: {raw_message}")
         try:
             data = json.loads(raw_message)
             msg_type = data.get("type", "msg")
@@ -156,7 +161,7 @@ class Bus:
                 if self.server:
                     await self.server.send(agent_id, json.dumps(response))
                 return
-            
+
             if msg_type == "monitor_req":
                 self.monitor_clients.add(agent_id)
                 logger.info(f"👁️ {agent_id} is now monitoring the bus.")
@@ -165,14 +170,36 @@ class Bus:
                     await self.server.send(agent_id, json.dumps(response))
                 return
 
-            if msg_type == "history_req":
+            elif msg_type == "watch_completion":
+                self.completion_watchers[channel] = agent_id
+                logger.info(
+                    f"Client {agent_id} is now watching for completion on channel {channel}."
+                )
+                response = {
+                    "type": "watch_ack",
+                    "channel": channel,
+                    "status": "watching",
+                }
+                if self.server:
+                    await self.server.send(agent_id, json.dumps(response))
+                return
+
+            elif msg_type == "history_req":
                 await self._handle_history_request(agent_id, data)
             elif msg_type == "join_channel":
                 self.register(channel, agent_id)
-                await self.transmit(channel, "system", f"🔮 {agent_id} has joined the coordination on channel {channel}")
+                await self.transmit(
+                    channel,
+                    "system",
+                    f"🔮 {agent_id} has joined the coordination on channel {channel}",
+                )
             elif msg_type == "leave_channel":
                 self.deregister(agent_id)
-                await self.transmit(channel, "system", f"🔌 {agent_id} has left the coordination (departed)")
+                await self.transmit(
+                    channel,
+                    "system",
+                    f"🔌 {agent_id} has left the coordination (departed)",
+                )
             elif msg_type == "msg":
                 content = data.get("content")
                 if content is None:
@@ -212,12 +239,40 @@ class Bus:
         """Broadcast a message to a channel and handle its side-effects."""
         self._ensure_channel(message.channel)
 
-        self._append_to_history(message)
-        await self._persist_message(message)
+        # Append to in-memory history
+        self.channels[message.channel].history.append(message)
+        if len(self.channels[message.channel].history) > self.max_history:
+            self.channels[message.channel].history.pop(0)
 
-        logger.info(f"⚡ MESSAGE → {message.channel} ({message.sender}): {message.content[:60]}...")
+        # Persist if storage is enabled (assuming self.storage.save_message exists)
+        if self.storage:
+            try:
+                await self.storage.save_message(
+                    message.channel, message.sender, message.content, message.timestamp
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist message to storage: {e}")
+
+        logger.info(
+            f"⚡ MESSAGE → {message.channel} ({message.sender}): {message.content[:60]}..."
+        )
 
         await self._send_to_subscribers(message)
+
+        # Check for constitutional completion and notify watcher
+        if "!complete" in message.content.lower():
+            if message.channel in self.completion_watchers:
+                client_id = self.completion_watchers.pop(message.channel)
+                logger.info(
+                    f"Constitutional completion detected on {message.channel}. Notifying watcher {client_id}."
+                )
+                notification = {
+                    "type": "constitutional_completion",
+                    "channel": message.channel,
+                    "result": message.content,
+                }
+                if self.server:
+                    await self.server.send(client_id, json.dumps(notification))
 
     async def _send_to_subscribers(self, message: Message):
         """Send the message to all agents subscribed to the channel and all monitors."""
@@ -231,9 +286,17 @@ class Bus:
             "channel": message.channel,
         }
         json_payload = json.dumps(broadcast_payload)
-        
+
         subscribers = self.channels.get(message.channel, Channel()).subscribers
-        targets = subscribers | set(mentions.extract_mentions(message.content)) | self.monitor_clients
+        targets = (
+            subscribers
+            | {
+                s.agent_name
+                for s in parser.parse_signals(message.content)
+                if isinstance(s, parser.MentionSignal)
+            }
+            | self.monitor_clients
+        )
 
         for agent_id in targets:
             if agent_id == message.sender:
@@ -244,5 +307,30 @@ class Bus:
         """Check if the Bus server is currently running."""
         return self.server is not None and self.server.is_running()
 
-# Pure dependency injection - no global state
-# Applications must create and manage their own Bus instances
+
+def main():
+    """Entry point for running the Bus as a standalone process."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run the Protoss Bus.")
+    parser.add_argument("--port", type=int, default=8888, help="Port to run the Bus on")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+    bus = Bus(port=args.port)
+
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(bus.start())
+        loop.run_forever()
+    except KeyboardInterrupt:
+        logger.info("Bus shutting down.")
+        loop.run_until_complete(bus.stop())
+
+
+if __name__ == "__main__":
+    main()

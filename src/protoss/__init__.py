@@ -1,58 +1,8 @@
-"""Protoss: Constitutional AI coordination.
+"""Constitutional AI swarm coordination."""
 
-Pure concurrency abstraction for emergent agent coordination.
+from .core.protoss import Protoss
 
-En taro Adun.
-"""
+# Constitutional constants are internally consumed and not part of the public API
+# They should be imported by the modules that need them (e.g., agents)
 
-# Load environment variables first
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ImportError:
-    pass
-
-from .core.protoss import Protoss as _Protoss
-from .core.config import Config
-from .agents import Zealot, Arbiter, Conclave
-from .core.bus import Bus, Message
-
-def protoss(
-    vision: str,
-    agents: int = 5,
-    timeout: int = 3600,
-    debug: bool = False,
-    rich_context: bool = True,
-    max_agents: int = 50,
-    **overrides,
-):
-    """
-    The Cathedral Interface.
-
-    Initializes and returns the Protoss coordination engine.
-
-    Usage:
-        async with protoss("build auth system") as swarm:
-            result = await swarm
-    """
-    config = Config(
-        agents=agents,
-        max_agents=max_agents,
-        timeout=timeout,
-        debug=debug,
-        rich_context=rich_context,
-        **overrides,
-    )
-    return _Protoss(vision, config=config)
-
-
-__version__ = "0.1.0"
-__all__ = [
-    "protoss",
-    "Zealot",
-    "Arbiter",
-    "Conclave",
-    "Bus",
-    "Message",
-]
+__all__ = ["Protoss"]

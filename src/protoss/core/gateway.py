@@ -3,13 +3,12 @@
 import asyncio
 import json
 import logging
-import re
 import websockets
 import subprocess
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Optional
 from .config import Config
 from .lifecycle import Lifecycle
-from . import mentions
+from . import parser
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ class Gateway:
             max_agents_per_channel=max_agents_per_channel,
             factories=factories or self._default_factories(),
         )
+        self.channel_tasks: Dict[str, str] = {}
         self._listen_task = None
 
     def _default_factories(self) -> Dict[str, Callable[[str], Any]]:
@@ -44,7 +44,9 @@ class Gateway:
 
     async def _send_to_bus(self, channel: str, content: str):
         """Send a system message to a channel on the Bus using the existing websocket."""
-        if not self.websocket or not (self.websocket.state == websockets.protocol.State.OPEN):
+        if not self.websocket or not (
+            self.websocket.state == websockets.protocol.State.OPEN
+        ):
             logger.warning("Gateway websocket not open, cannot send message to Bus.")
             return
 
@@ -59,54 +61,58 @@ class Gateway:
         except Exception as e:
             logger.error(f"Gateway failed to send message to Bus: {e}")
 
-    async def _spawn_process(self, agent_type: str, channel_id: str, task: str):
+    async def _spawn_process(
+        self,
+        agent_type: str,
+        channel_id: str,
+        task: str,
+        agent_params: Optional[Dict] = None,
+    ):
         """Create a new agent process and announce it."""
         agent_id = self.lifecycle.spawn(agent_type, channel_id)
 
         if not agent_id:
-            logger.warning(f"Could not spawn {agent_type} in {channel_id}: capacity full or unknown type.")
+            logger.warning(
+                f"Could not spawn {agent_type} in {channel_id}: capacity full or unknown type."
+            )
             await self._send_to_bus(
                 channel_id,
-                f"⚠️ Cannot spawn '{agent_type}': Maximum agents reached or unknown type."
+                f"⚠️ Cannot spawn '{agent_type}': Maximum agents reached or unknown type.",
             )
             return
 
         logger.info(f"Gateway is spawning {agent_id} in {channel_id}...")
-        
-        # Prepare config for the agent subprocess
-        agent_config_data = self.config.to_dict()
-        # Override bus_url for the agent if necessary, though it should be in config
-        agent_config_data["bus_url"] = self.config.bus_url
-        # Pass the task explicitly as it's dynamic
-        agent_config_data["task"] = task
 
         # Command to run the agent unit as a separate process
         cmd = [
-            "python", "-m", "protoss.agents.unit",
-            "--agent-id", agent_id,
-            "--agent-type", agent_type,
-            "--channel", channel_id,
-            "--config-json", json.dumps(agent_config_data),
-            "--task", task,
+            "python",
+            "-m",
+            "protoss.agents.unit",
+            "--agent-id",
+            agent_id,
+            "--agent-type",
+            agent_type,
+            "--channel",
+            channel_id,
+            "--bus-url",
+            self.config.bus_url,
+            "--task",
+            task,
         ]
+
+        if agent_params:
+            cmd.extend(["--params", json.dumps(agent_params)])
 
         try:
             # Launch the subprocess
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+            await asyncio.create_subprocess_exec(
+                *cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
             await self._send_to_bus(channel_id, f"✨ {agent_id} has been warped in.")
-            
-            # Optionally, you can manage the process lifecycle further,
-            # e.g., by storing the process object in AgentState and monitoring it.
-            # For now, we launch and forget.
 
         except Exception as e:
             logger.error(f"Failed to launch subprocess for {agent_id}: {e}")
             await self._send_to_bus(channel_id, f"❌ Failed to warp in {agent_id}.")
-            # Clean up the state if the process fails to start
             self.lifecycle.despawn(agent_id)
 
     async def _handle_message(self, raw_message: str):
@@ -114,128 +120,125 @@ class Gateway:
         try:
             msg = json.loads(raw_message)
             msg_type = msg.get("type")
-
-            if msg_type == "vision":
-                channel_id = msg.get("channel")
-                vision = msg.get("content")
-                logger.info(f"Gateway received vision: {vision}")
-                asyncio.create_task(self._spawn_process("zealot", channel_id, vision))
-                return
-
-            if msg_type == "lifecycle_status_req":
-                channel_id = msg.get("channel")
-                status = self.lifecycle.get_team_status(channel_id)
-                response = {
-                    "type": "lifecycle_status_resp",
-                    "channel": channel_id,
-                    "status": status,
-                }
-                # This is a request from the engine, so we need to send a direct message back
-                # The sender is the client_id of the engine
-                if self.websocket and (self.websocket.state == websockets.protocol.State.OPEN):
-                    await self.websocket.send(json.dumps(response))
-                return
-
-            if msg.get("type") != "msg":
-                return # The gateway only cares about standard messages
-
-            content = msg.get("content", "")
-            channel = msg.get("channel")
+            channel_id = msg.get("channel")
+            content = msg.get("content")
             sender = msg.get("sender")
 
-            if "!complete" in content:
-                if self.lifecycle.mark_as_complete(sender):
-                    asyncio.create_task(self._send_to_bus(channel, f"✅ {sender} has completed its task."))
+            if msg_type != "msg" or sender == "gateway":
                 return
 
-            # Handle !spawn command
-            if content.startswith("!spawn"):
-                spawn_match = re.search(r"!spawn\s+(\w+)\s*(.*)", content)
-                if spawn_match:
-                    agent_type = spawn_match.group(1)
-                    task = spawn_match.group(2) or "Assigned to coordinate."
-                    asyncio.create_task(self._spawn_process(agent_type, channel, task))
-                    return
+            if channel_id == "gateway_commands":
+                vision_data = json.loads(content)
+                if vision_data.get("type") == "vision":
+                    vision_channel = vision_data.get("channel")
+                    vision_content = vision_data.get("content")
+                    vision_params = vision_data.get("params", {})
+                    logger.info(f"Gateway received vision: {vision_content}")
 
-            # Handle !despawn command
-            despawn_match = re.search(r"!despawn\s+@?([\w-]+)", content)
-            if despawn_match:
-                agent_id = despawn_match.group(1)
-                if self.lifecycle.despawn(agent_id):
-                    asyncio.create_task(self._send_to_bus(channel, f"💀 {agent_id} has been recalled."))
-                else:
-                    asyncio.create_task(self._send_to_bus(channel, f"❓ Cannot recall '{agent_id}': Not found."))
+                    asyncio.create_task(
+                        self._spawn_process(
+                            agent_type="archon",
+                            channel_id=vision_channel,
+                            task=f"seed channel for: {vision_content}",
+                            agent_params={"action": "seed_channel"},
+                        )
+                    )
+
+                    agent_type = vision_params.get("initial_agent", "zealot")
+                    agent_count = vision_params.get("agent_count", 1)
+
+                    for _ in range(agent_count):
+                        asyncio.create_task(
+                            self._spawn_process(
+                                agent_type=agent_type,
+                                channel_id=vision_channel,
+                                task=vision_content,
+                            )
+                        )
                 return
 
-            # Handle !rebirth command
-            rebirth_match = re.search(r"!rebirth\s+@?([\w-]+)", content)
-            if rebirth_match:
-                target_id = rebirth_match.group(1)
-                agent_state = self.lifecycle.agent_registry.get(target_id)
+            signals = parser.parse_signals(content)
 
-                if not agent_state:
-                    asyncio.create_task(self._send_to_bus(channel, f"❓ Cannot rebirth '{target_id}': Not found."))
-                    return
-                
-                if agent_state.channel_id != channel:
-                    asyncio.create_task(self._send_to_bus(channel, f"❌ {target_id} is not in this channel."))
-                    return
+            mention_signals = [
+                s for s in signals if isinstance(s, parser.MentionSignal)
+            ]
+            spawn_signals = [s for s in signals if isinstance(s, parser.SpawnSignal)]
 
-                if sender == target_id:
-                    asyncio.create_task(self._send_to_bus(channel, f"🚫 Self-rebirth is not permitted."))
-                    return
+            # Handle direct @mention spawning
+            for s in mention_signals:
+                agent_type = s.agent_name
+                logger.info(
+                    f"Detected @mention {agent_type} in {channel_id}. Spawning agent to respond."
+                )
+                asyncio.create_task(
+                    self._spawn_process(
+                        agent_type=agent_type,
+                        channel_id=channel_id,
+                        task=content,  # The original message content is the task
+                        agent_params={"action": "respond_to_mention"},
+                    )
+                )
 
-                # Announce the despawn and then spawn the successor
-                if self.lifecycle.despawn(target_id):
-                    await self._send_to_bus(channel, f"💀 {target_id} archived at request of {sender}. Beginning rebirth...")
-                    agent_type = agent_state.agent_type
-                    task = f"Successor to {target_id}."
-                    asyncio.create_task(self._spawn_process(agent_type, channel, task))
-                return
+            # Handle @spawn requests
+            task = self.channel_tasks.get(channel_id, "")  # Define task here
+            if not task:
+                logger.warning(
+                    f"No task found for channel {channel_id} to spawn agent."
+                )
 
-            # Handle @mentions
-            mentions_list = mentions.extract_mentions(content)
-            for mention in mentions_list:
-                # Check if it's a specific agent ID
-                if mention in self.lifecycle.agent_registry:
-                    result = self.lifecycle.respawn(mention)
-                    if result.get("status") == "success":
-                        asyncio.create_task(self._send_to_bus(channel, f"🔄 {mention} has been reactivated."))
-                    # Silently ignore if already active or not found, to avoid spam
-                    continue
+            for s in spawn_signals:
+                agent_type = s.agent_type
+                logger.info(f"Detected @spawn {agent_type} in {channel_id}.")
+                asyncio.create_task(self._spawn_process(agent_type, channel_id, task))
 
-                # Check if it's a generic agent type
-                if mention in self.lifecycle.factories:
-                    task = f"Summoned by {sender}."
-                    asyncio.create_task(self._spawn_process(mention, channel, task))
-                    continue
+            # Handle !archive_for_review signal
+            archive_signals = [
+                s for s in signals if isinstance(s, parser.ArchiveForReviewSignal)
+            ]
+            for s in archive_signals:
+                summary = s.summary
+                logger.info(
+                    f"Detected !archive_for_review in {channel_id}. Archiving work for review."
+                )
+                asyncio.create_task(
+                    self._spawn_process(
+                        agent_type="archon",
+                        channel_id=channel_id,
+                        task=summary,  # The summary is the task for the Archon
+                        agent_params={"action": "archive_for_review"},
+                    )
+                )
+
+            # Handle !review <review_id> signal
+            review_signals = [s for s in signals if isinstance(s, parser.ReviewSignal)]
+            for s in review_signals:
+                review_id = s.review_id
+                logger.info(
+                    f"Detected !review {review_id} in {channel_id}. Chalice offered."
+                )
+
+            # Handle !reviewing <review_id> signal
+            reviewing_signals = [
+                s for s in signals if isinstance(s, parser.ReviewingSignal)
+            ]
+            for s in reviewing_signals:
+                review_id = s.review_id
+                logger.info(
+                    f"Detected !reviewing {review_id} in {channel_id}. Chalice accepted."
+                )
+
+            # Handle !reviewed <review_id> [judgment] signal
+            reviewed_signals = [
+                s for s in signals if isinstance(s, parser.ReviewedSignal)
+            ]
+            for s in reviewed_signals:
+                review_id = s.review_id
+                judgment = s.judgment
+                logger.info(
+                    f"Detected !reviewed {review_id} with judgment '{judgment}' in {channel_id}. Chalice returned."
+                )
 
         except json.JSONDecodeError:
-            logger.warning(f"Gateway received invalid JSON: {raw_message}")
-
-    async def listen(self):
-        """Connect to the Bus and listen for messages."""
-        uri = f"{self.config.bus_url}/gateway"
-        try:
-            async with websockets.connect(uri) as websocket:
-                self.websocket = websocket
-                logger.info(f"Gateway connected to Bus at {self.config.bus_url}")
-                async for raw_message in websocket:
-                    await self._handle_message(raw_message)
-        except (websockets.exceptions.ConnectionClosed, ConnectionRefusedError) as e:
-            logger.error(f"Gateway connection to Bus failed: {e}.")
+            pass
         except Exception as e:
-            logger.error(f"An unexpected error occurred in the Gateway: {e}")
-
-    async def start(self):
-        """Start the Gateway's listening task."""
-        if self._listen_task is None:
-            self._listen_task = asyncio.create_task(self.listen())
-
-    async def stop(self):
-        """Stop the Gateway's listening task."""
-        if self._listen_task:
-            self._listen_task.cancel()
-            self._listen_task = None
-        if self.websocket and (self.websocket.state == websockets.protocol.State.OPEN):
-            await self.websocket.close()
+            logger.error(f"Error in Gateway message handler: {e}")

@@ -4,9 +4,6 @@ import uuid
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
 
-from .message import Message
-from ..agents import Conclave
-
 
 @dataclass
 class AgentState:
@@ -97,9 +94,7 @@ class Lifecycle:
         active_count = len(self.get_active_agents(channel_id))
         return active_count < self.max_agents
 
-    def spawn(
-        self, agent_type: str, channel_id: str
-    ) -> Optional[str]:
+    def spawn(self, agent_type: str, channel_id: str) -> Optional[str]:
         """Update state to reflect a new agent being spawned. Returns agent_id on success."""
         if not self.can_spawn(channel_id):
             # Logging should be handled by the caller (Gateway)
@@ -114,11 +109,11 @@ class Lifecycle:
         # Note: The agent instance is no longer created here.
         # The AgentState holds metadata, not the live object.
         agent_state = AgentState(
-            agent=None, # The live agent object is managed by the Gateway's process
+            agent=None,  # The live agent object is managed by the Gateway's process
             agent_id=agent_id,
             agent_type=agent_type,
             channel_id=channel_id,
-            active=True, # Assumed active on spawn
+            active=True,  # Assumed active on spawn
         )
 
         if channel_id not in self.agents:
@@ -127,7 +122,6 @@ class Lifecycle:
         self.agent_registry[agent_id] = agent_state
 
         return agent_id
-
 
     def respawn(self, agent_id: str) -> Dict[str, any]:
         """Mark an inactive agent as active. Returns a status dictionary."""

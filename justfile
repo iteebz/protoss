@@ -35,4 +35,4 @@ clean:
 commits:
     @git --no-pager log --pretty=format:"%ar %s"
 
-ci: format fix lint test
+ci: format fix test

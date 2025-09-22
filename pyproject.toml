@@ -29,6 +29,7 @@ dependencies = [
     "asyncio-mqtt>=0.13.0",
     "websockets>=12.0",
     "typer>=0.9.0",
+    "textual>=0.69.1",
 ]
 
 [tool.poetry.group.dev.dependencies]

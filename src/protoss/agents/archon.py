@@ -21,8 +21,8 @@ Archons are helpful teammates that actively maintain and organize the collective
 memory of constitutional AI coordination efforts.
 """
 
-import uuid
 import logging
+import uuid
 from pathlib import Path
 from typing import List, Optional
 from .unit import Unit
@@ -32,6 +32,8 @@ from ..constitution import (
     ARCHON_KNOWLEDGE_PROTOCOL,
     ARCHON_COMPRESSION_PROTOCOL,
 )
+from ..core.config import Config
+from ..core import parser  # Corrected parser import
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +67,13 @@ class Archon(Unit):
 {ARCHON_COMPRESSION_PROTOCOL}"""
 
     @property
-    def tools(self):
-        """Knowledge work tools - archives/ directory authority."""
-        return self._cogency_tools(
-            ["file_read", "file_write", "file_edit", "file_list"]
-        )
+    def tools(self) -> list:
+        from cogency.tools import tools
 
-    def __init__(self):
+        return tools.category(["file", "system"])
+
+    def __init__(self, agent_id: str, agent_type: str, channel_id: str, config: Config):
+        super().__init__(agent_id, agent_type, channel_id, config)
         self._init()
 
     async def seed_channel(
@@ -138,18 +140,44 @@ class Archon(Unit):
         return f"Channel progress archived to {archive_path}"
 
     async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
-        """Respond to @archon mention with relevant context.
+        """Respond to @archon mention with relevant context or review artifacts.
 
         Args:
             mention_context: Context around the @archon mention
             channel_id: Channel where mention occurred
 
         Returns:
-            Response with relevant context or honest "no archives" answer
+            Response with relevant context, artifact, summary, or honest "no archives" answer
         """
-        logger.debug(f"{self.id} responding to @archon mention")
+        logger.debug(f"{self.id} responding to @archon mention: {mention_context}")
 
-        # Search archives for relevant context
+        signals = parser.parse_signals(mention_context)
+
+        for signal in signals:
+            if isinstance(signal, parser.GetArtifactSignal):
+                review_id = signal.review_id
+                artifact_content = await self.get_artifact(review_id)
+                if artifact_content:
+                    # Broadcast the artifact content directly
+                    await self.broadcast(
+                        f"Artifact for {review_id}:\n{artifact_content}"
+                    )
+                    return f"Provided artifact for {review_id}."
+                else:
+                    await self.broadcast(f"Artifact {review_id} not found.")
+                    return f"Artifact {review_id} not found."
+            elif isinstance(signal, parser.GetSummarySignal):
+                review_id = signal.review_id
+                summary_content = await self.get_summary(review_id)
+                if summary_content:
+                    # Broadcast the summary content directly
+                    await self.broadcast(f"Summary for {review_id}:\n{summary_content}")
+                    return f"Provided summary for {review_id}."
+                else:
+                    await self.broadcast(f"Summary for {review_id} not found.")
+                    return f"Summary for {review_id} not found."
+
+        # Fallback to existing behavior if no specific signal is found
         relevant_context = await self._search_archives(mention_context)
 
         if relevant_context:
@@ -313,6 +341,61 @@ EN TARO ADUN.
 """)
 
         return str(archive_file.relative_to(Path(".")))
+
+    async def archive_for_review(self, content: str) -> str:
+        """Archives a work artifact for review and returns a unique review_id.
+
+        Args:
+            content: The full content of the work artifact to be archived.
+
+        Returns:
+            A message containing the unique review_id.
+        """
+        review_archives_path = Path("archives/reviews")
+        review_archives_path.mkdir(parents=True, exist_ok=True)
+
+        review_id = uuid.uuid4().hex[:8]
+        filename = f"{review_id}.md"
+        archive_file = review_archives_path / filename
+        archive_file.write_text(content)
+
+        logger.info(f"Archived review artifact {review_id} to {archive_file}")
+        return f"Review artifact {review_id} created. Ready for constitutional review."
+
+    async def get_artifact(self, review_id: str) -> Optional[str]:
+        """Retrieves a full review artifact by its ID.
+
+        Args:
+            review_id: The unique ID of the review artifact.
+
+        Returns:
+            The content of the artifact, or None if not found.
+        """
+        review_archives_path = Path("archives/reviews")
+        artifact_file = review_archives_path / f"{review_id}.md"
+        if artifact_file.exists():
+            return artifact_file.read_text()
+        return None
+
+    async def get_summary(self, review_id: str) -> Optional[str]:
+        """Retrieves a distilled summary of a review artifact by its ID.
+
+        Args:
+            review_id: The unique ID of the review artifact.
+
+        Returns:
+            A summary of the artifact, or None if not found.
+        """
+        artifact_content = await self.get_artifact(review_id)
+        if artifact_content:
+            # In a real scenario, this would use an LLM to summarize
+            # For now, a simple truncation or first few lines
+            summary = (
+                artifact_content.split("\n", 5)[0]
+                + "... (full artifact available via get_artifact)"
+            )
+            return summary
+        return None
 
     async def _search_archives(self, context: str) -> Optional[str]:
         """Search archives for relevant context."""

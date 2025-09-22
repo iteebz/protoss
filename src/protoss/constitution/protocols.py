@@ -1,4 +1,4 @@
-"""Archon Constitutional Protocols - Operational patterns for context stewardship."""
+"""Constitutional Protocols for Protoss Agents."""
 
 ARCHON_SEEDING_PROTOCOL = """
 ## SEEDING PROTOCOL

@@ -1,12 +1,11 @@
 """WebSocket server for the Protoss Bus."""
 
-import asyncio
-import json
 import logging
 import websockets
-from typing import Callable, Dict, Set
+from typing import Callable, Dict
 
 logger = logging.getLogger(__name__)
+
 
 class Server:
     """Manages WebSocket connections for the Bus."""
@@ -14,8 +13,8 @@ class Server:
     def __init__(self, port: int):
         self.port = port
         self.server = None
-        self.connections: Dict[str, websockets.WebSocketServerProtocol] = {}
-        self.agent_to_ws: Dict[str, websockets.WebSocketServerProtocol] = {}
+        self.connections: Dict[str, websockets.ServerProtocol] = {}
+        self.agent_to_ws: Dict[str, websockets.ServerProtocol] = {}
 
         # Callbacks
         self._on_message: Callable[[str, str], None] = None
@@ -39,6 +38,7 @@ class Server:
         if self.server:
             return
         import functools
+
         self.server = await websockets.serve(
             functools.partial(self._handler), "localhost", self.port
         )
@@ -66,7 +66,7 @@ class Server:
         """Check if the server is running."""
         return self.server is not None
 
-    async def _handler(self, websocket: websockets.WebSocketServerProtocol, path: str):
+    async def _handler(self, websocket: websockets.ServerProtocol, path: str):
         """Handle incoming WebSocket connections."""
         agent_id = path.lstrip("/")
         self.connections[agent_id] = websocket
@@ -82,7 +82,9 @@ class Server:
         except websockets.ConnectionClosed:
             pass
         finally:
-            del self.connections[agent_id]
-            del self.agent_to_ws[agent_id]
+            if agent_id in self.connections:
+                del self.connections[agent_id]
+            if agent_id in self.agent_to_ws:
+                del self.agent_to_ws[agent_id]
             if self._on_disconnect:
                 await self._on_disconnect(agent_id)
