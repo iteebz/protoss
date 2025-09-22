@@ -4,8 +4,12 @@ import logging
 import websockets
 import argparse
 from typing import List, Optional, Dict
-from ..constitution import SWARM_CONSTITUTION, COORDINATION_PATTERNS
+from dataclasses import asdict
+
 from ..core.config import Config
+from ..core.message import Message
+from ..core.protocols import Signal
+from ..core import parser
 import time
 
 logger = logging.getLogger(__name__)
@@ -33,15 +37,13 @@ class Unit:
             logger.error(f"{self.id} failed to connect to Bus: {e}")
             self._websocket = None
 
-    async def _receive_message(self, timeout: int = 1) -> Optional[Dict]:
+    async def _receive_message(self, timeout: int = 1) -> Optional[Message]:
         """Receives and parses a single message from the websocket with a timeout."""
         try:
             if (
                 not self._websocket
                 or self._websocket.state != websockets.protocol.State.OPEN
             ):
-                # If websocket is not open, it means poll_channel_for_response didn't connect it.
-                # Raise an error or return None, as _receive_message should not attempt to connect.
                 logger.warning(
                     f"{self.id} _receive_message called with closed websocket."
                 )
@@ -50,8 +52,24 @@ class Unit:
             message_str = await asyncio.wait_for(
                 self._websocket.recv(), timeout=timeout
             )
-            message = json.loads(message_str)
-            return message
+            message_dict = json.loads(message_str)
+            # Reconstruct Message object from dict
+            # Note: This assumes signals are serialized as dicts and need to be reconstructed into Signal objects
+            reconstructed_signals = []
+            for s_dict in message_dict.get("signals", []):
+                # This is a placeholder; proper deserialization of polymorphic Signals needs a registry
+                # For now, we'll assume a simple Signal base class reconstruction or pass as dict
+                reconstructed_signals.append(
+                    Signal(**s_dict)
+                )  # This will likely fail for subclasses
+
+            return Message(
+                sender=message_dict["sender"],
+                channel=message_dict["channel"],
+                timestamp=message_dict["timestamp"],
+                signals=reconstructed_signals,
+                event=message_dict["event"],
+            )
         except asyncio.TimeoutError:
             return None
         except websockets.exceptions.ConnectionClosedOK:
@@ -69,18 +87,8 @@ class Unit:
         sender_filter: Optional[str] = None,
         content_filter: Optional[str] = None,
         signal_type_filter: Optional[type] = None,
-    ) -> Optional[Dict]:
-        """Polls the channel for a message that matches the given filters.
-
-        Args:
-            timeout: How long to poll for a message (in seconds).
-            sender_filter: If provided, only messages from this sender will be returned.
-            content_filter: If provided, only messages containing this substring will be returned.
-            signal_type_filter: If provided, only messages containing this signal type will be returned.
-
-        Returns:
-            The parsed message dictionary if a match is found, otherwise None.
-        """
+    ) -> Optional[Message]:
+        """Polls the channel for a message that matches the given filters."""
         start_time = time.time()
         while (time.time() - start_time) < timeout:
             message = await self._receive_message(
@@ -90,15 +98,17 @@ class Unit:
                 continue
 
             # Apply filters
-            if sender_filter and message.get("sender") != sender_filter:
+            if sender_filter and message.sender != sender_filter:
                 continue
-            if content_filter and content_filter not in message.get("content", ""):
+            if content_filter and (
+                not message.event
+                or content_filter not in message.event.get("content", "")
+            ):
                 continue
 
-            # For signal_type_filter, we need to parse signals from the content
+            # For signal_type_filter, we check the message.signals list
             if signal_type_filter:
-                signals = parser.parse_signals(message.get("content", ""))
-                if not any(isinstance(s, signal_type_filter) for s in signals):
+                if not any(isinstance(s, signal_type_filter) for s in message.signals):
                     continue
 
             logger.debug(f"{self.id} received matching message: {message}")
@@ -154,83 +164,47 @@ class Unit:
             logger.info(f"{self.agent_id} disconnected from Bus.")
         self._websocket = None
 
+    @abstractmethod
     async def __call__(self, context: str) -> str:
-        """Pure constitutional function: context → constitutional response."""
-        instructions = f"""\
-{SWARM_CONSTITUTION}
+        """The agent's primary execution method, receiving context and returning a response."""
+        pass
 
-{self.identity}
-
-## CONSTITUTIONAL CONTEXT
-{context}
-
-{COORDINATION_PATTERNS}
-"""
-        try:
-            from cogency.core.agent import Agent
-
-            agent = Agent(instructions=instructions, tools=self.tools)
-            response_text = ""
-
-            async for event in agent(
-                "Apply your constitutional perspective to this context."
-            ):
-                if event["type"] == "respond":
-                    response_text += event.get("content", "")
-
-            return response_text
-
-        except ImportError:
-            return f"Constitutional reasoning unavailable: {self.__class__.__name__} perspective needed but Cogency not available."
-
-    async def broadcast(self, response: str):
-        """Pure broadcast layer - response only."""
+    async def broadcast(
+        self, event: Optional[Dict] = None, signals: Optional[List[Signal]] = None
+    ):
+        """Broadcast a structured message to the Bus."""
         if not self._websocket or not (
             self._websocket.state == websockets.protocol.State.OPEN
         ):
-            logger.warning(
-                f"{self.agent_id} websocket not open, cannot broadcast message."
-            )
+            logger.warning(f"{self.id} websocket not open, cannot broadcast message.")
             return
 
-        message = {
-            "type": "msg",
-            "channel": self.channel_id,
-            "content": response,
-            "sender": self.agent_id,
-        }
+        message_to_send = Message(
+            channel=self.channel_id,
+            sender=self.id,
+            event=event,
+            signals=signals if signals is not None else [],
+        )
         try:
-            await self._websocket.send(json.dumps(message))
+            # Serialize Message dataclass to dict for JSON transmission
+            await self._websocket.send(json.dumps(asdict(message_to_send)))
         except Exception as e:
             logger.error(f"Error broadcasting message: {e}")
 
-    async def coordinate(self, task: str) -> str:
-        """Pure constitutional coordination."""
-        from cogency.core.agent import Agent
-
-        instructions = f"""\
-{SWARM_CONSTITUTION}
-
-{self.identity}
-
-{COORDINATION_PATTERNS}
-"""
-
-        agent = Agent(instructions=instructions, tools=self.tools)
-
-        response_text = ""
-        async for event in agent(task):
-            if event["type"] == "respond":
-                response_text += event.get("content", "")
-
-        await self.broadcast(response_text)
-
-        # Return completion signal if present
-        if "!complete" in response_text:
-            return "complete"
-        elif "!despawn" in response_text:
-            return "despawn"
-        return "continue"
+    async def coordinate(self):
+        """The main coordination loop for agents that require continuous interaction."""
+        logger.info(f"{self.id} starting coordinate loop.")
+        while True:
+            try:
+                message = await self._receive_message()
+                if message:
+                    # Invoke the agent's __call__ method with the new message content
+                    await self(message.event.get("content", ""))
+            except websockets.exceptions.ConnectionClosedOK:
+                break  # Exit loop if connection is closed
+            except Exception as e:
+                logger.error(f"{self.id} error in coordinate loop: {e}")
+            await asyncio.sleep(0.1)  # Prevent busy-waiting
 
 
 if __name__ == "__main__":
@@ -296,62 +270,14 @@ if __name__ == "__main__":
 
         await agent_instance._connect_to_bus()
         try:
-            action = extra_params.get("action")
-            if action == "seed_channel":
-                logger.info(f"{agent_instance.agent_id} seeding channel {args.channel}")
-                result = await agent_instance.seed_channel(args.task, args.channel)
-                await agent_instance.broadcast(result)
-            elif action == "respond_to_mention":
-                logger.info(
-                    f"{agent_instance.agent_id} responding to mention in {args.channel}"
-                )
-                result = await agent_instance.respond_to_mention(
-                    args.task, args.channel
-                )
-                await agent_instance.broadcast(result)
-            elif action == "archive_for_review":
-                logger.info(
-                    f"{agent_instance.agent_id} archiving for review in {args.channel}"
-                )
-                result = await agent_instance.archive_for_review(
-                    args.task
-                )  # args.task is the content to archive
-                await agent_instance.broadcast(result)
-            elif action == "get_artifact":
-                review_id = extra_params.get("review_id")
-                if not review_id:
-                    logger.error("get_artifact action requires 'review_id' in params.")
-                    return
-                logger.info(f"{agent_instance.agent_id} getting artifact {review_id}")
-                result = await agent_instance.get_artifact(review_id)
-                await agent_instance.broadcast(result or "Artifact not found.")
-            elif action == "get_summary":
-                review_id = extra_params.get("review_id")
-                if not review_id:
-                    logger.error("get_summary action requires 'review_id' in params.")
-                    return
-                logger.info(
-                    f"{agent_instance.agent_id} getting summary for {review_id}"
-                )
-                result = await agent_instance.get_summary(review_id)
-                await agent_instance.broadcast(result or "Summary not found.")
-            elif action == "perform_review":
-                review_id = extra_params.get("review_id")
-                if not review_id:
-                    logger.error(
-                        "perform_review action requires 'review_id' in params."
-                    )
-                    return
-                logger.info(
-                    f"{agent_instance.agent_id} performing review for {review_id}"
-                )
-                await agent_instance.perform_review(review_id, args.channel)
-                # The perform_review method will handle its own broadcasting and lifecycle
-            else:
-                logger.info(
-                    f"{agent_instance.agent_id} starting coordination for task: {args.task}"
-                )
-                await agent_instance.coordinate(args.task)
+            logger.info(
+                f"{agent_instance.id} starting with initial context: {args.task}"
+            )
+            await agent_instance(args.task)  # Call the agent with the initial task
+
+            # Only Zealots and Conclaves run the continuous coordinate loop
+            if agent_instance.agent_type in ["zealot", "conclave"]:
+                await agent_instance.coordinate()
 
         except KeyboardInterrupt:
             logger.info(f"{agent_instance.agent_id} interrupted.")

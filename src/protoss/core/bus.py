@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from .server import Server
 from .message import Message
 from . import parser
-from .protocols import Signals
+from .protocols import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,6 @@ class Channel:
 
     subscribers: Set[str] = field(default_factory=set)
     history: List[Message] = field(default_factory=list)
-    task: Optional[str] = None
 
 
 class Bus:
@@ -45,6 +44,68 @@ class Bus:
         self.storage = self._init_storage(storage, enable_storage, storage_base_dir)
         self.completion_watchers: Dict[str, str] = {}
 
+
+class BusClient:
+    """A client for interacting with the Protoss Bus."""
+
+    def __init__(self, url: str):
+        self.url = url
+        self.websocket: websockets.WebSocketClientProtocol = None
+
+    async def connect(self):
+        """Connect to the Bus."""
+        self.websocket = await websockets.connect(self.url)
+
+    async def disconnect(self):
+        """Disconnect from the Bus."""
+        if self.websocket:
+            await self.websocket.close()
+
+    async def broadcast(self, message: str, channel: str, sender: str):
+        """Broadcast a message to a channel."""
+        if not self.websocket:
+            raise ConnectionError("Not connected to the Bus.")
+
+        msg = {
+            "type": "event",
+            "channel": channel,
+            "sender": sender,
+            "event": {"content": message},
+        }
+        await self.websocket.send(json.dumps(msg))
+
+    async def history(self, channel_id: str) -> List[Dict]:
+        """Request the history of a channel."""
+        if not self.websocket:
+            raise ConnectionError("Not connected to the Bus.")
+
+        req = {"type": "history_req", "channel": channel_id}
+        await self.websocket.send(json.dumps(req))
+
+        # Wait for the response
+        response = await self.websocket.recv()
+        data = json.loads(response)
+        if data.get("type") == "history_resp" and data.get("channel") == channel_id:
+            return data.get("history", [])
+        return []
+
+    def create_channel(self, channel_id: str):
+        """Request the creation of a channel."""
+        # This is a bit of a hack. The client is sending a message to the bus
+        # that it will then have to handle in the _message method.
+        # This is not ideal, but it's the simplest way to implement this
+        # without changing the bus server.
+        if not self.websocket:
+            raise ConnectionError("Not connected to the Bus.")
+
+        msg = {
+            "type": "system",
+            "channel": "general",
+            "sender": "BusClient",
+            "event": {"content": f"!create_channel {channel_id}"},
+        }
+        asyncio.create_task(self.websocket.send(json.dumps(msg)))
+
     async def start(self):
         if self.server is None:
             self.server = Server(self.port)
@@ -59,9 +120,14 @@ class Bus:
             await self.server.stop()
             self.server = None
 
-    async def transmit(self, channel: str, sender: str, content: str):
-        message = Message(channel=channel, sender=sender, content=content)
-        # Always broadcast to channel for testing simplicity
+    async def transmit(
+        self,
+        channel: str,
+        sender: str,
+        event: Optional[Dict] = None,
+        signals: Optional[List[Signal]] = None,
+    ):
+        message = Message(channel=channel, sender=sender, event=event, signals=signals)
         await self._broadcast(message)
 
     def register(self, channel_id: str, agent_id: str):
@@ -81,16 +147,6 @@ class Bus:
     def deregister(self, agent_id: str):
         for channel in self.channels.values():
             channel.subscribers.discard(agent_id)
-
-    def set_channel_task(self, channel_id: str, task: str) -> None:
-        """Record canonical coordination task for a channel."""
-        if task:
-            self._ensure_channel(channel_id)
-            self.channels[channel_id].task = task
-
-    def get_channel_task(self, channel_id: str) -> Optional[str]:
-        """Retrieve canonical coordination task for a channel if known."""
-        return self.channels.get(channel_id, Channel()).task
 
     def status(self) -> dict:
         return {
@@ -126,96 +182,41 @@ class Bus:
             self.channels[channel_id] = Channel()
             logger.info(f"🔮 Bus channel opened: {channel_id}")
 
-    async def _handle_history_request(self, agent_id: str, data: dict):
-        """Handles a request for channel history."""
-        channel_id = data.get("channel")
-        if not channel_id:
-            logger.warning(f"History request from {agent_id} missing channel.")
-            return
-
-        messages = self.history(channel_id)
-        history_content = [msg.content for msg in messages]
-
-        response = {
-            "type": "history_resp",
-            "channel": channel_id,
-            "history": history_content,
-        }
-        if self.server:
-            await self.server.send(agent_id, json.dumps(response))
-
     async def _message(self, agent_id: str, raw_message: str):
-        """Handle incoming WebSocket message from agent."""
-        logger.info(f"Received message from {agent_id}: {raw_message}")
+        """Handle incoming WebSocket message from an agent."""
+        logger.debug(f"Received message from {agent_id}: {raw_message}")
         try:
             data = json.loads(raw_message)
-            msg_type = data.get("type", "msg")
+            msg_type = data.get("type", "event")  # Default to event-based communication
             channel = data.get("channel", "general")
 
-            if msg_type == "status_req" and agent_id == "status_client":
-                status_data = self.status()
+            if msg_type == "history_req":
+                messages = self.history(channel)
+                history_events = [msg.event for msg in messages if msg.event]
                 response = {
-                    "type": "status_resp",
-                    "status": "online",
-                    "bus": status_data,
-                }
-                if self.server:
-                    await self.server.send(agent_id, json.dumps(response))
-                return
-
-            if msg_type == "monitor_req":
-                self.monitor_clients.add(agent_id)
-                logger.info(f"👁️ {agent_id} is now monitoring the bus.")
-                response = {"type": "monitor_ack", "status": "monitoring"}
-                if self.server:
-                    await self.server.send(agent_id, json.dumps(response))
-                return
-
-            elif msg_type == "watch_completion":
-                self.completion_watchers[channel] = agent_id
-                logger.info(
-                    f"Client {agent_id} is now watching for completion on channel {channel}."
-                )
-                response = {
-                    "type": "watch_ack",
+                    "type": "history_resp",
                     "channel": channel,
-                    "status": "watching",
+                    "history": history_events,
                 }
                 if self.server:
                     await self.server.send(agent_id, json.dumps(response))
                 return
 
-            elif msg_type == "history_req":
-                await self._handle_history_request(agent_id, data)
-            elif msg_type == "join_channel":
-                self.register(channel, agent_id)
-                await self.transmit(
-                    channel,
-                    "system",
-                    f"🔮 {agent_id} has joined the coordination on channel {channel}",
-                )
-            elif msg_type == "leave_channel":
-                self.deregister(agent_id)
-                await self.transmit(
-                    channel,
-                    "system",
-                    f"🔌 {agent_id} has left the coordination (departed)",
-                )
-            elif msg_type == "msg":
-                content = data.get("content")
-                if content is None:
-                    logger.warning(f"Message from {agent_id} has no content.")
-                    return
-                # The gateway listens on a special channel
-                if channel == "gateway_commands":
-                    await self.transmit(channel, agent_id, content)
-                else:
-                    await self.transmit(channel, agent_id, content)
-            else:
-                logger.warning(f"Unknown message type '{msg_type}' from {agent_id}.")
+            event_data = data.get("event")
+            if event_data is None or not isinstance(event_data, dict):
+                logger.warning(f"Message from {agent_id} has no valid event data.")
+                return
+
+            # Per emergence.md, signals are parsed from the content of the event.
+            content = event_data.get("content", "")
+            signals = parser.signals(content)
+
+            await self.transmit(channel, agent_id, event=event_data, signals=signals)
 
         except json.JSONDecodeError:
             logger.warning(f"Received invalid JSON from {agent_id}: {raw_message}")
+        except Exception as e:
+            logger.error(f"Error processing message from {agent_id}: {e}")
 
     async def _connect(self, agent_id: str):
         """Handle agent connection to coordination network."""
@@ -227,82 +228,54 @@ class Bus:
         self.monitor_clients.discard(agent_id)
         logger.info(f"🔌 {agent_id} disconnected from Bus")
 
-    async def _direct(self, message: Message):
-        """Send direct message to specific agent."""
-        target_agent = message.channel
-        logger.info(
-            f"💌 DIRECT → {target_agent} ({message.sender}): {message.content[:60]}..."
-        )
-        if self.server:
-            await self.server.send(target_agent, message.serialize())
-
     async def _broadcast(self, message: Message):
         """Broadcast a message to a channel and handle its side-effects."""
         self._ensure_channel(message.channel)
 
-        # Append to in-memory history
+        # Append to in-memory history and handle pruning.
         self.channels[message.channel].history.append(message)
         if len(self.channels[message.channel].history) > self.max_history:
             self.channels[message.channel].history.pop(0)
 
-        # Persist if storage is enabled (assuming self.storage.save_message exists)
+        # Persist if storage is enabled.
         if self.storage:
             try:
-                await self.storage.save_message(
-                    message.channel, message.sender, message.content, message.timestamp
-                )
+                await self.storage.save_message(message)
             except Exception as e:
                 logger.warning(f"Failed to persist message to storage: {e}")
 
         logger.info(
-            f"⚡ MESSAGE → {message.channel} ({message.sender}): {message.content[:60]}..."
+            f"⚡ MESSAGE → {message.channel} ({message.sender}): {message.event.get('content', '') if message.event else 'Signal'[:60]}..."
         )
 
         await self._send_to_subscribers(message)
-
-        # Check for constitutional completion and notify watcher
-        if "!complete" in message.content.lower():
-            if message.channel in self.completion_watchers:
-                client_id = self.completion_watchers.pop(message.channel)
-                logger.info(
-                    f"Constitutional completion detected on {message.channel}. Notifying watcher {client_id}."
-                )
-                notification = {
-                    "type": "constitutional_completion",
-                    "channel": message.channel,
-                    "result": message.content,
-                }
-                if self.server:
-                    await self.server.send(client_id, json.dumps(notification))
 
     async def _send_to_subscribers(self, message: Message):
         """Send the message to all agents subscribed to the channel and all monitors."""
         if not self.server:
             return
 
-        broadcast_payload = {
-            "type": "msg",
-            "sender": message.sender,
-            "content": message.content,
-            "channel": message.channel,
-        }
-        json_payload = json.dumps(broadcast_payload)
+        # Per emergence.md, the Bus is an impartial medium. It broadcasts the full
+        # message to all subscribers of the channel, plus any system-wide monitors.
+        subscribers_in_channel = self.channels.get(
+            message.channel, Channel()
+        ).subscribers
+        all_targets = set(subscribers_in_channel) | self.monitor_clients
 
-        subscribers = self.channels.get(message.channel, Channel()).subscribers
-        targets = (
-            subscribers
-            | {
-                s.agent_name
-                for s in parser.parse_signals(message.content)
-                if isinstance(s, Signal.Mention)
-            }
-            | self.monitor_clients
-        )
+        if not all_targets:
+            return
 
-        for agent_id in targets:
+        # Serialize the full message once for all targets.
+        json_payload = message.serialize()
+
+        for agent_id in all_targets:
             if agent_id == message.sender:
-                continue
-            await self.server.send(agent_id, json_payload)
+                continue  # Don't send messages back to the sender.
+
+            try:
+                await self.server.send(agent_id, json_payload)
+            except Exception as e:
+                logger.warning(f"Failed to send message to {agent_id}: {e}")
 
     def is_running(self) -> bool:
         """Check if the Bus server is currently running."""

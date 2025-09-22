@@ -21,36 +21,80 @@ class Zealot(Unit):
     @property
     def tools(self):
         from cogency.tools import tools
+
         return tools.category(["file", "system"])
 
-    async def coordinate(self, task: str) -> str:
-        """Zealot performs its task, archives it for review, and offers the Chalice."""
-        logger.info(f"{self.agent_id} starting coordination for task: {task}")
+    async def coordinate(self):
+        """The Zealot's primary execution loop, implementing the Core Coordination Pattern.
 
-        # 1. Perform Task (simplified)
-        # In a real scenario, this would involve using tools to perform the task.
-        task_result = await super().__call__(f"Perform the following task: {task}")
-        await self.broadcast(f"Task result: {task_result}")
-
-        # 2. Archive for Review
-        await self.broadcast(
-            f"Archiving work for review: {task_result} !archive {task_result}"
+        This method embodies the two-level loop described in `emergence.md`:
+        1. The Outer Loop (`while not self.despawned`): Listens for team updates.
+        2. The Inner Loop (`async for event in self(...)`): Executes the agent's cognitive turn.
+        """
+        logger.info(
+            f"{self.id} entering coordination loop in channel {self.channel_id}."
         )
+        self.despawned = False
+        full_context = ""
 
-        # In an emergent system, the Zealot would listen for the Archon's response
-        # containing the review_id after broadcasting !archive_for_review.
-        # For now, we use a placeholder review_id to allow the flow to continue.
-        review_id = f"placeholder_review_{self.id}"
+        # --- The Outer Loop: The Agent's Life --- #
+        while not self.despawned:
+            # 1. Listen: Get all new messages since our last turn.
+            # In a real implementation, this would be a more sophisticated diff.
+            # For now, we get the full history and use it as the complete context.
+            full_context = await self._get_full_channel_history()
 
-        # 3. Offer the Chalice
-        await self.broadcast(f"!review {review_id}")
-        await self.broadcast(
-            f"Chalice offered for review {review_id}. Waiting for review outcome."
-        )
+            if "Error:" in full_context:
+                logger.error(f"{self.id} failed to get context, despawning.")
+                break
 
-        # 4. Listen for Review Outcome (placeholder)
-        # In a real scenario, this would involve a more sophisticated listening mechanism
-        # to track !reviewed signals and decide on next steps.
-        # For now, the Zealot will simply despawn after offering the Chalice.
-        await self.broadcast("!despawn")
-        return f"Task completed and Chalice offered for review {review_id}."
+            logger.info(f"{self.id} starting cognitive turn...")
+
+            # 2. Reason & Act: The Inner Cognitive Turn (The Cogency Engine)
+            async for event in self(full_context):
+                if event["type"] == "respond":
+                    content = event.get("content", "")
+                    await self.broadcast(event)
+                    # The agent sovereignly chooses to despawn within a response.
+                    if "!despawn" in content:
+                        self.despawned = True
+
+                elif event["type"] == "think":
+                    logger.debug(f"{self.id} is thinking: {event.get('content', '')}")
+
+                elif event["type"] == "end":
+                    # The agent has ended its cognitive turn and is ready for new input.
+                    logger.info(
+                        f"{self.id} ended cognitive turn, will listen for updates."
+                    )
+                    break  # Break inner loop to re-enter outer `listen` loop.
+
+        logger.info(f"{self.id} has despawned and is terminating.")
+
+    async def _get_full_channel_history(self) -> str:
+        """Requests and retrieves the full channel history from the Bus."""
+        try:
+            await self.bus_client.send_json(
+                {"type": "history_req", "channel": self.channel_id}
+            )
+
+            # This is a simplified receive; a real implementation would be more robust.
+            history_response = await self.bus_client.receive_json()
+
+            if history_response.get("type") != "history_resp":
+                logger.error(f"{self.id} did not receive a valid history response.")
+                return "Error: Invalid history response."
+
+            channel_events = history_response.get("history", [])
+            # Reconstruct the conversational context from the event history.
+            if not channel_events:
+                return "The channel is empty. You are the first to act."
+            return "\n".join(
+                [
+                    f"{event.get('sender')}: {event.get('content', '')}"
+                    for event in channel_events
+                ]
+            )
+        except Exception as e:
+            logger.error(f"{self.id} exception while getting channel history: {e}")
+            return f"Error: Exception getting history - {e}"

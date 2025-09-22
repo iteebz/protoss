@@ -4,7 +4,6 @@ from .unit import Unit
 import logging
 from ..core.config import Config
 from ..constitution import ARBITER_IDENTITY
-from ..core import parser  # Corrected parser import
 
 logger = logging.getLogger(__name__)
 

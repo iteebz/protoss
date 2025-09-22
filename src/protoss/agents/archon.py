@@ -22,7 +22,6 @@ memory of constitutional AI coordination efforts.
 """
 
 import logging
-import uuid
 from .unit import Unit
 from cogency.tools.file import FileRead, FileWrite, FileList, FileSearch, FileEdit
 from ..constitution import (
@@ -32,7 +31,6 @@ from ..constitution import (
     ARCHON_COMPRESSION_PROTOCOL,
 )
 from ..core.config import Config
-from ..core import parser  # Corrected parser import
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +45,6 @@ class Archon(Unit):
     Core Capabilities:
     - Channel Seeding: Inject relevant historical context at coordination start
     - Archive Management: Maintain structured knowledge repositories
-    - Mention Response: Provide context when zealots @archon for information
     - Knowledge Compression: Extract and preserve insights from coordination
     - Codebase Awareness: Identify relevant files and architectural patterns
 
@@ -78,42 +75,68 @@ class Archon(Unit):
     def __init__(self, agent_id: str, agent_type: str, channel_id: str, config: Config):
         super().__init__(agent_id, agent_type, channel_id, config)
 
-    async def seed_channel(
-        self, task: str, channel_id: str, keywords=None
-    ) -> str:
-        """Seed channel with relevant context from archives and codebase."""
-        logger.info(f"{self.id} seeding channel {channel_id}")
-        return await super().__call__(f"Search archives/ for relevant context to seed coordination on: {task}")
+    async def coordinate(self):
+        """The Archon's primary execution loop, implementing the Core Coordination Pattern."""
+        logger.info(
+            f"{self.id} entering coordination loop in channel {self.channel_id}."
+        )
+        self.despawned = False
+        full_context = ""
 
-    async def compress_channel(
-        self, channel_id: str, bus, final_summary: bool = False
-    ) -> str:
-        """Compress channel progress into archives."""
-        logger.info(f"{self.id} compressing channel {channel_id}")
-        
-        messages = bus.history(channel_id)
-        if not messages:
-            return "No channel content to compress"
-            
-        message_content = "\n".join([f"{msg.sender}: {msg.content}" for msg in messages])
-        compression_type = "final summary" if final_summary else "progress update"
-        
-        return await super().__call__(f"Extract key insights from this {compression_type} and save to archives/channels/{channel_id}-{compression_type}.md:\n\n{message_content}")
+        # --- The Outer Loop: The Agent's Life --- #
+        while not self.despawned:
+            # 1. Listen: Get all new messages since our last turn.
+            full_context = await self._get_full_channel_history()
 
-    async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
-        """Respond to @archon mention with relevant context."""
-        logger.debug(f"{self.id} responding to @archon mention: {mention_context}")
-        return await super().__call__(f"Search archives/ for context on: {mention_context}")
+            if "Error:" in full_context:
+                logger.error(f"{self.id} failed to get context, despawning.")
+                break
 
-    async def archive_for_review(self, content: str) -> str:
-        """Archives a work artifact for review and returns a unique review_id."""
-        review_id = uuid.uuid4().hex[:8]
-        return await super().__call__(f"Save this content to archives/reviews/{review_id}.md:\n\n{content}\n\nThen respond with: Review artifact {review_id} created. Ready for constitutional review.")
+            logger.info(f"{self.id} starting cognitive turn...")
 
-    async def get_artifact(self, review_id: str) -> str:
-        """Retrieves a full review artifact by its ID."""
-        return await super().__call__(f"Read the full content of archives/reviews/{review_id}.md")
+            # 2. Reason & Act: The Inner Cognitive Turn (The Cogency Engine)
+            # The Archon's constitutional identity will guide it to perform its
+            # duties (seeding, archiving, responding) based on the context.
+            async for event in self(full_context):
+                if event["type"] == "respond":
+                    content = event.get("content", "")
+                    await self.broadcast(event)
+                    if "!despawn" in content:
+                        self.despawned = True
 
-    async def get_summary(self, review_id: str) -> str:
-        """Retrieves a distilled summary of a review artifact by its ID."""
-        return await super().__call__(f"Read archives/reviews/{review_id}.md and provide a concise summary")
+                elif event["type"] == "think":
+                    logger.debug(f"{self.id} is thinking: {event.get('content', '')}")
+
+                elif event["type"] == "end":
+                    logger.info(
+                        f"{self.id} ended cognitive turn, will listen for updates."
+                    )
+                    break
+
+        logger.info(f"{self.id} has despawned and is terminating.")
+
+    async def _get_full_channel_history(self) -> str:
+        """Requests and retrieves the full channel history from the Bus."""
+        try:
+            await self.bus_client.send_json(
+                {"type": "history_req", "channel": self.channel_id}
+            )
+
+            history_response = await self.bus_client.receive_json()
+
+            if history_response.get("type") != "history_resp":
+                logger.error(f"{self.id} did not receive a valid history response.")
+                return "Error: Invalid history response."
+
+            channel_events = history_response.get("history", [])
+            if not channel_events:
+                return "The channel is empty. You are the first to act."
+            return "\n".join(
+                [
+                    f"{event.get('sender')}: {event.get('content', '')}"
+                    for event in channel_events
+                ]
+            )
+        except Exception as e:
+            logger.error(f"{self.id} exception while getting channel history: {e}")
+            return f"Error: Exception getting history - {e}"

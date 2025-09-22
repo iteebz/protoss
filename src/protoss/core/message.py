@@ -1,7 +1,8 @@
 """Message data structures for agent coordination."""
 
 import time
-from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+from ..core.protocols import Signal
 
 
 @dataclass
@@ -10,9 +11,8 @@ class Message:
 
     channel: str  # Target channel or agent_id for direct messages
     sender: str  # Agent ID that created this message
-    content: str  # Message content with potential @mentions
     timestamp: float = field(default_factory=time.time)  # Unix timestamp
-
-    def serialize(self) -> str:
-        """Serialize for transmission."""
-        return self.content
+    signals: List[Signal] = field(default_factory=list)  # Parsed @ and ! commands
+    event: Optional[Dict] = (
+        None  # Structured cogency events (think, respond, call, result)
+    )
