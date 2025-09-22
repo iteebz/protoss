@@ -1,6 +1,7 @@
 """The Cathedral Interface: Constitutional coordination as architectural poetry."""
 
 import asyncio
+import json
 import logging
 from typing import Any, Optional
 from .config import Config
@@ -22,15 +23,15 @@ class Protoss:
             result = await swarm
     """
     
-    def __init__(self, vision: str, config: Optional[Config] = None):
+    def __init__(self, vision: str, **config_overrides):
         """Initialize constitutional coordination.
         
         Args:
             vision: The constitutional vision to manifest
-            config: Optional configuration (uses defaults if not provided)
+            **config_overrides: Optional configuration overrides (port, etc.)
         """
         self.vision = vision
-        self.config = config or Config()
+        self.config = Config(**config_overrides)
         self.constitutional_destiny: Optional[Any] = None
         
         # Constitutional infrastructure
@@ -58,6 +59,9 @@ class Protoss:
         self._channel_id = f"cathedral_{uuid.uuid4().hex[:8]}"
         await self._seed_constitutional_vision()
         
+        # Spawn genesis agent
+        await self._spawn_genesis()
+        
         logger.info("Constitutional infrastructure active")
         return self
         
@@ -74,13 +78,9 @@ class Protoss:
             
         logger.info("Constitutional coordination complete")
         
-    async def __await__(self):
-        """Constitutional emergence patience."""
-        if not self._channel_id:
-            raise RuntimeError("Constitutional coordination not initialized")
-            
-        # Wait for agents to signal constitutional completion
-        return await self._await_constitutional_completion()
+    def __await__(self):
+        """Sacred awaitable interface - enables 'await swarm' syntax."""
+        return self._await_constitutional_completion().__await__()
         
     async def _seed_constitutional_vision(self):
         """Seed constitutional vision in coordination channel."""
@@ -96,14 +96,28 @@ class Protoss:
         }
         # Send directly to gateway through bus infrastructure
         if self._bus.server:
-            import json
-            await self._bus.server.broadcast(json.dumps(vision_message))
+            await self._bus.transmit("gateway_commands", "protoss_engine", json.dumps(vision_message))
+    
+    async def _spawn_genesis(self):
+        """Spawn genesis zealot - constitutional analysis first."""
+        logger.info("Spawning genesis zealot for constitutional emergence")
         
-    async def _await_constitutional_completion(self) -> Any:
-        """Monitor coordination dialogue for constitutional signals."""
+        try:
+            await self._gateway.spawn_agent(
+                agent_type="zealot",
+                channel_id=self._channel_id,
+                task=self.vision
+            )
+            logger.info("Genesis zealot spawned - constitutional emergence begins")
+        except Exception as e:
+            logger.error(f"Genesis zealot spawn failed: {e}")
+            raise RuntimeError(f"Constitutional genesis failed: {e}")
+        
+    async def _await_completion(self) -> Any:
+        """Monitor coordination dialogue for completion signals."""
         completion_signals = ["!complete"]
         
-        logger.info("Awaiting constitutional completion...")
+        logger.info("Awaiting completion...")
         
         while True:
             # Get recent constitutional dialogue

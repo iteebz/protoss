@@ -87,6 +87,7 @@ class Gateway:
             "--agent-type", agent_type,
             "--channel", channel_id,
             "--config-json", json.dumps(agent_config_data),
+            "--task", task,
         ]
 
         try:
@@ -131,8 +132,7 @@ class Gateway:
                 }
                 # This is a request from the engine, so we need to send a direct message back
                 # The sender is the client_id of the engine
-                sender = msg.get("sender")
-if self.websocket and (self.websocket.state == websockets.protocol.State.OPEN):
+                if self.websocket and (self.websocket.state == websockets.protocol.State.OPEN):
                     await self.websocket.send(json.dumps(response))
                 return
 

@@ -55,7 +55,7 @@ class Server:
     async def send(self, agent_id: str, message: str):
         """Send a message to a specific agent."""
         websocket = self.agent_to_ws.get(agent_id)
-        if websocket and websocket.open:
+        if websocket and (websocket.state == websockets.protocol.State.OPEN):
             try:
                 await websocket.send(message)
             except websockets.ConnectionClosed:

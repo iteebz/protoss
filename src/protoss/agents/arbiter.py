@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 class Arbiter(Unit):
     """⚔️ Human command interface connected to Protoss swarm."""
 
-    def __init__(self, agent_id: Optional[str] = None, max_cycles: int = 100):
-        super().__init__(agent_id, max_cycles=max_cycles)
 
     @property
     def identity(self) -> str:

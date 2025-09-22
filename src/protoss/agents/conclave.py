@@ -13,10 +13,8 @@ from ..constitution import (
 class Conclave(Unit):
     """Constitutional AI agent with perspective-based identity."""
 
-    def __init__(self, perspective: str, agent_id: str = None, max_cycles: int = 100):
-        super().__init__(agent_id, max_cycles=max_cycles)
+    def __init__(self, perspective: str):
         self.perspective = perspective
-
         if perspective not in self.PERSPECTIVES:
             raise ValueError(f"Unknown perspective: {perspective}")
 

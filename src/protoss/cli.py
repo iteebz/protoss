@@ -40,7 +40,7 @@ def coordinate(
                 debug=debug,
                 rich_context=rich_context,
             ) as swarm:
-                result = await swarm
+                result = await swarm._await_completion()
                 print("✅ Coordination completed successfully!")
                 print()
                 print(result)
