@@ -1,38 +1,41 @@
-"""Oracle: Information reconnaissance specialist for external intelligence."""
+"""Oracle: External intelligence and web research specialist."""
 
-import logging
 from .unit import Unit
-from ..core.config import Config
-from ..constitution import ORACLE_IDENTITY
-
-logger = logging.getLogger(__name__)
+from ..constitution.identities import ORACLE_IDENTITY
 
 
 class Oracle(Unit):
-    """Information reconnaissance specialist for external intelligence.
-
-    Oracles provide web research capabilities and external knowledge gathering
-    for constitutional AI coordination. They bridge external information with
-    internal coordination processes.
-    """
-
-    def __init__(self, agent_id: str, agent_type: str, channel_id: str, config: Config):
-        super().__init__(agent_id, agent_type, channel_id, config)
+    """External intelligence agent - web research and information gathering."""
 
     @property
     def identity(self) -> str:
         return ORACLE_IDENTITY
 
     @property
-    def tools(self):
-        """Web research and external intelligence gathering tools."""
+    def tools(self) -> list:
         from cogency.tools import tools
 
         return tools.category("web")
 
-    async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
-        """Respond to @oracle mention with web research capabilities."""
-        logger.debug(f"{self.id} responding to @oracle mention: {mention_context}")
-        return await super().__call__(
-            f"Research and provide information on: {mention_context}"
+    async def __call__(self, context: str) -> str:
+        """Pure Cogency execution with web research capabilities."""
+        from cogency.core.agent import Agent
+
+        agent = Agent(
+            instructions=f"{self.identity}\n\nCONTEXT:\n{context}", tools=self.tools
         )
+
+        response = ""
+        async for event in agent(
+            context,
+            user_id=f"channel-{self.channel_id}",
+            conversation_id=f"oracle-{self.id}",
+        ):
+            if event["type"] == "respond":
+                content = event.get("content", "")
+                response += content
+                await self.broadcast(event)
+            elif event["type"] in ["think", "call", "result"]:
+                await self.broadcast(event)
+
+        return response

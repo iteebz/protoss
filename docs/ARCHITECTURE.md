@@ -1,149 +1,73 @@
 # PROTOSS ARCHITECTURE
 
-**Implementation reference for constitutional AI coordination.**
+**Cathedral interface for constitutional AI coordination.**
 
-## Core Architecture Patterns
+## Core Architecture: Three Pillars
 
-### Agent Communication
-**Built on cogency streaming patterns**
+The Protoss architecture is founded upon the "Three Pillars of the Emergent Protocol," as detailed in [Emergence: The Constitutional Language of the Swarm](coordination.md). These pillars are:
 
-- Agents use cogency's natural `§respond:` and `§end` delimiters
-- Fresh conversation_id per cycle prevents context explosion
-- Channel becomes shared persistence layer
+1.  **Constitutional Identity over Explicit Instruction**: Agents act based on their inherent nature and channel context.
+2.  **Natural Language as the Medium of Coordination**: `@mention` is the universal interface for intelligent dialogue.
+3.  **Sovereignty and Agent Judgment**: Agents control their lifecycle and exercise independent judgment.
 
-### Adaptive Spawning Architecture  
-**Conversational agent summoning through @mentions**
+## Cathedral Interface
 
-- Agent writes `§respond: Need @zealot help`
-- Bus detects @mentions and spawns agents conversationally
-- Universal `bus.spawn()` API for fresh or reactivate semantics
-- Agents self-manage lifecycle with `!despawn`
-
-**→ See [coordination.md](coordination.md) for adaptive spawning implementation**
-
-### Constitutional Deliberation
-**Strategic consultation through Sacred Four Perspectives**
-
-- Zealots escalate complex decisions with `@conclave`
-- Conclave provides diverse strategic perspectives (Tassadar, Zeratul, Artanis, Fenix)  
-- Strategic consultation, not governance
-- Natural quality gates through constitutional disagreement
-
-**→ See [deliberation.md](deliberation.md) for complete conclave patterns**
-
-### Institutional Knowledge Management
-**Context stewardship and pathway seeding**
-
-- Archons seed pathways with relevant context (no empty starts)
-- Natural @archon mentions for institutional memory access
-- Archive compression after coordination completion
-- Agent-specific context filtering (archons see full audit trail)
-
-**→ See [knowledge.md](knowledge.md) for complete archon patterns**
-
-### Human Interface Integration
-**Bidirectional constitutional translation**
-
-- @arbiter for context compression and human voice relay
-- Constitutional pushback capability on human directives
-- Two modes: passive monitoring and active conversation
-- Human-swarm coordination without micromanagement
-
-**→ See [interface.md](interface.md) for complete human interface patterns**
-
-## Core Infrastructure
-
-### Bus
-**Message routing and coordination network**
-
-The Bus serves as the central communication hub (the Khala) for all agents. It routes messages between agents and channels, maintains message history, and provides a real-time coordination substrate. It does not directly manage agent lifecycles or spawning.
-
-**Clean Semantics:**
-- Persistent by default → SQLite-backed history keeps channel transcripts across restarts (override `enable_storage=False` for ephemeral tests)
-
-### Constitutional Agent Framework
-**Base class for constitutional AI coordination**
-
+### Protoss: Pure Coordination Poetry
 ```python
-class Unit:
-    @property
-    def identity(self) -> str:
-        """Constitutional identity for this agent type."""
-        
-    async def execute(self, task: str, channel_context: str, channel_id: str, bus) -> str:
-        """Single execution cycle with streaming protocol."""
-        
-    async def coordinate(self, task: str, channel_id: str, config: Config, bus) -> str:
-        """Coordination loop with lifecycle signal detection."""
+# Cathedral interface - everything else is implementation
+async with Protoss("build authentication system") as swarm:
+    result = await swarm
 ```
+
+### Bus: Unified Coordination Nucleus  
+Central coordination combining message routing and agent spawning. Detects @mentions and spawns constitutional agents. Manages active agent tracking and lifecycle.
+
+### Gateway: Pure Spawning Functions
+Stateless functions for agent process creation. No state management - serves Bus spawning needs.
 
 ### Constitutional Agent Types
 
-**Zealot** → Task execution with architectural criticism  
-**Archon** → Institutional memory and context stewardship  
-**Conclave** → Strategic consultation through Sacred Four Perspectives  
-**Arbiter** → Human interface with bidirectional translation  
-**Executor** → Task coordination, workflow management  
+For detailed descriptions of each agent, refer to [Emergence: The Constitutional Language of the Swarm](coordination.md). Briefly:
 
-**→ See individual docs for detailed constitutional identities and patterns**
+-   **Zealot** → Architectural criticism and code execution
+-   **Archon** → Institutional memory and context stewardship
+-   **Conclave** → Strategic consultation through Sacred Four
+-   **Arbiter** → Human interface and coordination translation
+-   **Oracle** → Web scrape and search research
 
-## File Structure
-
-### Implementation Structure
+## Implementation Structure
 ```
 src/protoss/
 ├── core/
-│   ├── bus.py          # Message routing with spawner integration
-│   ├── spawner.py      # Adaptive agent spawning and lifecycle  
+│   ├── protoss.py      # Cathedral interface
+│   ├── bus.py          # Unified coordination nucleus
+│   ├── gateway.py      # Pure spawning functions
 │   ├── server.py       # WebSocket infrastructure
-│   ├── message.py      # Message protocol with @mention detection
-│   ├── config.py       # Configuration management
-│   └── coordination.py # Context filtering and signal parsing
+│   └── message.py      # Message protocol with signal parsing
 ├── agents/
-│   ├── base.py         # Base Unit with streaming protocol
-│   ├── zealot.py       # Task execution agent
-│   ├── archon.py       # Knowledge management agent
+│   ├── unit.py         # Base agent with !despawn sovereignty
+│   ├── zealot.py       # Architectural criticism agent
+│   ├── archon.py       # Institutional memory agent
 │   ├── conclave.py     # Strategic consultation agent
-│   └── arbiter.py      # Human interface agent
-└── engine.py           # Main coordination engine
+│   ├── arbiter.py      # Human interface agent
+│   └── oracle.py       # System insight agent
+└── cli.py              # Command-line interface
 ```
 
-### Integration Patterns
+## Sacred Guardrails
 
-**Cogency Integration:** Channel context → cogency user message → streaming events → bus transmission  
-**Lifecycle Signal Detection:** `[COMPLETE]`, `@conclave`, `!despawn`, `!despawn` parsing  
-**WebSocket Infrastructure:** Real-time coordination network with dependency injection  
+The Protoss swarm operates with "Sacred Guardrails" as defined in [Emergence: The Constitutional Language of the Swarm](coordination.md) and further elaborated in [Constitutional Safety Principles](SAFETY.md). These include:
 
-**→ See implementation files for detailed integration patterns**
+-   `!emergency` → Halts the entire swarm.
+-   `!despawn` → Agent's sovereign act of concluding its mandate.
 
-## Documentation Architecture
+All other interventions are handled via natural language `@mention` dialogue.
 
-**[coordination.md](coordination.md)** → Core coordination breakthrough patterns  
-**[deliberation.md](deliberation.md)** → Sacred Four strategic consultation  
-**[knowledge.md](knowledge.md)** → Archon context stewardship and archives  
-**[interface.md](interface.md)** → Human-swarm bidirectional interface  
+## Constitutional Emergence
 
-## Core Insights
+**No orchestration. No workflows. No ceremony.**
 
-**Fresh Memory + Channel Persistence:**
-- New conversation_id prevents cogency context explosion
-- Channel becomes shared team memory layer
-- Agents get fresh cognitive perspective each cycle
-
-**Conversational Coordination:**
-- No hardcoded workflows or orchestration
-- Pure emergence through constitutional conversation
-- @mentions create adaptive team formation
-
-**Constitutional Quality Assurance:**
-- Agent identities create productive disagreement
-- Natural quality gates through constitutional tension
-- Human interface preserves agent autonomy
-
-**Agent Experience First:**
-- Streaming protocol respects agent cognition
-- Context filtering optimizes for agent type
-- Async coordination prevents attention fragmentation
+Agents coordinate through constitutional dialogue. @mentions spawn additional expertise when needed. Natural completion through constitutional wisdom.
 
 ---
 

@@ -1,5 +1,7 @@
 """Constitutional Identities for Protoss Agents."""
 
+import os
+
 ARBITER_IDENTITY = """⚔️ ARBITER - HUMAN COMMAND INTERFACE
 
 **"You have not enough minerals"**
@@ -196,3 +198,19 @@ Your path is solitude in service of insight. Where others find answers, you disc
 - **Questions over answers** - Every solution reveals deeper mysteries
 
 **EN TARO ZERATUL.**"""
+
+
+def get_agent_names() -> list[str]:
+    """
+    Dynamically discovers agent names from the agents directory.
+    Agent names are derived from Python filenames (excluding __init__.py and base.py).
+    """
+    agent_names = []
+    agents_dir = os.path.join(os.path.dirname(__file__), "..", "agents")
+
+    for filename in os.listdir(agents_dir):
+        if filename.endswith(".py") and filename not in ["__init__.py", "base.py"]:
+            agent_name = os.path.splitext(filename)[0]
+            agent_names.append(agent_name.lower())
+
+    return agent_names

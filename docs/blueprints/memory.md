@@ -1,4 +1,4 @@
-# Institutional Knowledge: Context Stewardship
+# Institutional Memory: Context Stewardship
 
 **Pathway seeding and knowledge compression for constitutional coordination.**
 

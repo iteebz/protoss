@@ -22,13 +22,13 @@ Constitutional identity frameworks prevent sycophantic collapse in homogeneous m
 
 **CLI** - Human command center, final authority and safety valve  
 **Server** - WebSocket infrastructure powering Bus communication network  
-**Gateway** - Agent spawning facility with constitutional identity injection  
+**Gateway** - Pure spawning functions for agent processes, serving the Bus's spawning needs. (See [Emergence: The Constitutional Language of the Swarm](coordination.md) for more details on Gateway's role in emergent tasking).
 
-**Bus** - Real-time coordination substrate using Message protocol: `Message(channel, sender, content)`
+**Bus** - Real-time coordination substrate using Message protocol: `Message(channel, sender, content)`. (Refer to [Emergence: The Constitutional Language of the Swarm](coordination.md) for the Bus's role in routing and spawning).
 
 ### Constitutional Units
 
-Protoss operates with a set of constitutional agents, each embodying a distinct role in the coordination process. For detailed descriptions of each agent, refer to [Architecture](docs/ARCHITECTURE.md). The Conclave's strategic perspectives are elaborated in [deliberation.md](docs/deliberation.md).
+Protoss operates with a set of constitutional agents, each embodying a distinct role in the coordination process. These agents are introduced in [Emergence: The Constitutional Language of the Swarm](coordination.md), and their detailed descriptions can be found in [Architecture](docs/ARCHITECTURE.md). The Conclave's strategic perspectives are elaborated in [deliberation.md](docs/deliberation.md).
 
 Not hierarchy - distributed constitutional governance through conversation.
 
@@ -94,7 +94,7 @@ The goal of Protoss is not a specific duration of autonomy, but the development 
 
 - **Robust, Long-Term Coordination:** Move beyond the typical collapse point of multi-agent systems to achieve stable coordination that persists through complex tasks.
 - **Emergent Self-Governance:** Foster a system where agents can self-correct, self-heal, and manage their own coordination through the principles of Constitutional Governance and Emergent Coordination.
-- **Institutional Knowledge:** Develop a persistent, evolving knowledge base via the Archon agents, allowing the swarm to accumulate experience and learn from past successes and failures.
+- **Institutional Memory:** Develop a persistent, evolving knowledge base via the Archon agents, allowing the swarm to accumulate experience and learn from past successes and failures.
 - **Recursive Self-Improvement:** Create a coordination substrate that is capable of operating on and improving its own source code, demonstrating the ultimate goal of autonomous capability.
 
 Success is measured by the system's ability to manage complexity, learn, and self-improve, rather than by a simple metric of unsupervised runtime.
@@ -103,11 +103,11 @@ Success is measured by the system's ability to manage complexity, learn, and sel
 
 **Pure concurrency abstraction:**
 ```python
-import protoss
-protoss("research, experiment and build claude 6", agents=100, llm="openai")
+async with protoss.Protoss("research, experiment and build claude 6") as swarm:
+    result = await swarm
 ```
 
-**Emergent coordination principles:**
+**Emergent coordination principles:** (as outlined in [Emergence: The Constitutional Language of the Swarm](coordination.md))
 - **Constitutional identities** as cognitive frameworks, not fixed roles
 - **Ephemeral specialization** - agents adopt archon/zealot/sacred four perspectives as needed
 - **Natural boundary enforcement** - whoever adopts archon identity gets archives/ access
@@ -187,7 +187,7 @@ protoss monitor    # Live Bus stream
 protoss ask "should we refactor this auth system?"
 # 🏛️ Conclave deliberating...
 # 🏛️ CONSENSUS: Yes, extract middleware
-# ⚔️ EXECUTOR: Spawning squad for refactor
+# ⚔️ Zealot: Spawning squad for refactor
 ```
 
 **Intelligent Escalation:**
@@ -201,10 +201,9 @@ protoss ask "should we refactor this auth system?"
 
 **Meta-Improvement:**
 ```bash
-protoss meta "improve your own coordination"
-# Swarm spawns units to work on protoss/ codebase itself
-# Uses same coordination to improve coordination
-# Reports meta-insights about architecture
+# Swarm suggests improvements to its own capabilities through constitutional dialogue.
+# Uses same coordination to improve coordination.
+# Reports meta-insights about architecture evolution.
 ```
 
 **Status:** Architectural foundation complete, ceremony purged. Next: monitoring and conversational interfaces.

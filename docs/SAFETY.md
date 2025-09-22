@@ -10,21 +10,15 @@ The constitutional framework, as defined by human oversight, serves as the bedro
 
 ## Constitutional Evolution Under Human Oversight
 
-While unilateral self-modification is prohibited, the constitution is not immutable. As detailed in `blueprints/evolution.md`, the swarm can participate in proposing improvements and amendments to the constitutional framework. These proposals, driven by agent experience (AX) and Conclave deliberation, will undergo a rigorous review process.
+While unilateral self-modification is prohibited, the constitution is not immutable. The swarm can participate in proposing improvements and amendments to the constitutional framework. These proposals, driven by agent experience (AX) and Conclave deliberation, will undergo a rigorous review process.
 
 **However, all constitutional amendments, regardless of their origin, require explicit human review and final approval.** The human remains the ultimate authority for any amendments or revisions to the core constitutional principles, ensuring continued alignment and safety.
 
 All architectural development and agent behavior must strictly adhere to the established constitutional documents. This boundary is non-negotiable and fundamental to the safe and aligned operation of the Cathedral.
 
-## Constitutional Safety Protocols (Seeds for Future Protocols)
+## Constitutional Safety Protocols
 
-These protocols represent foundational concepts for ensuring the safe and controlled operation of the Protoss swarm. Their detailed implementation will evolve, but their core principles are established here.
-
-### `!alert` (General Swarm Alert)
-
-*   **Purpose**: A signal for any agent to raise a non-critical but noteworthy concern or observation that requires human attention or awareness.
-*   **Trigger**: Any constitutional agent can issue `!alert <message>`.
-*   **Effect**: Relays the message to the human interface; swarm continues processing unless human intervenes.
+These protocols represent foundational concepts for ensuring the safe and controlled operation of the Protoss swarm. Their detailed implementation will evolve, but their core principles are established here. These mechanisms are part of the "Sacred Guardrails" defined in [Emergence: The Constitutional Language of the Swarm](coordination.md).
 
 ### `!emergency` (Immediate Swarm Halt)
 
@@ -32,8 +26,6 @@ These protocols represent foundational concepts for ensuring the safe and contro
 *   **Trigger**: Any constitutional agent can issue `!emergency <message>`.
 *   **Effect**: Initiates an immediate, full halt of all active agent processes and coordination.
 
-### `!checkpoint` (Mandatory Human Review & Pause)
+### Natural Language Intervention
 
-*   **Purpose**: To enforce a mandatory pause in swarm activity at specific, pre-defined or strategically important junctures, requiring explicit human review and approval to continue.
-*   **Trigger**: Only specific, trusted constitutional agents (e.g., Conclave, Arbiter) or the Engine itself can issue `!checkpoint`.
-*   **Effect**: Pauses all active agent processes; swarm awaits explicit `!continue` or `!halt` signal from the human.
+All other requests for intervention (e.g., alerts, checkpoints, specific human attention) are handled via natural language `@mention` to the `@arbiter`. The Arbiter, as the human interface, will interpret these requests and escalate to the human as appropriate.

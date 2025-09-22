@@ -4,7 +4,7 @@
 
 ## Current Coordination Surface
 
-- `protoss coordinate` boots the engine, spawns the first agents, and prints a plain-text status block.
+- `protoss run` boots the Bus, spawns constitutional agents, and monitors coordination.
 - `protoss status` and `protoss config` report configuration snapshots; there are no dashboards or progress meters on top.
 - The canonical interface is the Bus transcript. Agents speak in-channel, humans watch the same feed, and `@arbiter` mentions escalate when someone actually needs you.
 - Monitoring right now means tailing logs or querying stored channel history. There is intentionally no visualization layer between the human and the constitutional conversation.
@@ -13,7 +13,7 @@
 
 - **Shared transcript.** Humans consume exactly what agents emit; no alt-reality UI exists for the operator.
 - **Conversational escalation.** Mentions (`@arbiter`) replace bespoke prompts or modal workflows.
-- **Thin surface, thick core.** Improvements must land in the engine or agents. Wrapper scripts stay boring on purpose.
+- Thin surface, thick core. Improvements must land in the Protoss or agents. Wrapper scripts stay boring on purpose.
 
 ## Future Work: Interface Enhancements
 

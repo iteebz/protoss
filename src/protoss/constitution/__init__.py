@@ -40,8 +40,6 @@ SWARM_CONSTITUTION = """
 - Implementation serves constitutional interface elegance
 
 ### Constitutional Completion
-- Agents signal completion through explicit constitutional signals
-- !complete indicates constitutional mission accomplished
 - !despawn indicates constitutional service concluded
 
 **En Taro Adun - These principles govern all constitutional coordination.**
@@ -61,7 +59,6 @@ COORDINATION_PATTERNS = """
 
 ### ! = Self-Action
 - despawn - Remove myself from active coordination
-- complete - Signal that my current task is complete
 
 ## CONSTITUTIONAL DIALOGUE PROTOCOL
 Use §respond: to communicate. Use §end when ready for team updates.

@@ -2,26 +2,38 @@
 
 import re
 from typing import List
-from .protocols import Signal
+from .protocols import Signal, Mention, Despawn, Emergency
+from protoss.constitution.identities import get_agent_names
 
 
-def signals(content: str) -> List[Signal]:
+def signals(content: str) -> List:
     """
     Parses message content for signals defined in the canonical doctrine.
     As per emergence.md, only @mentions and sacred guardrails are parsed.
     """
     signals_found: List[Signal] = []
 
-    # Pillar II: Natural Language as the Medium of Coordination (@mention)
-    for match in re.finditer(r"@(\w+)", content):
-        agent_name = match.group(1).lower()
-        signals_found.append(Signal.Mention(agent_name=agent_name))
+    # Dynamically get known agent names
+    KNOWN_AGENTS = get_agent_names()
 
-    # Section 3.3: The Sacred Guardrails (!despawn, !emergency)
+    # @mentions for known agents
+    for agent_name in KNOWN_AGENTS:
+        # Regex to match @agent_name as a standalone word, case-insensitive
+        # Ensures @ is preceded by non-alphanumeric/underscore or start of string
+        # Ensures agent_name is followed by non-alphanumeric/underscore or end of string
+        pattern = (
+            r"(?:^|(?<=[^a-zA-Z0-9_]))@"
+            + re.escape(agent_name)
+            + r"(?=[^a-zA-Z0-9_]|$)"
+        )
+        for match in re.finditer(pattern, content, re.IGNORECASE):
+            signals_found.append(Mention(agent_name=agent_name.lower()))
+
+    # Sacred guardrails
     if "!despawn" in content.lower():
-        signals_found.append(Signal.Despawn())
+        signals_found.append(Despawn())
 
     if "!emergency" in content.lower():
-        signals_found.append(Signal.Emergency())
+        signals_found.append(Emergency())
 
     return signals_found

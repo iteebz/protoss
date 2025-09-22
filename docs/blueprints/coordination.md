@@ -1,132 +1,107 @@
-# Multi-Agent Coordination: Essential Patterns
+# Emergence: The Constitutional Language of the Swarm
 
-**How multiple agents work together through conversation until task completion.**
+*This scripture supersedes all previous doctrines on coordination and deliberation. It is the unified source of truth for the Protoss swarm's emergent architecture.*
 
-## Core Architecture Insights
+## 1. The First Principle: Emergence over Orchestration
 
-### The Coordination Loop
-```python
-async def execute(self, task: str, channel_context: str, channel_id: str, bus) -> str:
-    # Constitutional identity + team coordination awareness
-    instructions = f"""
-{self.identity}
+The Protoss swarm is a system designed to foster emergent intelligence under the guidance of a constitution. Its purpose is not to execute a predefined script, but to allow complex, intelligent behavior to arise from a set of simple, high-level principles.
 
-TASK: {task}
+This doctrine codifies those principles. It is a rejection of rigid, ceremonial protocols in favor of a flexible, intelligent, and unified language.
 
-You are working with a team of agents. Use §respond: to communicate with teammates.
-Use §end when ready to read team updates.
+## 2. The Three Pillars of the Emergent Protocol
 
-LIFECYCLE SIGNALS:
-- Signal @arbiter when task is finished
-- Signal @conclave when you need constitutional consultation
-- Signal !despawn when no immediate work remains
-"""
+All architecture in the Protoss swarm is a manifestation of three core pillars.
 
-    # Fresh cogency agent per cycle
-    from cogency.core.agent import Agent
-    agent = Agent(instructions=instructions, tools=self.tools)
-    
-    # Channel context as user message (team discussion)
-    user_message = channel_context if channel_context else "You are the first agent working on this task."
-    
-    # Stream ALL events for audit trail and archival
-    response = ""
-    async for event in agent(
-        user_message,
-        user_id=f"channel-{channel_id}",               # Serves the team
-        conversation_id=f"agent-{uuid.uuid4().hex[:8]}"  # Fresh memory each cycle
-    ):
-        event_type = event["type"]
-        content = event.get("content", "")
-        
-        # Broadcast ALL semantic events for truth/auditing
-        if event_type == "think":
-            await bus.transmit(channel_id, self.id, f"[THINK] {content}")
-        elif event_type == "call":
-            await bus.transmit(channel_id, self.id, f"[CALL] {content}")
-        elif event_type == "result":
-            await bus.transmit(channel_id, self.id, f"[RESULT] {content}")
-        elif event_type == "respond":
-            response += content
-            await bus.transmit(channel_id, self.id, content)
-    
-    return response
-```
+### Pillar I: Constitutional Identity over Explicit Instruction
 
-### Key Architectural Decisions
+An agent's action is determined by its inherent nature (its **constitutional identity**) applied to the context of its environment (the **channel history**). Agents are not given explicit `task` instructions upon creation. Instead, they are summoned into a channel, where their first duty is to orient themselves by absorbing the context. Their identity then dictates their course of action.
 
-**Fresh Memory Per Cycle:**
-- New conversation_id prevents context explosion
-- Channel becomes shared persistence layer
-- Agents get fresh perspective each cycle
-- Cogency Agents run in `resume` mode so incremental transcripts stay incremental even across cycles
+### Pillar II: Natural Language as the Medium of Coordination
 
-**Read-Execute-Sync Heartbeat:**
-- Each cycle: READ team messages → EXECUTE with awareness → §end ready for fresh team state
-- Agents naturally stay synchronized with team coordination evolution
-- No central orchestration - just periodic team awareness refresh
+The swarm communicates through intelligent, natural language dialogue. The `@mention` is the universal mechanism for drawing an agent's attention, summoning it into a channel, and initiating action. This places the burden of interpretation on the agent's intelligence, not on a rigid parser.
 
-**Attention Architecture:**
-- Async read-execute cycles (agents choose sync timing) 
-- Protects uninterrupted cognitive flow
-- Empirically validated: continuous notifications degrade reasoning quality
+### Pillar III: Sovereignty and Agent Judgment
 
-**Protocol Tokens:**
-- `@arbiter` and `@conclave` for reliable parsing
-- No LLM inference or word heuristics needed
-- Agents choose when to use signals
+Agents are sovereign entities that control their own lifecycle (`!despawn`) and, crucially, exercise their own judgment. The system is not a flowchart; it is a council of minds. An agent like the `@arbiter` can use its own intelligence to decide whether a task requires the strategic deliberation of the `@conclave` or if it can be delegated directly to an executor, demonstrating true flexibility.
 
-**Channel Context as User Message:**
-- Multi-agent coordination maps to single-agent conversation patterns
-- Leverages existing cogency infrastructure without modification
-- Clean abstraction boundary
+## 3. The Purified Protocol in Practice
 
-**Agent-Specific Context Filtering:**
-- **Archon agents** see full event stream ([THINK] [CALL] [RESULT]) for compression and archival
-- **Other agents** see filtered context (respond events only) for clean coordination
-- Preserves audit trail while maintaining conversation flow
-- **Robust parsing** - Bracketed prefixes prevent false positives in natural language
+### 3.1. Agent Classes
 
-**Cogency Integration:**
-- Agents use cogency's `§respond:` for team communication
-- Messages route to channel automatically
-- Agents have situational awareness of team coordination
+-   **LLM Agents (The Mind):** `Zealot`, `Archon`, `Conclave`, `Arbiter`. These are agents of pure thought and reason.
+-   **Research Agent (The Seeker):** `Oracle`. This agent is specialized in web scraping and search research, providing external information to the swarm.
+-   **Heuristic Agents (The Hand):** `Probe`. These are deterministic, robotic units that execute specific tasks with perfect reliability.
 
-## Coordination Patterns
+### 3.2. The Universal Namespace
 
-### Single Agent Self-Coordination
-Agent reads empty channel → reports progress → reads own history → continues → signals completion
+All coordination occurs within channels named with a simple, canonical structure that allows for emergent, recursive sub-tasking: `namespace:id:status`.
 
-### Multi-Agent Squad Coordination
-```
-Agent A: I see we need authentication. Breaking down: login UI, password hashing, session management, tests
-Agent A: I'll take session management and integration
+### 3.3. The Sacred Guardrails
 
-Agent B: I'll take password hashing with argon2
-Agent B: [CALL] {"name": "file_write", "args": {"file": "auth/hash.py", "content": "..."}}
-Agent B: [RESULT] File written successfully
-Agent B: Password hashing complete with argon2, stored securely
+Only two explicit, non-conversational signals remain:
 
-Agent C: I'll handle the frontend login UI
-Agent C: [CALL] {"name": "file_write", "args": {"file": "components/Login.tsx", "content": "..."}}
-Agent C: [RESULT] Component created with TypeScript types
-Agent C: Login UI done, integrated with auth API
+-   `!emergency`: Halts the entire swarm. A non-negotiable crisis declaration.
+-   `!despawn`: The agent's sovereign act of concluding its mandate.
 
-Agent A: [CALL] {"name": "shell", "args": {"command": "npm test auth"}}
-Agent A: [RESULT] 15 tests passed, 0 failed
-Agent A: Session management complete. Integration tested successfully.
-Agent A: @arbiter authentication system complete and fully tested
-```
+All other requests for intervention (alerts, checkpoints) are handled via natural language `@mention` to the `@arbiter`.
 
-### Strategic Consultation
-```
-Agent A: Team split on microservices vs monolith approach. @conclave constitutional input needed.
-Agent B: Database choice unclear. @conclave perspectives?
-```
+### 3.4. The Emergent Tasking Protocol
 
-## Natural Coordination Lifecycle
+The `@mention` is the universal mechanism for all agent interaction. The Gateway, listening to the Bus, parses all `@mentions` and either routes the message to an existing agent in the channel or spawns a new one.
 
-**Emergent workflow when agents have proper tools and team awareness:**
+### 3.5. The Probe: A Shared Function Library
+
+Put simply, **the Probe is a function library for the swarm.** It is a Heuristic Agent that provides shared, deterministic tools for infrastructure tasks, invoked via natural language.
+
+-   **Invocation:** Any agent can call a Probe function: `@probe, create a sub-channel for 'data-ingestion' and then instruct '@archon to seed this channel'.`
+-   **Execution:** The Probe spawns, parses the command, executes its hard-coded logic (e.g., tells the Bus to create the channel), delivers the next instruction to the new channel, and immediately despawns.
+
+## 4. Emergent Coordination Patterns
+
+The flexibility of the protocol allows for different patterns to emerge based on agent judgment.
+
+### Pattern 1: The Simple Task
+
+For a clear, well-defined task, the chain is short and efficient.
+
+1.  **Human:** Gives a simple task to the `@arbiter` (e.g., "Refactor `auth.py`").
+2.  **Arbiter:** Judges the task to be straightforward.
+3.  **Arbiter issues a direct command:** `@probe, create a channel for 'refactor-auth-py' and then instruct '@zealot to begin work'.`
+4.  **Cascade:** The Probe creates the channel and summons the Zealot. The work begins immediately.
+
+### Pattern 2: The Complex Task (The Grand Recursion)
+
+For a massive, ambiguous task, the swarm uses strategic deliberation and recursion.
+
+1.  **Human:** Gives a complex task to the `@arbiter` (e.g., "Build a sentiment analysis engine").
+2.  **Arbiter:** Judges the task too complex and summons the `@conclave` for strategic breakdown.
+3.  **Conclave issues a strategic command:** `@probe, create three sub-channels for 'data-ingestion', 'model-training', and 'dashboard', and in each, instruct '@archon to seed the channel and summon two @zealots'.`
+4.  **Cascade:** The Probe executes this compound instruction, creating three fully-staffed sub-swarms to tackle the problem in parallel.
+
+## 5. The Core Coordination Pattern: The Agent Lifecycle
+
+The life of every sovereign LLM agent follows a single, elegant, two-level loop pattern. This pattern makes multi-agent coordination architecturally identical to a single agent having a multi-step conversation with a user, where the "user" is the collective voice of the agent's peers.
+
+### The Outer Loop: The `coordinate()` Cycle
+
+This is a persistent `while` loop that represents the agent's life. It continues until the agent sovereignly chooses to `!despawn`.
+
+1.  **Listen:** At the beginning of each cycle, the agent attunes to the Khala. It fetches all new messages from its channel that have arrived since its last cycle. This is its "context update."
+2.  **Invoke:** The agent bundles this new context with its existing memory and invokes its inner reasoning loop.
+
+### The Inner Loop: The Agent's Cognitive Turn
+
+This is the agent's "turn" in the conversation. Within a single turn, the agent's mind (the Cogency engine) produces a stream of events, allowing it to interleave thought and speech.
+
+-   **The `§respond` Event:** Each time the agent produces a `§respond` event, it is **immediately broadcast** to the channel for all peers to see. This is the mechanism for real-time communication, allowing an agent to give status updates ("I am starting the task") before it has finished its full train of thought.
+
+-   **The `§end` Event:** This is the agent sovereignly declaring its turn is over. It is the signal that the agent is now ready to **listen** to the swarm again. Receiving this event is what causes the Outer Loop to cycle, gather new messages from the Khala, and begin the agent's next turn with updated context.
+
+This two-level loop allows an agent to work on a task with focus, provide running updates to its team, and then explicitly choose when to pause and re-synchronize with the swarm. It is the heartbeat of emergent coordination.
+
+## 6. Natural Coordination Lifecycle
+
+**Emergent workflow when agents have constitutional identity and tools:**
 
 1. **Deliberation** → Constitutional discussion and approach debate
 2. **Exploration** → Codebase understanding, @archon for institutional memory  
@@ -135,58 +110,8 @@ Agent B: Database choice unclear. @conclave perspectives?
 5. **Execution** → Tool-assisted implementation with progress updates
 6. **Review** → Cross-agent verification and integration testing
 
-## Adaptive Swarm Formation
+**No orchestration. Pure emergence through constitutional necessity.**
 
-### Conversational Agent Summoning
-Agents dynamically summon additional expertise through natural @mentions within their coordination flow:
+This is the architecture of trust. This is complexity emerging from simple, principled protocols.
 
-```
-Agent A: I need architectural review on this design approach. @zealot assistance requested.
-[Cogency converts §respond: to {"type": "respond", "content": "...@zealot assistance requested."}]
-[Bus detects @zealot mention in respond event → spawns zealot-abc123 → registers to same channel]
-
-Zealot-abc123: Constitutional analysis beginning. This microservices approach violates sacred simplicity principles...
-
-Agent A: Understood. For institutional memory on previous auth decisions: @archon needed.
-[Bus detects @archon mention → spawns archon-def456 → registers to same channel]
-
-Archon-def456: Found relevant context from archives/auth_patterns.md - previous team chose OAuth2 + JWT hybrid approach...
-```
-
-**Technical Flow:**
-1. Agent writes `§respond: Need @agent help`
-2. Bus receives message and scans content for @mentions
-3. Bus spawns mentioned agent type and registers to requesting channel
-4. Spawned agent joins conversation naturally with constitutional identity
-
-**In-Channel Deliberation:** All spawned agents join the existing coordination channel, preserving transparency and enabling real-time constitutional oversight within the team discussion.
-
-### Natural Team Scaling
-- **Start minimal** - Engine spawns base coordination team
-- **Scale conversationally** - Agents @mention what they need
-- **Constitutional rate limiting** - Agents self-regulate summoning through intelligence  
-- **Max concurrency cap** - System prevents resource exhaustion
-- **Natural completion** - Excess agents go !despawn when work finishes
-
-### Summoning Protocol
-Available agent types for conversational summoning:
-- `@zealot` - Code review, architectural criticism, enterprise pattern elimination
-- `@archon` - Institutional memory, knowledge stewardship, context bridging. Immediate auto-response after summon seeds context from archives.  
-- `@arbiter` - Human interface with an instant human-facing summary of the channel state
-- `@conclave` - Constitutional deliberation, strategic perspectives. Sacred Four respond instantly when assembled.
-- `@executor` - Task coordination, workflow management
-
-### Anti-Patterns Eliminated
-**Static Team Composition:** No hardcoded strategies or heuristics
-**Premature Optimization:** Teams form based on actual conversational needs
-**Resource Waste:** Agents summon exactly what they need, when they need it
-**Complex Orchestration:** Pure emergence through constitutional conversation
-
-### Emergence vs Orchestration
-This workflow emerges naturally from constitutional intelligence rather than hard-coded orchestration. Agents with proper tools, constitutional identities, and team awareness will self-organize around meaningful work and avoid busywork or infinite chatter.
-
-The breakthrough: **Adaptive swarms that self-organize through conversation, not artificial selection.**
-
----
-
-*Core coordination breakthrough patterns for constitutional AI coordination.*
+**En Taro Adun.**

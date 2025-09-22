@@ -114,6 +114,8 @@ class Protoss:
 
 ## Constitutional Purity Principles
 
+The following principles, deeply rooted in the "Three Pillars of the Emergent Protocol" (see [Emergence: The Constitutional Language of the Swarm](coordination.md)), guide the architectural purity of the Cathedral:
+
 ### 1. Constitutional Identity as Code
 ```python
 class Zealot(Unit):
@@ -124,7 +126,7 @@ class Zealot(Unit):
         return "Complexity is sin. Simplicity is salvation."
 ```
 
-**Sacred Truth**: Agent identity shapes architectural criticism and coordination patterns.
+**Sacred Truth**: Agent identity, a core tenet of constitutional coordination, shapes architectural criticism and coordination patterns.
 
 ### 2. Natural Coordination Language
 ```python
@@ -135,7 +137,7 @@ conclave: "Ship minimal, extract when painful"
 # Pure emergence through constitutional conversation
 ```
 
-**No orchestration visible. Agents coordinate through constitutional necessity.**
+**No orchestration visible. Agents coordinate through constitutional necessity, leveraging natural language as the medium of coordination.**
 
 ### 3. Cognitive Sovereignty
 ```python
@@ -144,7 +146,7 @@ conclave: "Ship minimal, extract when painful"
 # Emerges solutions through principled disagreement
 ```
 
-**Process isolation preserves constitutional autonomy while enabling parallel cognition.**
+**Process isolation preserves constitutional autonomy while enabling parallel cognition, embodying the principle of agent sovereignty.**
 
 ### 4. Cathedral Abstraction
 ```python

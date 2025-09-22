@@ -6,7 +6,6 @@ import os
 import subprocess
 import signal
 import sys
-import time
 import typer
 import websockets
 
@@ -26,32 +25,17 @@ Pure constitutional emergence - no ceremony required."""
 @app.command()
 def bus(
     port: int = typer.Option(8888, "--port", "-p", help="Port to run the Bus on"),
-):
-    """Start the Protoss Bus as a standalone process."""
-    from .core.bus import main as bus_main
-
-    print(f"Starting Protoss Bus on port {port}...")
-
-    sys.argv = ["protoss-bus", f"--port={port}"]
-    bus_main()
-
-
-@app.command()
-def gateway(
-    port: int = typer.Option(
-        8888, "--port", "-p", help="Port of the Bus to connect to"
-    ),
     max_agents: int = typer.Option(
         100, "--max-agents", "-m", help="Max agents per channel"
     ),
 ):
-    """Start the Protoss Gateway as a standalone process."""
-    from .core.gateway import main as gateway_main
+    """Start the unified Protoss Bus as a standalone process."""
+    from .core.bus import main as bus_main
 
-    print(f"Starting Protoss Gateway, connecting to Bus on port {port}...")
+    print(f"Starting unified Protoss Bus on port {port}...")
 
-    sys.argv = ["protoss-gateway", f"--port={port}", f"--max-agents={max_agents}"]
-    gateway_main()
+    sys.argv = ["protoss-bus", f"--port={port}", f"--max-agents={max_agents}"]
+    bus_main()
 
 
 @app.command()
@@ -76,14 +60,14 @@ def coordinate(
                 max_agents=max_agents,
             ) as swarm:
                 result = await swarm
-                print("✅ Constitutional emergence complete!")
+                print("Constitutional emergence complete!")
                 print()
                 print(result)
 
         except KeyboardInterrupt:
-            print("\n🛑 Coordination interrupted by user")
+            print("\nCoordination interrupted by user")
         except Exception as e:
-            print(f"❌ Coordination failed: {e}")
+            print(f"Coordination failed: {e}")
             if debug:
                 import traceback
 
@@ -105,7 +89,7 @@ def status():
                 response = await websocket.recv()
                 status_data = json.loads(response)
 
-                print("🔮 Protoss Status")
+                print("Protoss Status")
                 print(f"Status: {status_data.get('status', 'unknown')}")
 
                 if status_data.get("status") == "online":
@@ -131,7 +115,6 @@ def status():
 
 PROTOSS_DIR = ".protoss"
 BUS_PID_FILE = f"{PROTOSS_DIR}/bus.pid"
-GATEWAY_PID_FILE = f"{PROTOSS_DIR}/gateway.pid"
 
 
 def _ensure_protoss_dir():
@@ -154,28 +137,12 @@ def start(
         )
         with open(BUS_PID_FILE, "w") as f:
             f.write(str(bus_process.pid))
-        print(f"🚌 Protoss Bus started with PID {bus_process.pid}")
+        print(f"Bus started with PID {bus_process.pid}")
 
-        time.sleep(2)
-
-        gateway_process = subprocess.Popen(
-            [
-                "python",
-                "-m",
-                "src.protoss.cli",
-                "gateway",
-                f"--port={port}",
-                f"--max-agents={max_agents}",
-            ]
-        )
-        with open(GATEWAY_PID_FILE, "w") as f:
-            f.write(str(gateway_process.pid))
-        print(f"⛩️  Protoss Gateway started with PID {gateway_process.pid}")
-
-        print("✅ Protoss infrastructure is running. Press Ctrl+C to stop.")
+        print("Protoss infrastructure is running. Press Ctrl+C to stop.")
 
         def signal_handler(sig, frame):
-            print("\n🛑 Stopping Protoss infrastructure...")
+            print("\nStopping Protoss infrastructure...")
             stop()
             sys.exit(0)
 
@@ -183,11 +150,11 @@ def start(
         signal.pause()
 
     except Exception as e:
-        print(f"❌ Failed to start Protoss infrastructure: {e}")
+        print(f"Failed to start Protoss infrastructure: {e}")
         stop()
 
 
-def _stop_process(name: str, pid_file: str, emoji: str):
+def _stop_process(name: str, pid_file: str):
     """Helper to stop a single daemon process."""
     if not os.path.exists(pid_file):
         return
@@ -198,12 +165,12 @@ def _stop_process(name: str, pid_file: str, emoji: str):
 
         try:
             os.kill(pid, signal.SIGTERM)
-            print(f"{emoji} {name} (PID {pid}) stopped.")
+            print(f"{name} (PID {pid}) stopped.")
         except ProcessLookupError:
-            print(f"{emoji} {name} (PID {pid}) was not running.")
+            print(f"{name} (PID {pid}) was not running.")
 
     except (IOError, ValueError) as e:
-        print(f"⚠️  Could not read PID file {pid_file}: {e}")
+        print(f"Could not read PID file {pid_file}: {e}")
     finally:
         if os.path.exists(pid_file):
             os.remove(pid_file)
@@ -211,9 +178,8 @@ def _stop_process(name: str, pid_file: str, emoji: str):
 
 @app.command()
 def stop():
-    """Stop the Protoss Bus and Gateway daemons."""
-    _stop_process("Protoss Bus", BUS_PID_FILE, "🚌")
-    _stop_process("Protoss Gateway", GATEWAY_PID_FILE, "⛩️")
+    """Stop the Protoss Bus daemon."""
+    _stop_process("Protoss Bus", BUS_PID_FILE)
 
 
 @app.command()
@@ -222,9 +188,7 @@ def monitor(
         8888, "--port", "-p", help="Port of the Bus to connect to"
     ),
 ):
-    """
-    Forge the Lens of Providence: a live monitor for the swarm.
-    """
+    """Live monitor for the swarm."""
     from .clients.monitor import MonitorApp
 
     config = Config(port=port)
@@ -240,9 +204,7 @@ def ask(
     ),
     port: int = typer.Option(8888, "--port", "-p", help="Bus port"),
 ):
-    """
-    Ask the swarm a question via the Arbiter.
-    """
+    """Ask the swarm a question via the Arbiter."""
 
     async def run_ask():
         config = Config(port=port)
@@ -255,7 +217,7 @@ def ask(
         else:
             current_channel_id = channel_id
 
-        print(f"🗣️ Asking swarm in channel {current_channel_id}...")
+        print(f"Asking swarm in channel {current_channel_id}...")
 
         try:
             async with websockets.connect(uri) as websocket:
@@ -283,7 +245,7 @@ def ask(
                         content = data.get("content")
 
                         if sender and sender.startswith("arbiter-"):
-                            print(f"\n⚔️ ARBITER: {content}")
+                            print(f"\nARBITER: {content}")
                             break
                         elif (
                             sender == "system"
@@ -298,11 +260,11 @@ def ask(
             websockets.exceptions.InvalidURI,
             websockets.exceptions.InvalidHandshake,
         ) as e:
-            print(f"❌ Could not connect to Protoss Bus: {e}. Is it running?")
+            print(f"Could not connect to Protoss Bus: {e}. Is it running?")
         except KeyboardInterrupt:
-            print("\n🛑 Ask command interrupted by user.")
+            print("\nAsk command interrupted by user.")
         except Exception as e:
-            print(f"❌ An error occurred: {e}")
+            print(f"An error occurred: {e}")
             import traceback
 
             traceback.print_exc()

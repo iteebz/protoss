@@ -42,3 +42,12 @@ def message():
     from protoss.core.message import Message
 
     return Message("test", "agent", "content")
+
+
+@pytest.fixture
+def mock_server():
+    """Configured AsyncMock for protoss.core.server.Server."""
+    mock = AsyncMock()
+    mock.start = AsyncMock()
+    mock.stop = AsyncMock()
+    return mock

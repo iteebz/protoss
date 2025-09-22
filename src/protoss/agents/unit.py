@@ -3,14 +3,14 @@ import json
 import logging
 import websockets
 import argparse
+from abc import abstractmethod
 from typing import List, Optional, Dict
 from dataclasses import asdict
 
 from ..core.config import Config
 from ..core.message import Message
-from ..core.protocols import Signal
+from ..core.protocols import Signal, Despawn, deserialize_signal
 from ..core import parser
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +53,12 @@ class Unit:
                 self._websocket.recv(), timeout=timeout
             )
             message_dict = json.loads(message_str)
-            # Reconstruct Message object from dict
-            # Note: This assumes signals are serialized as dicts and need to be reconstructed into Signal objects
-            reconstructed_signals = []
-            for s_dict in message_dict.get("signals", []):
-                # This is a placeholder; proper deserialization of polymorphic Signals needs a registry
-                # For now, we'll assume a simple Signal base class reconstruction or pass as dict
-                reconstructed_signals.append(
-                    Signal(**s_dict)
-                )  # This will likely fail for subclasses
+
+            reconstructed_signals = [
+                signal
+                for s_dict in message_dict.get("signals", [])
+                if (signal := deserialize_signal(s_dict))
+            ]
 
             return Message(
                 sender=message_dict["sender"],
@@ -80,41 +77,6 @@ class Unit:
             logger.error(f"Error receiving message: {e}")
             self._websocket = None
             return None
-
-    async def poll_channel_for_response(
-        self,
-        timeout: int = 10,
-        sender_filter: Optional[str] = None,
-        content_filter: Optional[str] = None,
-        signal_type_filter: Optional[type] = None,
-    ) -> Optional[Message]:
-        """Polls the channel for a message that matches the given filters."""
-        start_time = time.time()
-        while (time.time() - start_time) < timeout:
-            message = await self._receive_message(
-                timeout=1
-            )  # Short timeout for polling
-            if message is None:
-                continue
-
-            # Apply filters
-            if sender_filter and message.sender != sender_filter:
-                continue
-            if content_filter and (
-                not message.event
-                or content_filter not in message.event.get("content", "")
-            ):
-                continue
-
-            # For signal_type_filter, we check the message.signals list
-            if signal_type_filter:
-                if not any(isinstance(s, signal_type_filter) for s in message.signals):
-                    continue
-
-            logger.debug(f"{self.id} received matching message: {message}")
-            return message
-        logger.info(f"{self.id} timed out polling for message.")
-        return None
 
     @property
     def identity(self) -> str:
@@ -140,29 +102,6 @@ class Unit:
                 f"Cogency not available - {self.__class__.__name__} operating with limited capabilities"
             )
             return []
-
-    async def _connect_to_bus(self):
-        """Establish WebSocket connection to the Bus."""
-        uri = f"{self.config.bus_url}/{self.agent_id}"
-        try:
-            self._websocket = await websockets.connect(uri)
-            logger.info(f"{self.agent_id} connected to Bus at {self.config.bus_url}")
-            # Register with the bus
-            await self._websocket.send(
-                json.dumps({"type": "join_channel", "channel": self.channel_id})
-            )
-        except Exception as e:
-            logger.error(f"{self.agent_id} failed to connect to Bus: {e}")
-            self._websocket = None
-
-    async def _disconnect_from_bus(self):
-        """Close WebSocket connection to the Bus."""
-        if self._websocket and (
-            self._websocket.state == websockets.protocol.State.OPEN
-        ):
-            await self._websocket.close()
-            logger.info(f"{self.agent_id} disconnected from Bus.")
-        self._websocket = None
 
     @abstractmethod
     async def __call__(self, context: str) -> str:
@@ -191,20 +130,48 @@ class Unit:
         except Exception as e:
             logger.error(f"Error broadcasting message: {e}")
 
+    def _should_despawn(self, content: str) -> bool:
+        """Check if agent output contains !despawn signal."""
+        signals = parser.signals(content)
+        return any(isinstance(signal, Despawn) for signal in signals)
+
     async def coordinate(self):
         """The main coordination loop for agents that require continuous interaction."""
         logger.info(f"{self.id} starting coordinate loop.")
+        consecutive_errors = 0
+        MAX_CONSECUTIVE_ERRORS = 5  # Constitutional limit for agent errors
+
         while True:
             try:
                 message = await self._receive_message()
                 if message:
+                    consecutive_errors = 0  # Reset on successful message processing
                     # Invoke the agent's __call__ method with the new message content
-                    await self(message.event.get("content", ""))
+                    response = await self(message.event.get("content", ""))
+
+                    # Check if agent wants to despawn
+                    if response and self._should_despawn(response):
+                        logger.info(
+                            f"{self.id} detected !despawn in own response - terminating"
+                        )
+                        break
+
             except websockets.exceptions.ConnectionClosedOK:
                 break  # Exit loop if connection is closed
             except Exception as e:
-                logger.error(f"{self.id} error in coordinate loop: {e}")
+                consecutive_errors += 1
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    logger.critical(
+                        f"{self.id} experienced {consecutive_errors} consecutive errors. Despawning due to persistent failure: {e}"
+                    )
+                    break  # Despawn the agent
+                else:
+                    logger.error(
+                        f"{self.id} error in coordinate loop (consecutive: {consecutive_errors}): {e}"
+                    )
             await asyncio.sleep(0.1)  # Prevent busy-waiting
+
+        logger.info(f"{self.id} coordinate loop ended - agent despawning")
 
 
 if __name__ == "__main__":
@@ -215,7 +182,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--channel", required=True, help="Channel ID for coordination.")
     parser.add_argument("--bus-url", required=True, help="URL of the Protoss Bus.")
-    parser.add_argument("--task", required=True, help="The task context for the agent.")
     parser.add_argument(
         "--params",
         default="{}",
@@ -247,7 +213,7 @@ if __name__ == "__main__":
             logger.error(f"Unknown agent type: {args.agent_type}")
             return
 
-        config = Config().with_overrides(bus_url=args.bus_url)
+        config = Config(bus_url=args.bus_url)
 
         # Prepare constructor arguments
         constructor_args = {
@@ -268,20 +234,16 @@ if __name__ == "__main__":
         # Create agent instance with all arguments
         agent_instance = agent_class(**constructor_args)
 
-        await agent_instance._connect_to_bus()
+        await agent_instance._connect_websocket()
         try:
-            logger.info(
-                f"{agent_instance.id} starting with initial context: {args.task}"
-            )
-            await agent_instance(args.task)  # Call the agent with the initial task
-
-            # Only Zealots and Conclaves run the continuous coordinate loop
-            if agent_instance.agent_type in ["zealot", "conclave"]:
-                await agent_instance.coordinate()
+            logger.info(f"{agent_instance.id} starting coordinate loop")
+            # Agent orients from channel context per emergence.md
+            await agent_instance.coordinate()
 
         except KeyboardInterrupt:
-            logger.info(f"{agent_instance.agent_id} interrupted.")
+            logger.info(f"{agent_instance.id} interrupted.")
         finally:
-            await agent_instance._disconnect_from_bus()
+            if agent_instance._websocket:
+                await agent_instance._websocket.close()
 
     asyncio.run(main())

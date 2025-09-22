@@ -1,6 +1,7 @@
 """Message data structures for agent coordination."""
 
 import time
+from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 from ..core.protocols import Signal
 
@@ -16,3 +17,10 @@ class Message:
     event: Optional[Dict] = (
         None  # Structured cogency events (think, respond, call, result)
     )
+
+    def serialize(self) -> str:
+        """Serialize the message to a JSON string."""
+        import json
+        from dataclasses import asdict
+
+        return json.dumps(asdict(self))

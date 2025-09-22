@@ -11,44 +11,32 @@ pip install protoss
 
 **Basic Usage:**
 ```python
-from protoss import Protoss, Config
+import asyncio
+from protoss import Protoss
 
-# Initialize coordination system
-protoss = Protoss(Config(agents=5, debug=True))
+async def main():
+    # Initialize coordination system with a vision
+    async with Protoss("implement JWT authentication") as swarm:
+        result = await swarm
+        print(f"Constitutional emergence complete: {result}")
 
-# Execute coordination task
-result = await protoss("implement JWT authentication")
-print(result)  # "Direct coordination completed: implement JWT authentication (agents: 5)"
-```
-
-**Agent-Level Usage:**
-```python
-from protoss.core import Bus, Config
-from protoss.agents import Zealot, Archon, Conclave
-
-# Initialize coordination infrastructure
-config = Config()
-bus = Bus()
-await bus.start()
-
-# Create constitutional agents
-zealot = Zealot()
-archon = Archon()  
-conclave = Conclave("tassadar")  # Strategic perspective
-
-# Coordinate on task
-channel_id = "auth-implementation"
-task = "implement JWT authentication"
-
-await zealot.coordinate(task, channel_id, config, bus)
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 **CLI Interface:**
 ```bash
-# Current commands
-protoss coordinate "build REST API" --agents 5
+# Start the Protoss Bus (unified coordination nucleus)
+protoss bus
+
+# Run a coordination task (human provides vision, agents emerge)
+protoss run "build REST API"
+
+# Check current swarm status
 protoss status
-protoss config
+
+# Ask the swarm a question via the Arbiter
+protoss ask "should we refactor this auth system?"
 ```
 
 ## Core Principles
@@ -64,14 +52,16 @@ Protoss is built on three core principles that differentiate it from traditional
 ## Core Architecture
 
 **Infrastructure:** (See [Architecture](docs/ARCHITECTURE.md) for details)
-- **Bus** - Message routing and coordination
+- **Bus** - Unified coordination nucleus (message routing, agent spawning, lifecycle)
 - **Server** - WebSocket communication
-- **Gateway** - Agent spawning and lifecycle
+- **Gateway** - Pure spawning functions (stateless agent process creation)
 
 **Constitutional Agents:** (See [Architecture](docs/ARCHITECTURE.md) for details)
-- **Zealot** - Task execution
-- **Archon** - Knowledge management
-- **Conclave** - Strategic consultation
+- **Zealot** - Architectural criticism and code execution
+- **Archon** - Institutional memory and context stewardship
+- **Conclave** - Strategic consultation through Sacred Four
+- **Arbiter** - Human interface and coordination translation
+- **Oracle** - Prophecy and system insight
 
 **Coordination Flow:** (See [Coordination Patterns](docs/coordination.md) for details)
 **Escalation Flow:** (See [Constitutional Deliberation](docs/deliberation.md) for details)
@@ -90,22 +80,22 @@ RSI capabilities emerge naturally from constitutional coordination, but the imme
 
 **✅ Current (v0.1):**
 - Message Bus coordination infrastructure (Bus, Server)
-- Constitutional agents (Zealot, Archon, Conclave)  
+- Constitutional agents (Zealot, Archon, Conclave, Arbiter, Oracle)
 - Channel-based coordination with Message protocol
 - Explicit dependency injection architecture
 - CLI interface with basic coordination commands
 
 **🔄 In Development:**
-- Real-time monitoring and conversational interface
-- Multi-agent coordination protocols
-- Advanced gateway spawning and lifecycle management
+- Real-time monitoring and conversational interface enhancements
+- Multi-agent coordination patterns refinement
+- Advanced emergent spawning and lifecycle management within the Bus
 
 ## Documentation
 
 - **[Architecture](docs/ARCHITECTURE.md)** - Current implementation patterns and essential coordination insights
 - **[Vision](docs/VISION.md)** - Research question and recursive improvement vision
 - **[Roadmap](docs/ROADMAP.md)** - Implementation priorities and architectural decisions
-- **[Interface Design](docs/interface.md)** - UX/DX requirements and executor architecture
+- **[Interface Design](docs/interface.md)** - Principles and current state of human-swarm interaction
 - **[Coordination Patterns](docs/coordination.md)** - Essential multi-agent coordination insights
 
 ⚔️ *En taro Adun*
