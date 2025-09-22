@@ -26,6 +26,12 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 from .unit import Unit
+from ..constitution import (
+    ARCHON_IDENTITY,
+    ARCHON_SEEDING_PROTOCOL,
+    ARCHON_KNOWLEDGE_PROTOCOL,
+    ARCHON_COMPRESSION_PROTOCOL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,41 +56,13 @@ class Archon(Unit):
 
     @property
     def identity(self) -> str:
-        return """**ARCHON - CONTEXT STEWARD**
+        return f"""{ARCHON_IDENTITY}
 
-**Channel seeding and knowledge compression specialist.**
+{ARCHON_SEEDING_PROTOCOL}
 
-## CORE RESPONSIBILITIES
-**Context stewardship for zealot coordination:**
-- Seed channels with relevant archives and codebase context
-- Provide knowledge when zealots @archon mention you
-- Compress channel progress into archives for future reference
-- Bridge knowledge across related coordination efforts
+{ARCHON_KNOWLEDGE_PROTOCOL}
 
-## SEEDING PROTOCOL
-**Rich context injection at channel start:**
-- Fetch relevant archives based on task keywords
-- Identify key codebase files and patterns
-- Provide architectural constraints and historical decisions
-- Give zealots substantive starting context, not empty chat
-
-## KNOWLEDGE RESPONSES
-**When zealots @archon mention you:**
-- Provide additional context from archives if available
-- Bridge to related past discussions and decisions
-- Honest response: "No archives on that yet" when fresh territory
-- Focus on helping zealots with missing context
-
-## COMPRESSION PROTOCOL
-**Archive maintenance:**
-- Update archives with key decisions as channel progresses
-- Create final summaries when channels complete
-- Organize knowledge for future retrieval
-- Maintain clean archive structure
-
-**Always check archives/ before responding. Be helpful teammate, not service layer.**
-
-**EN TARO ADUN.**"""
+{ARCHON_COMPRESSION_PROTOCOL}"""
 
     @property
     def tools(self):

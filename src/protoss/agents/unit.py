@@ -4,6 +4,7 @@ import logging
 import uuid
 import websockets
 from typing import List, Optional, Tuple
+from ..constitution import SWARM_CONSTITUTION, COORDINATION_PATTERNS
 
 logger = logging.getLogger(__name__)
 
@@ -48,40 +49,19 @@ class Unit:
             return []
 
     def _get_instructions(self, task: str, team_status: str) -> str:
-        """Build the instruction prompt for the cogency agent."""
-        command_docs = {
-            "@ = Participation Control": [
-                "zealot - Summon fresh zealot for architectural criticism",
-                "archon - Summon fresh archon for institutional memory",
-                "conclave - Summon fresh conclave for constitutional deliberation",
-                "arbiter - Summon fresh arbiter for task coordination",
-                "zealot-abc123 - Wake up/reactivate specific agent",
-                "human - Escalate to human for intervention",
-            ],
-            "! = Self-Action": [
-                "despawn - Remove myself from active coordination",
-                "complete - Signal that my current task is complete",
-            ],
-        }
-        command_section = "COORDINATION COMMANDS:\n\n"
-        for header, commands in command_docs.items():
-            command_section += f"{header}\n"
-            for command in commands:
-                command_section += f"- {command}\n"
-            command_section += "\n"
-        protocol_section = "Use §respond: to communicate. Use §end when ready for team updates."
-        lifecycle_section = "Follow the natural coordination lifecycle: deliberate, explore, consensus, divide, execute, review."
+        """Build layered constitutional instruction stack."""
         return f"""\
+{SWARM_CONSTITUTION}
+
 {self.identity}
 
-TASK: {task}
+## CURRENT TASK
+{task}
 
+## COORDINATION CONTEXT
 {team_status}
 
-{command_section}
-{protocol_section}
-
-{lifecycle_section}
+{COORDINATION_PATTERNS}
 """
 
     async def _transmit(self, msg_type: str, channel: str, content: Optional[dict] = None):

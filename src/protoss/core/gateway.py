@@ -44,7 +44,7 @@ class Gateway:
 
     async def _send_to_bus(self, channel: str, content: str):
         """Send a system message to a channel on the Bus using the existing websocket."""
-        if not self.websocket or not self.websocket.open:
+        if not self.websocket or not (self.websocket.state == websockets.protocol.State.OPEN):
             logger.warning("Gateway websocket not open, cannot send message to Bus.")
             return
 
@@ -132,7 +132,7 @@ class Gateway:
                 # This is a request from the engine, so we need to send a direct message back
                 # The sender is the client_id of the engine
                 sender = msg.get("sender")
-                if self.websocket and self.websocket.open:
+if self.websocket and (self.websocket.state == websockets.protocol.State.OPEN):
                     await self.websocket.send(json.dumps(response))
                 return
 
@@ -237,5 +237,5 @@ class Gateway:
         if self._listen_task:
             self._listen_task.cancel()
             self._listen_task = None
-        if self.websocket and self.websocket.open:
+        if self.websocket and (self.websocket.state == websockets.protocol.State.OPEN):
             await self.websocket.close()

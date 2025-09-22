@@ -38,8 +38,9 @@ class Server:
         """Start the WebSocket server."""
         if self.server:
             return
+        import functools
         self.server = await websockets.serve(
-            self._handler, "localhost", self.port
+            functools.partial(self._handler), "localhost", self.port
         )
         logger.info(f"Protoss Server started on port {self.port}")
 

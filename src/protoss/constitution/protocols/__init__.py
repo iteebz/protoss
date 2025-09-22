@@ -1,0 +1,1 @@
+"""Constitutional protocols - Operational patterns for constitutional fulfillment."""

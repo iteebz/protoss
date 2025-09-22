@@ -1,0 +1,1 @@
+"""Constitutional identities - Pure constitutional worldviews for agents."""
