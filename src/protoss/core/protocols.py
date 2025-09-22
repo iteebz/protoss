@@ -1,6 +1,7 @@
 """Protocols for Protoss coordination infrastructure."""
 
 from typing import Protocol, List, Dict, Optional
+from dataclasses import dataclass
 
 
 class Storage(Protocol):
@@ -53,3 +54,52 @@ class Storage(Protocol):
             List of recent message content strings
         """
         ...
+
+
+@dataclass
+class Signal:
+    """Base class for all constitutional signals."""
+    pass
+
+
+@dataclass
+class Mention(Signal):
+        """Represents an @mention of an agent or perspective."""
+        agent_name: str
+
+    @dataclass
+    class Spawn(Signal):
+        """Represents an @spawn request for an agent type."""
+        agent_type: str
+
+    @dataclass
+    class Completion(Signal):
+        """Represents a !complete signal."""
+        pass
+
+    @dataclass
+    class Despawn(Signal):
+        """Represents a !despawn signal."""
+        pass
+
+    @dataclass
+    class Archive(Signal):
+        """Represents an !archive request."""
+        summary: str
+
+    @dataclass
+    class Review(Signal):
+        """Represents a !review <review_id> request."""
+        review_id: str
+
+    @dataclass
+    class Reviewing(Signal):
+        """Represents a !reviewing <review_id> signal."""
+        review_id: str
+
+    @dataclass
+    class Reviewed(Signal):
+        """Represents a !reviewed <review_id> [judgment] signal."""
+        review_id: str
+        judgment: str
+
