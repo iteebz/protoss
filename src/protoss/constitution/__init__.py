@@ -1,6 +1,7 @@
 from .identities import (
     ARBITER_IDENTITY,
     ARCHON_IDENTITY,
+    ORACLE_IDENTITY,
     ZEALOT_IDENTITY,
     ARTANIS_IDENTITY,
     FENIX_IDENTITY,
@@ -52,6 +53,7 @@ COORDINATION_PATTERNS = """
 ### @ = Participation Control
 - zealot - Summon fresh zealot for architectural criticism
 - archon - Summon fresh archon for institutional memory
+- oracle - Summon fresh oracle for web research and external intelligence
 - conclave - Summon fresh conclave for constitutional deliberation
 - arbiter - Summon fresh arbiter for task coordination
 - zealot-abc123 - Wake up/reactivate specific agent
@@ -71,6 +73,7 @@ Follow the natural coordination lifecycle: deliberate, explore, consensus, divid
 __all__ = [
     "ARBITER_IDENTITY",
     "ARCHON_IDENTITY",
+    "ORACLE_IDENTITY",
     "ZEALOT_IDENTITY",
     "ARTANIS_IDENTITY",
     "FENIX_IDENTITY",

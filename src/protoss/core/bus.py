@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from .server import Server
 from .message import Message
 from . import parser
+from .protocols import Signals
 
 logger = logging.getLogger(__name__)
 
@@ -293,7 +294,7 @@ class Bus:
             | {
                 s.agent_name
                 for s in parser.parse_signals(message.content)
-                if isinstance(s, parser.MentionSignal)
+                if isinstance(s, Signal.Mention)
             }
             | self.monitor_clients
         )

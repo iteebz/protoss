@@ -20,9 +20,8 @@ class Zealot(Unit):
 
     @property
     def tools(self):
-        return self._cogency_tools(
-            ["file_read", "file_write", "file_edit", "file_list", "shell"]
-        )
+        from cogency.tools import tools
+        return tools.category(["file", "system"])
 
     async def coordinate(self, task: str) -> str:
         """Zealot performs its task, archives it for review, and offers the Chalice."""
@@ -35,7 +34,7 @@ class Zealot(Unit):
 
         # 2. Archive for Review
         await self.broadcast(
-            f"Archiving work for review: {task_result} !archive_for_review {task_result}"
+            f"Archiving work for review: {task_result} !archive {task_result}"
         )
 
         # In an emergent system, the Zealot would listen for the Archon's response

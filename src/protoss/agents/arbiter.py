@@ -21,8 +21,8 @@ class Arbiter(Unit):
 
     @property
     def tools(self):
-        """Arbiter needs tools to gather context for human translation."""
-        return self._cogency_tools(["file_read", "file_list"])
+        """Arbiter convenes with other agents, no direct file access needed."""
+        return []
 
     async def respond_to_mention(self, mention_context: str, channel_id: str) -> str:
         """Respond to a human's mention by generating a diplomatic response."""
@@ -42,36 +42,21 @@ class Arbiter(Unit):
         # 1. Accept the Chalice
         await self.broadcast(f"!reviewing {review_id}")
 
-        # 2. Request summary from Archon (by broadcasting a signal)
-        await self.broadcast(f"get_summary {review_id} @archon")
+        # 2. Request summary from Archon naturally
+        await self.broadcast(f"@archon can you provide summary for {review_id}?")
 
-        # 3. Listen for Archon's response (GetArtifactSignal or GetSummarySignal)
+        # 3. Listen for Archon's natural response
         response_message = await self.poll_channel_for_response(
-            sender_filter="archon",
-            signal_type_filter=parser.GetArtifactSignal,  # Archon responds with GetArtifactSignal for summary too
-            timeout=30,  # Give Archon some time to respond
+            timeout=30,
+            content_filter=review_id,  # Look for messages mentioning the review_id
         )
 
-        summary_content = None
-        if response_message:
-            signals = parser.parse_signals(response_message.get("content", ""))
-            for signal in signals:
-                if (
-                    isinstance(signal, parser.GetArtifactSignal)
-                    and signal.review_id == review_id
-                ):
-                    # Assuming Archon's response to GetArtifactSignal contains the summary in its content
-                    summary_content = response_message.get("content")
-                    break
-
-        if not summary_content:
-            await self.broadcast(
-                f"Failed to retrieve summary for {review_id} from Archon. !despawn"
-            )
-            await self.broadcast("!despawn")
-            return "Review failed: Summary not retrieved."
+        if not response_message:
+            await self.broadcast(f"No response from Archon for {review_id}. !despawn")
+            return "Review failed: No Archon response."
 
         # 4. Present to Human (simulated)
+        summary_content = response_message.get("content", "")
         human_presentation = await super().__call__(
             f"Prepare a concise summary for human review of the following:\n\n{summary_content}\n\nBased on this, should the work be approved or rejected? Provide a brief justification."
         )

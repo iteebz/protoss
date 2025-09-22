@@ -5,5 +5,6 @@ from .zealot import Zealot
 from .conclave import Conclave
 from .arbiter import Arbiter
 from .archon import Archon
+from .oracle import Oracle
 
-__all__ = ["Unit", "Zealot", "Conclave", "Arbiter", "Archon"]
+__all__ = ["Unit", "Zealot", "Conclave", "Arbiter", "Archon", "Oracle"]

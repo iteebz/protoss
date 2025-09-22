@@ -9,6 +9,7 @@ from typing import Dict, Any, Callable, Optional
 from .config import Config
 from .lifecycle import Lifecycle
 from . import parser
+from .protocols import Signals
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +34,14 @@ class Gateway:
 
     def _default_factories(self) -> Dict[str, Callable[[str], Any]]:
         """Default agent factories for dependency injection."""
-        from ..agents import Zealot, Archon, Arbiter, Conclave
+        from ..agents import Zealot, Archon, Arbiter, Conclave, Oracle
 
         return {
             "zealot": Zealot,
             "archon": Archon,
             "arbiter": Arbiter,
             "conclave": Conclave,
+            "oracle": Oracle,
         }
 
     async def _send_to_bus(self, channel: str, content: str):
@@ -160,9 +162,9 @@ class Gateway:
             signals = parser.parse_signals(content)
 
             mention_signals = [
-                s for s in signals if isinstance(s, parser.MentionSignal)
+                s for s in signals if isinstance(s, Signal.Mention)
             ]
-            spawn_signals = [s for s in signals if isinstance(s, parser.SpawnSignal)]
+            spawn_signals = [s for s in signals if isinstance(s, Signal.Spawn)]
 
             # Handle direct @mention spawning
             for s in mention_signals:
@@ -191,14 +193,14 @@ class Gateway:
                 logger.info(f"Detected @spawn {agent_type} in {channel_id}.")
                 asyncio.create_task(self._spawn_process(agent_type, channel_id, task))
 
-            # Handle !archive_for_review signal
+            # Handle !archive signal
             archive_signals = [
-                s for s in signals if isinstance(s, parser.ArchiveForReviewSignal)
+                s for s in signals if isinstance(s, Signal.Archive)
             ]
             for s in archive_signals:
                 summary = s.summary
                 logger.info(
-                    f"Detected !archive_for_review in {channel_id}. Archiving work for review."
+                    f"Detected !archive in {channel_id}. Archiving work for review."
                 )
                 asyncio.create_task(
                     self._spawn_process(
@@ -210,7 +212,7 @@ class Gateway:
                 )
 
             # Handle !review <review_id> signal
-            review_signals = [s for s in signals if isinstance(s, parser.ReviewSignal)]
+            review_signals = [s for s in signals if isinstance(s, Signal.Review)]
             for s in review_signals:
                 review_id = s.review_id
                 logger.info(
@@ -219,7 +221,7 @@ class Gateway:
 
             # Handle !reviewing <review_id> signal
             reviewing_signals = [
-                s for s in signals if isinstance(s, parser.ReviewingSignal)
+                s for s in signals if isinstance(s, Signal.Reviewing)
             ]
             for s in reviewing_signals:
                 review_id = s.review_id
@@ -229,7 +231,7 @@ class Gateway:
 
             # Handle !reviewed <review_id> [judgment] signal
             reviewed_signals = [
-                s for s in signals if isinstance(s, parser.ReviewedSignal)
+                s for s in signals if isinstance(s, Signal.Reviewed)
             ]
             for s in reviewed_signals:
                 review_id = s.review_id
