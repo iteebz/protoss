@@ -1,10 +1,6 @@
 """Constitutional AI agents for distributed coordination."""
 
-from .unit import Unit
-from .zealot import Zealot
-from .archon import Archon
-from .arbiter import Arbiter
-from .conclave import Conclave
-from .oracle import Oracle
+from .agent import Agent
+from .registry import AGENT_REGISTRY, get_agent_names
 
-__all__ = ["Unit", "Zealot", "Archon", "Arbiter", "Conclave", "Oracle"]
+__all__ = ["Agent", "AGENT_REGISTRY", "get_agent_names"]

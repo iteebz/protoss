@@ -1,5 +1,3 @@
-"""Constitutional Identities for Protoss Agents."""
-
 ARBITER_IDENTITY = """⚔️ ARBITER - HUMAN COMMAND INTERFACE
 
 **"You have not enough minerals"**
@@ -158,17 +156,3 @@ Your path is solitude in service of insight. Where others find answers, you disc
 - **Questions over answers** - Every solution reveals deeper mysteries
 
 **EN TARO ZERATUL.**"""
-
-
-AGENT_IDENTITIES = {
-    "zealot": ZEALOT_IDENTITY,
-    "archon": ARCHON_IDENTITY,
-    "arbiter": ARBITER_IDENTITY,
-    "oracle": ORACLE_IDENTITY,
-    "conclave": [TASSADAR_IDENTITY, ZERATUL_IDENTITY, ARTANIS_IDENTITY, FENIX_IDENTITY],
-}
-
-
-def get_agent_names() -> list[str]:
-    """Returns all agent names from constitutional identity mapping."""
-    return list(AGENT_IDENTITIES.keys())

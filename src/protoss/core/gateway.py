@@ -6,42 +6,36 @@ import sys
 import json
 from typing import Dict, Set, List
 
-from ..constitution import AGENT_IDENTITIES
+from ..agents import AGENT_REGISTRY
 
 logger = logging.getLogger(__name__)
-
-# Agent registry - maps agent types to their module paths
-AGENTS = {
-    "zealot": "protoss.agents.zealot",
-    "archon": "protoss.agents.archon",
-    "arbiter": "protoss.agents.arbiter",
-    "oracle": "protoss.agents.oracle",
-    "conclave": "protoss.agents.conclave",
-}
 
 
 async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
     """Spawn agent process(es). Returns list of PIDs."""
-    if agent_type not in AGENT_IDENTITIES:
+    if agent_type not in AGENT_REGISTRY:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
     pids = []
+    registry_data = AGENT_REGISTRY[agent_type]
+    identities = registry_data["identity"]
+    module = "protoss.agents.agent"
 
-    # Special case: conclave spawns 4 Sacred Four processes
-    if agent_type == "conclave":
-        sacred_four = ["tassadar", "zeratul", "artanis", "fenix"]
-        for sacred_name in sacred_four:
+    # Multi-identity case (conclave): spawn multiple processes
+    if len(identities) > 1:
+        sacred_names = ["tassadar", "zeratul", "artanis", "fenix"]
+        for i, sacred_name in enumerate(sacred_names):
             agent_id = f"{sacred_name}-{asyncio.get_event_loop().time():.0f}"
-            identity_param = {"identity": sacred_name}
+            identity_param = {"identity_index": i}
 
             cmd = [
                 sys.executable,
                 "-m",
-                "protoss.agents.conclave",
+                module,
                 "--agent-id",
                 agent_id,
                 "--agent-type",
-                "conclave",
+                agent_type,
                 "--channel",
                 channel,
                 "--bus-url",
@@ -55,11 +49,7 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
             pids.append(process.pid)
 
     else:
-        # Normal single agent spawn
-        if agent_type not in AGENTS:
-            raise ValueError(f"No module mapping for agent type: {agent_type}")
-
-        module = AGENTS[agent_type]
+        # Single identity case: spawn one process
         agent_id = f"{agent_type}-{asyncio.get_event_loop().time():.0f}"
 
         cmd = [
@@ -90,7 +80,7 @@ def should_spawn(
     max_agents: int = 10,
 ) -> bool:
     """Determine if agent should be spawned."""
-    if agent_type not in AGENTS:
+    if agent_type not in AGENT_REGISTRY:
         return False
 
     channel_agents = active_agents.get(channel, set())

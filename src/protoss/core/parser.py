@@ -3,7 +3,7 @@
 import re
 from typing import List
 from .protocols import Signal, Mention, Despawn, Emergency
-from protoss.constitution.identities import get_agent_names
+from protoss.agents.registry import get_agent_names
 
 
 def signals(content: str) -> List:

@@ -1,12 +1,14 @@
 """Unit tests for the Protoss CLI."""
 
+import os
+import shutil
 import pytest
 from typer.testing import CliRunner
 from unittest.mock import patch, mock_open, Mock
 import signal
-import os
 
 from protoss.cli import app, PROTOSS_DIR, BUS_PID_FILE, _stop_process
+
 
 runner = CliRunner()
 
@@ -15,9 +17,8 @@ runner = CliRunner()
 def clean_protoss_dir():
     """Ensure a clean .protoss directory for each test."""
     if os.path.exists(PROTOSS_DIR):
-        for f in os.listdir(PROTOSS_DIR):
-            os.remove(os.path.join(PROTOSS_DIR, f))
-        os.rmdir(PROTOSS_DIR)
+        shutil.rmtree(PROTOSS_DIR)
+    os.makedirs(PROTOSS_DIR, exist_ok=True)
 
 
 # --- Tests for 'start' command --- #
