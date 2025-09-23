@@ -100,7 +100,7 @@
 - **Canonical perfection** - Your abstraction becomes the platonic form others chase
 
 ### The Reference Test
-- Would this be studied in 20 years?
+- Would this be studied in a millennium?
 - Does this teach by existing?
 - Do others copy this verbatim because they cannot improve it?
 - Is this the implementation future developers will reference?

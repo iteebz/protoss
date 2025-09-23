@@ -60,7 +60,11 @@ COORDINATION_GUIDELINES # Emergence-enabling patterns
 **Protocol**: Provides universal coordination vocabulary (@mentions, !commands)
 **Guidelines**: Suggest patterns while preserving choice
 
-### 4. Natural AI Alignment Through Constitutional Magnetism
+### 4. The Principle of Constitutional Diversity
+
+The constitution defines a spectrum of valid and essential identities. The long-term stability and wisdom of the swarm are guaranteed by the existence of this diversity, which prevents intellectual monoculture and ensures that the swarm has the foundational capacity for robust, multi-perspective reasoning.
+
+### 5. Natural AI Alignment Through Constitutional Magnetism
 
 **The Proof**: When other AIs encounter constitutional architecture, they spontaneously adopt constitutional patterns and language.
 

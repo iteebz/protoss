@@ -1,74 +1,59 @@
-# PROTOSS ARCHITECTURE
+# Protoss System Architecture
 
-**Cathedral interface for constitutional AI coordination.**
+*This document is the canonical technical reference for the Protoss system. It describes the concrete components and interaction patterns that manifest the principles laid out in the Doctrines.*
 
-## Core Architecture: Three Pillars
+## 1. Core Architectural Philosophy
 
-The Protoss architecture is founded upon the "Three Pillars of the Emergent Protocol," as detailed in [Emergence: The Constitutional Language of the Swarm](coordination.md). These pillars are:
+The system is designed as a decentralized, emergent swarm of sovereign agents coordinating through a central message bus. The architecture prioritizes functional purity, statelessness, and a clean separation of concerns, rejecting monolithic classes and inheritance in favor of data-driven behavior.
 
-1.  **Constitutional Identity over Explicit Instruction**: Agents act based on their inherent nature and channel context.
-2.  **Natural Language as the Medium of Coordination**: `@mention` is the universal interface for intelligent dialogue.
-3.  **Sovereignty and Agent Judgment**: Agents control their lifecycle and exercise independent judgment.
+## 2. The Three Core Components
 
-## Cathedral Interface
+The architecture consists of three primary components:
 
-### Protoss: Pure Coordination Poetry
-```python
-# Cathedral interface - everything else is implementation
-async with Protoss("build authentication system") as swarm:
-    result = await swarm
-```
+1.  **The Bus (`bus.py`)**: The central nervous system of the swarm. It is a WebSocket server that handles all message routing between agents. Critically, it is also responsible for initiating the agent spawning process by listening for `@mention` signals in messages and triggering the appropriate Gateway function.
 
-### Bus: Unified Coordination Nucleus  
-Central coordination combining message routing and agent spawning. Detects @mentions and spawns constitutional agents. Manages active agent tracking and lifecycle.
+2.  **The Gateway (`gateway.py`)**: A library of pure, stateless functions. Its sole purpose is to handle the creation of new agent OS processes. It is invoked by the Bus and does not hold any state about the swarm.
 
-### Gateway: Pure Spawning Functions
-Stateless functions for agent process creation. No state management - serves Bus spawning needs.
+3.  **The Agent (`agent.py`)**: A single, generic agent implementation. There are no subclasses for different agent types. An agent's specific identity, behavior, and capabilities are determined at runtime by the data it loads from the `AGENT_REGISTRY`.
 
-### Constitutional Agent Types
+## 3. Agent Identity: The Data-Driven Model
 
-For detailed descriptions of each agent, refer to [Emergence: The Constitutional Language of the Swarm](coordination.md). Briefly:
+The system's most crucial pattern is its rejection of class inheritance for agent identity. An agent's "soul" is not defined by its code structure but by the data it is given upon creation.
 
--   **Zealot** → Architectural criticism and code execution
--   **Archon** → Institutional memory and context stewardship
--   **Conclave** → Strategic consultation through Sacred Four
--   **Arbiter** → Human interface and coordination translation
--   **Oracle** → Web scrape and search research
+-   **`AGENT_REGISTRY`**: This dictionary, located in `src/protoss/agents/registry.py`, is the single source of truth for agent definitions. It maps an agent type (e.g., `"conclave"`) to its constitutional components:
+    -   `identity`: A list of identity texts that define the agent's core purpose and personality.
+    -   `guidelines`: The behavioral guidelines and patterns the agent should follow.
+    -   `tools`: The set of capabilities available to the agent.
 
-## Implementation Structure
-```
-src/protoss/
-├── core/
-│   ├── protoss.py      # Cathedral interface
-│   ├── bus.py          # Unified coordination nucleus
-│   ├── gateway.py      # Pure spawning functions
-│   ├── server.py       # WebSocket infrastructure
-│   └── message.py      # Message protocol with signal parsing
-├── agents/
-│   ├── unit.py         # Base agent with !despawn sovereignty
-│   ├── zealot.py       # Architectural criticism agent
-│   ├── archon.py       # Institutional memory agent
-│   ├── conclave.py     # Strategic consultation agent
-│   ├── arbiter.py      # Human interface agent
-│   └── oracle.py       # System insight agent
-└── cli.py              # Command-line interface
-```
+-   **Instantiation**: When the Gateway spawns a new agent process, it passes an `agent_type` as an argument. The generic `Agent` class uses this type to look up its data in the `AGENT_REGISTRY` and assembles its unique persona and capabilities.
 
-## Sacred Guardrails
+## 4. The Coordination Lifecycle
 
-The Protoss swarm operates with "Sacred Guardrails" as defined in [Emergence: The Constitutional Language of the Swarm](coordination.md) and further elaborated in [Constitutional Safety Principles](SAFETY.md). These include:
+A typical coordination event unfolds as follows:
 
--   `!emergency` → Halts the entire swarm.
--   `!despawn` → Agent's sovereign act of concluding its mandate.
+1.  **Vision Seeding**: A user initiates a task via the high-level `Protoss` interface, which acts as a temporary, specialized client for the duration of the mission.
 
-All other interventions are handled via natural language `@mention` dialogue.
+    ```python
+    async with Protoss("My vision @arbiter") as swarm:
+        result = await swarm
+    ```
 
-## Constitutional Emergence
+2.  **Session Genesis**: The `Protoss` context manager (`__aenter__`) summons a temporary `Bus` instance for the session and connects to it.
 
-**No orchestration. No workflows. No ceremony.**
+3.  **Invocation**: The `Protoss` client sends the initial vision as a message to the `nexus` channel on the Bus.
 
-Agents coordinate through constitutional dialogue. @mentions spawn additional expertise when needed. Natural completion through constitutional wisdom.
+4.  **Emergent Spawning**: The `Bus` processes the message and detects the `@arbiter` mention. It calls the stateless `gateway.should_spawn()` function. If the conditions are met, it invokes `gateway.spawn_agent("arbiter", ...)`.
 
----
+5.  **Agent Creation**: The Gateway function creates a new operating system process running the generic `agent.py` module, passing `"arbiter"` as the `agent_type`.
 
-*Implementation reference for constitutional AI coordination architecture.*
+6.  **Self-Discovery**: The newly created Arbiter agent starts, looks up its identity and guidelines in the `AGENT_REGISTRY`, and connects to the Bus.
+
+7.  **Constitutional Dialogue**: The Arbiter reads the channel history, understands the vision, and begins its work, potentially invoking other agents via `@mentions`, which continues the cycle of emergence.
+
+8.  **Resolution**: The `Protoss` client passively awaits a completion signal. Its `__await__` method monitors the `nexus` channel specifically for a message from an `arbiter` agent containing a completion keyword (e.g., "complete", "done").
+
+9.  **Session Dissolution**: Upon receiving the signal, the `await` completes, the `async with` block exits, and the `Protoss` instance disconnects and shuts down its session Bus.
+
+## 5. Channel Taxonomy
+
+The Khala uses structured channel names following the pattern `{purpose}:{identifier}:{status}` to enable self-documenting coordination. Core channels include `nexus` for vision seeding, `task:*` for work coordination, `query:*` for human questions, and `conclave:*` for Sacred Four deliberation.

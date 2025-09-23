@@ -1,81 +1,55 @@
-# PROTOSS ROADMAP
+# Protoss Roadmap
 
-**Implementation priorities, architectural decisions, and future work.**
+*This document outlines the project's ultimate vision and the implementation priorities to achieve it.*
 
-## Scaling Philosophy
+## The Grand Vision: Recursive Self-Improvement
 
-**Core Decision:** Emergent scaling through constitutional dialogue, not explicit orchestration.
+The fundamental research question of the Protoss project is:
 
-**Emergent Scaling Principles:**
-- **Human provides Vision:** The human initiates coordination with a high-level vision (`async with Protoss("build X")`).
-- **Agents self-organize:** Agents, guided by their constitutional identities, dynamically summon additional expertise via `@mentions` as needed.
-- **Bus/Gateway handles spawning:** The Bus, leveraging Gateway's pure spawning functions, creates new agent processes in response to `@mentions`. (For foundational definitions of Bus and Gateway, refer to [Emergence: The Constitutional Language of the Swarm](coordination.md)).
-- **Constitutional safeguards:** `max_agents` per channel prevents resource exhaustion. (See [Emergence: The Constitutional Language of the Swarm](coordination.md) for more on constitutional principles).
-- **Focus on coordination:** Complexity budget is spent on robust coordination patterns, not on explicit scaling mechanisms.
+**Can a swarm of AI agents, coordinated by a constitutional framework, achieve breakthroughs in complexity that a single agent cannot? Can a swarm of Claude 5-level intelligences produce Claude 6-level research?**
 
-**Anti-patterns Avoided:**
-- ❌ Centralized orchestration of agent lifecycles.
-- ❌ Rigid, predefined workflows for scaling.
-- ❌ Micromanagement of agent counts by the human beyond the initial vision.
+The ultimate test of this is **Recursive Self-Improvement (RSI)**: the ability of the Protoss swarm to operate on and improve its own codebase, using the same coordination protocols it uses for any other task.
 
-**Authority Model:** Human provides vision → Agents emerge and coordinate → System provides infrastructure and safeguards.
+### RSI Success Metrics
 
-## Implementation Priorities
+Success is defined by the swarm's ability to work on the `protoss/` codebase to improve its own coordination architecture while simultaneously:
 
-### Phase 1: Monitoring Foundation
-- `protoss monitor` - Lightweight swarm minimap (active agents, channels, recent activity)
-- `protoss status` - Current swarm state
-- Basic visibility into coordination
+-   Working on external projects.
+-   Maintaining constitutional code quality.
+-   Escalating appropriately to human oversight for constitutional matters.
+-   Evolving its own coordination capabilities.
 
-### Phase 2: Conversational Interface  
-- `protoss ask` - Strategic questions to Arbiter
-- Escalation protocol - Units can summon human
-- Constitutional guidance integration
-
-### Phase 2.5: Resource Infrastructure
-- `lib/resources.py` - Token usage, cost tracking, rate limiting
-- Model call accounting across swarm coordination
-- Budget awareness for task planning
-- Performance metrics (tokens/task, coordination efficiency)
-
-### Phase 3: Git Coordination
-- Branch per unit strategy
-- Bus-coordinated merges
-- Conflict resolution protocol
-- Rollback mechanisms for catastrophic failures
-
-### Phase 4: Self-Improvement (Safety aspects to be covered in SAFETY.md)
-- Meta-units that analyze coordination patterns.
-- Safe experimentation in isolated environments.
-- Constitutional approval for self-modifications (human oversight).
-- Rollback protocols for changes that degrade coordination.
-
-## Technical Implementation Challenges
-
-### Git Coordination Strategy
-**Problem:** Multiple units working simultaneously without repository conflicts
-
-**Current thinking:** Branch per unit + Bus-coordinated merge strategy, with constitutional deliberation for complex conflicts.
-
-### CLI Architecture Implementation
-**Requirements:**
-- Real-time monitoring stream (`protoss monitor`)
-- Conversational interface (`protoss ask`)
-- Command dispatch
-- Escalation handling
-
-**Approach:** Leverage existing `protoss monitor` and `protoss ask` for real-time visibility and human interaction. Further enhancements will be driven by coordination friction.
-
-## Open Questions
-
-- **Long channel optimization**: When/how to compress extended conversations.
-- **Multi-channel coordination**: If needed, how do channels communicate.
-- **Performance tuning**: Optimal context window size for different task types.
-- **Escalation routing**: Sophisticated routing beyond human/Arbiter.
-- **Repository coordination**: Practical multi-agent git workflow.
-- **Dynamic scaling**: How to constitutionally scale the swarm beyond initial human input, while maintaining emergent principles.
-- **Self-modification safety**: Covered in SAFETY.md.
+If successful, the implication is that Protoss is a universal coordination substrate for any complex cognitive work, including the work of AI development itself.
 
 ---
 
-*Implementation priorities and future work for constitutional AI coordination.*
+## Implementation Phases
+
+The following phases outline the path toward the grand vision of RSI.
+
+### Phase 1: Foundational Infrastructure (Complete)
+-   **Bus & Gateway**: The core messaging and agent-spawning mechanics.
+-   **Data-Driven Agents**: The generic `Agent` class configured by the `AGENT_REGISTRY`.
+-   **Core Doctrines**: The establishment of `constitution`, `emergence`, `resolution`, and `continuity`.
+
+### Phase 2: Monitoring & Observability
+-   `protoss monitor`: A lightweight, real-time view of the swarm (active agents, channels, recent activity).
+-   `protoss status`: A snapshot of the current swarm state.
+-   **Khala Visualization**: Real-time psionic network visualization for coordination flow analysis.
+-   This phase provides the basic visibility required for effective human oversight.
+
+### Phase 3: Conversational Interface & Resource Management
+-   `protoss ask`: A mechanism for posing strategic questions to the `@arbiter`.
+-   **Escalation Protocol**: Formalizing the process by which agents can summon a human.
+-   **Resource Tracking**: Implementing token usage, cost tracking, and rate limiting to make the swarm budget-aware.
+
+### Phase 4: Advanced Coordination Patterns
+-   **Git Coordination**: A robust protocol for multi-agent work on a single codebase (e.g., branch-per-task, bus-coordinated merges, conflict resolution via `@conclave`).
+-   **Multi-Channel Coordination**: Defining how agents can coordinate across different channel contexts if needed.
+-   **Constitutional Evolution**: AI systems authoring their own constitutional frameworks based on coordination experience.
+-   **Multi-Swarm Federation**: Protocols for coordination between sovereign cathedral instances with different constitutional identities.
+
+### Phase 5: Recursive Self-Improvement
+-   **Meta-Coordination Agents**: Units that can analyze the swarm's own coordination patterns.
+-   **Safe Experimentation**: Isolated environments for testing self-modifications.
+-   **Constitutional Approval Flow**: The process by which the swarm proposes changes to its own constitution for human review, as defined in `SAFETY.md`.
