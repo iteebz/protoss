@@ -17,6 +17,7 @@ class Message:
     event: Optional[Dict] = (
         None  # Structured cogency events (think, respond, call, result)
     )
+    msg_type: str = "event"  # Protocol message type
 
     def serialize(self) -> str:
         """Serialize the message to a JSON string."""

@@ -7,7 +7,7 @@ from dataclasses import asdict  # Import asdict
 
 from ..core.protocols import Storage
 from ..core.message import Message
-from ..core.protocols import deserialize_signal  # Import for deserializing signals
+from ..core.protocols import BaseSignal
 
 
 class SQLite(Storage):
@@ -78,7 +78,7 @@ class SQLite(Storage):
                     if signals_json:
                         s_dicts = json.loads(signals_json)
                         for s_dict in s_dicts:
-                            signal = deserialize_signal(s_dict)
+                            signal = BaseSignal.deserialize(s_dict)
                             if signal:
                                 reconstructed_signals.append(signal)
 

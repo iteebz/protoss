@@ -16,6 +16,22 @@ class BaseSignal:
         data["type"] = self.type  # Explicitly add the type field
         return data
 
+    @classmethod
+    def deserialize(cls, signal_dict: Dict) -> Optional["BaseSignal"]:
+        """Deserializes a signal dictionary into the appropriate Signal object."""
+        signal_type = signal_dict.get("type")
+        if not signal_type:
+            return None
+
+        signal_class = _signal_registry.get(signal_type)
+        if not signal_class:
+            return None
+
+        # Remove 'type' from dict before passing to dataclass constructor
+        # as it's set by default=... and init=False
+        clean_dict = {k: v for k, v in signal_dict.items() if k != "type"}
+        return signal_class(**clean_dict)
+
 
 class Storage(Protocol):
     """Storage protocol for Bus channel persistence."""
@@ -98,19 +114,3 @@ _signal_registry: Dict[str, Type[BaseSignal]] = {
     "Despawn": Despawn,
     "Emergency": Emergency,
 }
-
-
-def deserialize_signal(signal_dict: Dict) -> Optional[BaseSignal]:
-    """Deserializes a signal dictionary into the appropriate Signal object."""
-    signal_type = signal_dict.get("type")
-    if not signal_type:
-        return None
-
-    signal_class = _signal_registry.get(signal_type)
-    if not signal_class:
-        return None
-
-    # Remove 'type' from dict before passing to dataclass constructor
-    # as it's set by default=... and init=False
-    clean_dict = {k: v for k, v in signal_dict.items() if k != "type"}
-    return signal_class(**clean_dict)

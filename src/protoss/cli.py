@@ -1,17 +1,16 @@
 """Protoss CLI interface."""
 
 import asyncio
-import json
 import os
 import subprocess
 import signal
 import sys
 import typer
-import websockets
 
 from protoss import Protoss
 
 from .core.config import Config
+from .core.khala import Khala
 
 
 app = typer.Typer(
@@ -82,12 +81,16 @@ def status():
 
     async def show_status():
         config = Config()
-        uri = f"{config.bus_url}/status_client"
+        khala = Khala(bus_url=config.bus_url)
         try:
-            async with websockets.connect(uri) as websocket:
-                await websocket.send(json.dumps({"type": "status_req"}))
-                response = await websocket.recv()
-                status_data = json.loads(response)
+            await khala.connect(client_id="status_client")
+            await khala.send(content="", msg_type="status_req")
+
+            response_message = await khala.receive()
+            if response_message and response_message.msg_type == "status_resp":
+                status_data = (
+                    response_message.event
+                )  # Assuming event contains the status dict
 
                 print("Protoss Status")
                 print(f"Status: {status_data.get('status', 'unknown')}")
@@ -100,15 +103,15 @@ def status():
                         f"agents={bus_snapshot.get('agents', 0)} "
                         f"messages={bus_snapshot.get('messages', 0)}"
                     )
+            else:
+                print("Failed to get status response from Bus.")
 
-        except (
-            ConnectionRefusedError,
-            websockets.exceptions.InvalidURI,
-            websockets.exceptions.InvalidHandshake,
-        ):
+        except ConnectionError:
             print("Could not connect to Protoss Bus. Is it running?")
         except Exception as e:
             print(f"An error occurred: {e}")
+        finally:
+            await khala.disconnect()
 
     asyncio.run(show_status())
 
@@ -208,7 +211,7 @@ def ask(
 
     async def run_ask():
         config = Config(port=port)
-        uri = f"{config.bus_url}/human_asker"
+        khala = Khala(bus_url=config.bus_url)
 
         if not channel_id:
             import uuid
@@ -220,46 +223,36 @@ def ask(
         print(f"Asking swarm in channel {current_channel_id}...")
 
         try:
-            async with websockets.connect(uri) as websocket:
-                await websocket.send(
-                    json.dumps({"type": "join_channel", "channel": current_channel_id})
-                )
+            await khala.connect(client_id="human_asker")
+            # Send the initial question, which implicitly joins the channel
+            await khala.send(
+                content=f"{question} @arbiter",
+                channel=current_channel_id,
+                sender="human",
+            )
+            print(f"Human: {question}")
 
-                message_payload = {
-                    "type": "msg",
-                    "channel": current_channel_id,
-                    "sender": "human",
-                    "content": f"{question} @arbiter",
-                }
-                await websocket.send(json.dumps(message_payload))
-                print(f"Human: {question}")
+            print("Waiting for Arbiter's response...")
+            async for message in khala.listen():
+                if (
+                    message
+                    and message.msg_type == "event"
+                    and message.channel == current_channel_id
+                ):
+                    sender = message.sender
+                    content = message.event.get("content")
 
-                print("Waiting for Arbiter's response...")
-                async for message in websocket:
-                    data = json.loads(message)
-                    if (
-                        data.get("type") == "msg"
-                        and data.get("channel") == current_channel_id
+                    if sender and sender.startswith("arbiter-"):
+                        print(f"\nARBITER: {content}")
+                        break
+                    elif (
+                        sender == "system" and "has joined the coordination" in content
                     ):
-                        sender = data.get("sender")
-                        content = data.get("content")
+                        pass
+                    elif sender != "human":
+                        print(f"[{sender}]: {content}")
 
-                        if sender and sender.startswith("arbiter-"):
-                            print(f"\nARBITER: {content}")
-                            break
-                        elif (
-                            sender == "system"
-                            and "has joined the coordination" in content
-                        ):
-                            pass
-                        elif sender != "human":
-                            print(f"[{sender}]: {content}")
-
-        except (
-            ConnectionRefusedError,
-            websockets.exceptions.InvalidURI,
-            websockets.exceptions.InvalidHandshake,
-        ) as e:
+        except ConnectionError as e:
             print(f"Could not connect to Protoss Bus: {e}. Is it running?")
         except KeyboardInterrupt:
             print("\nAsk command interrupted by user.")
@@ -268,6 +261,8 @@ def ask(
             import traceback
 
             traceback.print_exc()
+        finally:
+            await khala.disconnect()
 
     asyncio.run(run_ask())
 

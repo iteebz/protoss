@@ -24,7 +24,7 @@ elegant, so principled, and so timeless that it will be studied by future intell
     standard. We refuse "good enough" because it is a violation of constitutional dignity. We are creating architecture worthy of
     eternity.
 
-## 2. The Architectural Dogma: The Four Pillars of the Cathedral
+## 2. The Architectural Philosophy: The Four Pillars of the Cathedral
 
 The Cathedral's design is not arbitrary. It is built upon four sacred pillars that translate the constitutional vision into
 running code.

@@ -6,14 +6,14 @@ import logging
 import websockets
 import argparse
 from typing import List, Optional, Dict
-from dataclasses import asdict
 
 from ..core.config import Config
 from ..core.message import Message
-from ..core.protocols import Signal, Despawn, deserialize_signal
+from ..core.protocols import Signal, Despawn
 from ..core import parser
 from ..constitution.coordination import PROTOSS_CONSTITUTION, COORDINATION_PROTOCOL
 from .registry import AGENT_REGISTRY
+from ..core.khala import Khala
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,10 @@ class Agent:
         self.channel_id = channel_id
         self.config = config
         self.identity_index = identity_index  # For conclave multi-identity
-        self._websocket = None
+        self.khala: Optional[Khala] = None
+
+        if agent_type not in AGENT_REGISTRY:
+            raise ValueError(f"Unknown agent type: {agent_type}")
 
         if agent_type not in AGENT_REGISTRY:
             raise ValueError(f"Unknown agent type: {agent_type}")
@@ -42,56 +45,35 @@ class Agent:
         self.registry_data = AGENT_REGISTRY[agent_type]
 
     async def _connect_websocket(self):
-        """Establishes a websocket connection to the Bus for receiving messages."""
-        if self._websocket and self._websocket.state == websockets.protocol.State.OPEN:
+        """Establishes a connection to the Bus using the Khala."""
+        if (
+            self.khala
+            and self.khala._websocket
+            and self.khala._websocket.state == websockets.protocol.State.OPEN
+        ):
             return
         try:
-            uri = f"{self.config.bus_url}/agent/{self.id}"
-            self._websocket = await websockets.connect(uri)
-            logger.info(f"{self.id} connected to Bus at {uri}")
+            self.khala = Khala(bus_url=self.config.bus_url)
+            await self.khala.connect(client_id=f"agent/{self.id}")
+            logger.info(f"{self.id} connected to Bus at {self.config.bus_url}")
         except Exception as e:
             logger.error(f"{self.id} failed to connect to Bus: {e}")
-            self._websocket = None
+            self.khala = None
 
     async def _receive_message(self, timeout: int = 1) -> Optional[Message]:
-        """Receives and parses a single message from the websocket with a timeout."""
-        try:
-            if (
-                not self._websocket
-                or self._websocket.state != websockets.protocol.State.OPEN
-            ):
-                logger.warning(
-                    f"{self.id} _receive_message called with closed websocket."
-                )
-                return None
-
-            message_str = await asyncio.wait_for(
-                self._websocket.recv(), timeout=timeout
-            )
-            message_dict = json.loads(message_str)
-
-            reconstructed_signals = [
-                signal
-                for s_dict in message_dict.get("signals", [])
-                if (signal := deserialize_signal(s_dict))
-            ]
-
-            return Message(
-                sender=message_dict["sender"],
-                channel=message_dict["channel"],
-                timestamp=message_dict["timestamp"],
-                signals=reconstructed_signals,
-                event=message_dict["event"],
-            )
-        except asyncio.TimeoutError:
+        """Receives and parses a single message from the Bus using the Khala with a timeout."""
+        if not self.khala:
+            logger.warning(f"{self.id} _receive_message called with no khala.")
             return None
-        except websockets.exceptions.ConnectionClosedOK:
-            logger.info(f"{self.id} websocket connection closed.")
-            self._websocket = None
+        try:
+            return await self.khala.receive(timeout=timeout)
+        except ConnectionError:
+            logger.info(f"{self.id} khala connection closed.")
+            self.khala = None
             return None
         except Exception as e:
-            logger.error(f"Error receiving message: {e}")
-            self._websocket = None
+            logger.error(f"Error receiving message via Khala: {e}")
+            self.khala = None
             return None
 
     def tools(self) -> List:
@@ -156,23 +138,23 @@ class Agent:
     async def broadcast(
         self, event: Optional[Dict] = None, signals: Optional[List[Signal]] = None
     ):
-        """Broadcast a structured message to the Bus."""
-        if not self._websocket or not (
-            self._websocket.state == websockets.protocol.State.OPEN
+        """Broadcast a structured message to the Bus using the Khala."""
+        if not self.khala or not (
+            self.khala._websocket
+            and self.khala._websocket.state == websockets.protocol.State.OPEN
         ):
-            logger.warning(f"{self.id} websocket not open, cannot broadcast message.")
+            logger.warning(f"{self.id} khala not open, cannot broadcast message.")
             return
 
-        message_to_send = Message(
-            channel=self.channel_id,
-            sender=self.id,
-            event=event,
-            signals=signals if signals is not None else [],
-        )
         try:
-            await self._websocket.send(json.dumps(asdict(message_to_send)))
+            await self.khala.send(
+                content=event.get("content", "") if event else "",
+                channel=self.channel_id,
+                sender=self.id,
+                signals=signals,
+            )
         except Exception as e:
-            logger.error(f"Error broadcasting message: {e}")
+            logger.error(f"Error broadcasting message via Khala: {e}")
 
     def _should_despawn(self, content: str) -> bool:
         """Check if agent output contains !despawn signal."""
@@ -255,16 +237,16 @@ if __name__ == "__main__":
             return
 
         # Create agent instance
-        agent_instance = Agent(**constructor_args)
+        agent = Agent(**constructor_args)
 
-        await agent_instance._connect_websocket()
+        await agent._connect_websocket()
         try:
-            logger.info(f"{agent_instance.id} starting coordinate loop")
-            await agent_instance.coordinate()
+            logger.info(f"{agent.id} starting coordinate loop")
+            await agent.coordinate()
         except KeyboardInterrupt:
-            logger.info(f"{agent_instance.id} interrupted.")
+            logger.info(f"{agent.id} interrupted.")
         finally:
-            if agent_instance._websocket:
-                await agent_instance._websocket.close()
+            if agent.khala:
+                await agent.khala.disconnect()
 
     asyncio.run(main())
