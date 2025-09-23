@@ -40,11 +40,13 @@ venv/
 Thumbs.db
 
 # Sandbox
-.sandbox/
+.ruff_cache
+.pytest_cache
 
 # Cogency
-.cogency/
+.cogency
+.sandbox
 
 # Protoss
-.protoss/
+.protoss
 archives/

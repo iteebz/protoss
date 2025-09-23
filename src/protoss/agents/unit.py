@@ -3,7 +3,6 @@ import json
 import logging
 import websockets
 import argparse
-from abc import abstractmethod
 from typing import List, Optional, Dict
 from dataclasses import asdict
 
@@ -11,6 +10,7 @@ from ..core.config import Config
 from ..core.message import Message
 from ..core.protocols import Signal, Despawn, deserialize_signal
 from ..core import parser
+from ..constitution import AGENT_IDENTITIES, PROTOSS_CONSTITUTION, COORDINATION_PROTOCOL
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +79,6 @@ class Unit:
             return None
 
     @property
-    def identity(self) -> str:
-        """Pure constitutional identity from constitution/ namespace. Override this."""
-        raise NotImplementedError(f"{self.__class__.__name__} must implement identity")
-
-    @property
     def tools(self) -> List:
         """Constitutional tools. Override if needed."""
         return []
@@ -103,10 +98,46 @@ class Unit:
             )
             return []
 
-    @abstractmethod
     async def __call__(self, context: str) -> str:
-        """The agent's primary execution method, receiving context and returning a response."""
-        pass
+        """Constitutional Cogency execution with identity from AGENT_IDENTITIES mapping."""
+        from cogency.core.agent import Agent
+
+        # Get identity from constitutional mapping
+        if self.agent_type in AGENT_IDENTITIES:
+            agent_identities = AGENT_IDENTITIES[self.agent_type]
+            if isinstance(agent_identities, list):
+                # This shouldn't happen for base Unit usage, but handle gracefully
+                raise ValueError(
+                    f"Agent type {self.agent_type} requires special handling"
+                )
+            identity = agent_identities
+        else:
+            raise ValueError(f"Unknown agent type: {self.agent_type}")
+
+        instructions = f"""
+{PROTOSS_CONSTITUTION}
+
+{identity}
+
+{COORDINATION_PROTOCOL}
+"""
+
+        agent = Agent(instructions=instructions, tools=self.tools)
+
+        response = ""
+        async for event in agent(
+            context,
+            user_id=f"channel-{self.channel_id}",
+            conversation_id=f"{self.agent_type}-{self.id}",
+        ):
+            if event["type"] == "respond":
+                content = event.get("content", "")
+                response += content
+                await self.broadcast(event)
+            elif event["type"] in ["think", "call", "result"]:
+                await self.broadcast(event)
+
+        return response
 
     async def broadcast(
         self, event: Optional[Dict] = None, signals: Optional[List[Signal]] = None
@@ -199,13 +230,13 @@ if __name__ == "__main__":
         from .zealot import Zealot
         from .archon import Archon
         from .arbiter import Arbiter
-        from .conclave import Conclave
+        from .oracle import Oracle
 
         agent_classes = {
             "zealot": Zealot,
             "archon": Archon,
             "arbiter": Arbiter,
-            "conclave": Conclave,
+            "oracle": Oracle,
         }
 
         agent_class = agent_classes.get(args.agent_type)

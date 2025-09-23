@@ -236,13 +236,9 @@ async def cli():
 
     if "--concurrency" in args:
         idx = args.index("--concurrency")
-        config.max_concurrent_tests = int(
-            args[idx + 1]
-        )  # Use config
+        config.max_concurrent_tests = int(args[idx + 1])  # Use config
         args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
-        print(
-            f"⚡ Concurrency: {config.max_concurrent_tests} parallel tests"
-        )
+        print(f"⚡ Concurrency: {config.max_concurrent_tests} parallel tests")
 
     if "--llm" in args:
         idx = args.index("--llm")

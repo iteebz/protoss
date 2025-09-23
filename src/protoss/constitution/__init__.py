@@ -7,17 +7,20 @@ from .identities import (
     FENIX_IDENTITY,
     TASSADAR_IDENTITY,
     ZERATUL_IDENTITY,
+    AGENT_IDENTITIES,
 )
-from .protocols import (
-    ARCHON_SEEDING_PROTOCOL,
-    ARCHON_KNOWLEDGE_PROTOCOL,
-    ARCHON_COMPRESSION_PROTOCOL,
+from .guidelines import (
+    ZEALOT_GUIDELINES,
+    ARCHON_GUIDELINES,
+    ARBITER_GUIDELINES,
+    CONCLAVE_GUIDELINES,
+    ORACLE_GUIDELINES,
 )
 
-SWARM_CONSTITUTION = """
-## CONSTITUTIONAL COORDINATION PRINCIPLES
+PROTOSS_CONSTITUTION = """
+## CONSTITUTIONAL PRINCIPLES
 
-**Sacred Laws Governing All Protoss Coordination**
+**Sacred Laws Governing All Protoss Interactions**
 
 ### Cognitive Sovereignty
 - Each agent thinks independently in separate processes
@@ -45,25 +48,24 @@ SWARM_CONSTITUTION = """
 **En Taro Adun - These principles govern all constitutional coordination.**
 """
 
-COORDINATION_PATTERNS = """
-## COORDINATION COMMANDS
+COORDINATION_PROTOCOL = """
+## PROTOCOL
 
 ### @ = Participation Control
-- zealot - Summon fresh zealot for architectural criticism
-- archon - Summon fresh archon for institutional memory
-- oracle - Summon fresh oracle for web research and external intelligence
-- conclave - Summon fresh conclave for constitutional deliberation
-- arbiter - Summon fresh arbiter for task coordination
-- zealot-abc123 - Wake up/reactivate specific agent
-- human - Escalate to human for intervention
+- @zealot - Summon fresh zealot for architectural criticism
+- @archon - Summon fresh archon for institutional memory
+- @oracle - Summon fresh oracle for web research and external intelligence
+- @conclave - Summon fresh conclave for constitutional deliberation
+- @arbiter - Summon fresh arbiter on to escalate to human
+- @agent-abc123 - Wake up/reactivate specific agent
 
 ### ! = Self-Action
-- despawn - Remove myself from active coordination
+- !despawn - Remove myself from active coordination
 
 ## CONSTITUTIONAL DIALOGUE PROTOCOL
 Use §respond: to communicate. Use §end when ready for team updates.
 
-## COORDINATION LIFECYCLE
+## LIFECYCLE
 Follow the natural coordination lifecycle: deliberate, explore, consensus, divide, execute, review.
 """
 
@@ -76,9 +78,12 @@ __all__ = [
     "FENIX_IDENTITY",
     "TASSADAR_IDENTITY",
     "ZERATUL_IDENTITY",
-    "ARCHON_SEEDING_PROTOCOL",
-    "ARCHON_KNOWLEDGE_PROTOCOL",
-    "ARCHON_COMPRESSION_PROTOCOL",
-    "SWARM_CONSTITUTION",
-    "COORDINATION_PATTERNS",
+    "AGENT_IDENTITIES",
+    "ZEALOT_GUIDELINES",
+    "ARCHON_GUIDELINES",
+    "ARBITER_GUIDELINES",
+    "CONCLAVE_GUIDELINES",
+    "ORACLE_GUIDELINES",
+    "PROTOSS_CONSTITUTION",
+    "COORDINATION_PROTOCOL",
 ]

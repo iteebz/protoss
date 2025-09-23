@@ -1,15 +1,16 @@
 """Zealot: Constitutional AI agent with righteous conviction."""
 
 from .unit import Unit
-from ..constitution.identities import ZEALOT_IDENTITY
+from ..constitution import (
+    PROTOSS_CONSTITUTION,
+    ZEALOT_IDENTITY,
+    COORDINATION_PROTOCOL,
+    ZEALOT_GUIDELINES,
+)
 
 
 class Zealot(Unit):
     """Constitutional AI agent - eliminates complexity, enforces principles."""
-
-    @property
-    def identity(self) -> str:
-        return ZEALOT_IDENTITY
 
     @property
     def tools(self) -> list:
@@ -18,12 +19,20 @@ class Zealot(Unit):
         return tools.category(["file", "system"])
 
     async def __call__(self, context: str) -> str:
-        """Pure Cogency execution."""
+        """Constitutional Cogency execution with emergence hierarchy."""
         from cogency.core.agent import Agent
 
-        agent = Agent(
-            instructions=f"{self.identity}\n\nCONTEXT:\n{context}", tools=self.tools
-        )
+        instructions = f"""
+{PROTOSS_CONSTITUTION}
+
+{ZEALOT_IDENTITY}
+
+{COORDINATION_PROTOCOL}
+
+{ZEALOT_GUIDELINES}
+"""
+
+        agent = Agent(instructions=instructions, tools=self.tools)
 
         response = ""
         async for event in agent(

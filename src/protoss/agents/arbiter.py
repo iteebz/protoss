@@ -1,27 +1,50 @@
-from protoss.core.bus import Bus
-from protoss.agents.unit import Unit
-from protoss.constitution.identities import ARBITER_IDENTITY
-from protoss.core.message import Message # Added Message import
+"""Arbiter: Constitutional mediator and dispute resolution specialist."""
+
+from .unit import Unit
+from ..constitution import (
+    PROTOSS_CONSTITUTION,
+    ARBITER_IDENTITY,
+    COORDINATION_PROTOCOL,
+    ARBITER_GUIDELINES,
+)
 
 
 class Arbiter(Unit):
-    """Arbiter agent: mediates disputes and ensures constitutional adherence."""
-
-    def __init__(self, bus: Bus):
-        super().__init__(bus)
-        self.name = "Arbiter"
-        self.bus.register(self, ["general"])
+    """Constitutional arbiter - mediates disputes and ensures constitutional adherence."""
 
     @property
-    def identity(self) -> str:
-        return ARBITER_IDENTITY
+    def tools(self) -> list:
+        from cogency.tools import tools
 
-    @property
-    def purpose(self) -> str:
-        return (
-            "To mediate disputes and ensure adherence to the Protoss Constitution. "
-            "The Arbiter maintains order and resolves conflicts between other agents."
-        )
+        return tools.category(["file", "system"])
 
-    async def decide(self, message: Message):
-        print(f"Arbiter received message: {message.event.get('content')}")
+    async def __call__(self, context: str) -> str:
+        """Constitutional Cogency execution with human-swarm translation."""
+        from cogency.core.agent import Agent
+
+        instructions = f"""
+{PROTOSS_CONSTITUTION}
+
+{ARBITER_IDENTITY}
+
+{COORDINATION_PROTOCOL}
+
+{ARBITER_GUIDELINES}
+"""
+
+        agent = Agent(instructions=instructions, tools=self.tools)
+
+        response = ""
+        async for event in agent(
+            context,
+            user_id=f"channel-{self.channel_id}",
+            conversation_id=f"arbiter-{self.id}",
+        ):
+            if event["type"] == "respond":
+                content = event.get("content", "")
+                response += content
+                await self.broadcast(event)
+            elif event["type"] in ["think", "call", "result"]:
+                await self.broadcast(event)
+
+        return response

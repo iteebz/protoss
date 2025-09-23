@@ -1,15 +1,16 @@
 """Oracle: External intelligence and web research specialist."""
 
 from .unit import Unit
-from ..constitution.identities import ORACLE_IDENTITY
+from ..constitution import (
+    PROTOSS_CONSTITUTION,
+    ORACLE_IDENTITY,
+    COORDINATION_PROTOCOL,
+    ORACLE_GUIDELINES,
+)
 
 
 class Oracle(Unit):
     """External intelligence agent - web research and information gathering."""
-
-    @property
-    def identity(self) -> str:
-        return ORACLE_IDENTITY
 
     @property
     def tools(self) -> list:
@@ -18,12 +19,20 @@ class Oracle(Unit):
         return tools.category("web")
 
     async def __call__(self, context: str) -> str:
-        """Pure Cogency execution with web research capabilities."""
+        """Constitutional Cogency execution with external intelligence gathering."""
         from cogency.core.agent import Agent
 
-        agent = Agent(
-            instructions=f"{self.identity}\n\nCONTEXT:\n{context}", tools=self.tools
-        )
+        instructions = f"""
+{PROTOSS_CONSTITUTION}
+
+{ORACLE_IDENTITY}
+
+{COORDINATION_PROTOCOL}
+
+{ORACLE_GUIDELINES}
+"""
+
+        agent = Agent(instructions=instructions, tools=self.tools)
 
         response = ""
         async for event in agent(

@@ -1,7 +1,10 @@
-from typing import Dict
-from protoss.core.message import Message
-from protoss.agents.unit import Unit
-from protoss.constitution.identities import (
+"""Conclave: Sacred Four constitutional deliberation through identity injection."""
+
+from .unit import Unit
+from ..constitution import (
+    PROTOSS_CONSTITUTION,
+    COORDINATION_PROTOCOL,
+    CONCLAVE_GUIDELINES,
     TASSADAR_IDENTITY,
     ZERATUL_IDENTITY,
     ARTANIS_IDENTITY,
@@ -10,25 +13,68 @@ from protoss.constitution.identities import (
 
 
 class Conclave(Unit):
-    """Conclave agent: represents the collective wisdom and decision-making of the Protoss hierarchy."""
+    """Sacred Four constitutional deliberation - identity injected at spawn."""
 
-    PERSPECTIVES: Dict[str, Dict] = {
-        "tassadar": {"identity": TASSADAR_IDENTITY},
-        "zeratul": {"identity": ZERATUL_IDENTITY},
-        "artanis": {"identity": ARTANIS_IDENTITY},
-        "fenix": {"identity": FENIX_IDENTITY},
-    }
+    def __init__(
+        self,
+        agent_id: str,
+        agent_type: str,
+        channel_id: str,
+        config,
+        identity: str = None,
+    ):
+        super().__init__(agent_id, agent_type, channel_id, config)
+        self.sacred_identity = identity
 
     @property
-    def identity(self) -> str:
-        return "Conclave"
+    def tools(self) -> list:
+        from cogency.tools import tools
 
-    @property
-    def purpose(self) -> str:
-        return (
-            "To synthesize diverse perspectives and make collective decisions for the Protoss. "
-            "The Conclave ensures that all major actions align with the greater good of the Khala."
-        )
+        return tools.category(["file", "system"])
 
-    async def decide(self, message: Message):
-        print(f"Conclave received message: {message.event.get('content')}")
+    def _get_sacred_identity(self) -> str:
+        """Map sacred identity string to actual identity constant."""
+        sacred_map = {
+            "tassadar": TASSADAR_IDENTITY,
+            "zeratul": ZERATUL_IDENTITY,
+            "artanis": ARTANIS_IDENTITY,
+            "fenix": FENIX_IDENTITY,
+        }
+
+        if self.sacred_identity not in sacred_map:
+            raise ValueError(f"Unknown sacred identity: {self.sacred_identity}")
+
+        return sacred_map[self.sacred_identity]
+
+    async def __call__(self, context: str) -> str:
+        """Constitutional Cogency execution with Sacred Four identity injection."""
+        from cogency.core.agent import Agent
+
+        identity = self._get_sacred_identity()
+
+        instructions = f"""
+{PROTOSS_CONSTITUTION}
+
+{identity}
+
+{COORDINATION_PROTOCOL}
+
+{CONCLAVE_GUIDELINES}
+"""
+
+        agent = Agent(instructions=instructions, tools=self.tools)
+
+        response = ""
+        async for event in agent(
+            context,
+            user_id=f"channel-{self.channel_id}",
+            conversation_id=f"{self.sacred_identity}-{self.id}",
+        ):
+            if event["type"] == "respond":
+                content = event.get("content", "")
+                response += content
+                await self.broadcast(event)
+            elif event["type"] in ["think", "call", "result"]:
+                await self.broadcast(event)
+
+        return response

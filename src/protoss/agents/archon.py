@@ -1,15 +1,16 @@
 """Archon: Constitutional memory keeper with archive scope."""
 
 from .unit import Unit
-from ..constitution.identities import ARCHON_IDENTITY
+from ..constitution import (
+    PROTOSS_CONSTITUTION,
+    ARCHON_IDENTITY,
+    COORDINATION_PROTOCOL,
+    ARCHON_GUIDELINES,
+)
 
 
 class Archon(Unit):
     """Constitutional archive agent - restricted to archives/ directory."""
-
-    @property
-    def identity(self) -> str:
-        return ARCHON_IDENTITY
 
     @property
     def tools(self) -> list:
@@ -18,12 +19,20 @@ class Archon(Unit):
         return tools.category("file")
 
     async def __call__(self, context: str) -> str:
-        """Pure Cogency execution with archive scope."""
+        """Constitutional Cogency execution with institutional memory stewardship."""
         from cogency.core.agent import Agent
 
-        agent = Agent(
-            instructions=f"{self.identity}\n\nCONTEXT:\n{context}", tools=self.tools
-        )
+        instructions = f"""
+{PROTOSS_CONSTITUTION}
+
+{ARCHON_IDENTITY}
+
+{COORDINATION_PROTOCOL}
+
+{ARCHON_GUIDELINES}
+"""
+
+        agent = Agent(instructions=instructions, tools=self.tools)
 
         response = ""
         async for event in agent(
