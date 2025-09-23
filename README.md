@@ -2,6 +2,8 @@
 
 **Constitutional governance for AI swarms. Self-governing telepathic alien civilization for complex coordination.**
 
+Protoss is a constitutional AI coordination architecture in active development, designed for emergent intelligence in multi-agent swarms. The core infrastructure (message bus, agent lifecycle, CLI) is implemented and working, but coordination patterns are actively being refined and tested. This system explores a novel approach to scaling AI development beyond human micromanagement through constitutional governance rather than rigid orchestration.
+
 ## Quick Start
 
 **Install:**
@@ -78,25 +80,34 @@ RSI capabilities emerge naturally from constitutional coordination, but the imme
 
 ## Implementation Status
 
-**✅ Current (v0.1):**
-- Message Bus coordination infrastructure (Bus, Server)
+**Working Infrastructure:**
+- Message Bus coordination infrastructure (Bus, Server, Gateway)
 - Constitutional agents (Zealot, Archon, Conclave, Arbiter, Oracle)
 - Channel-based coordination with Message protocol
-- Explicit dependency injection architecture
 - CLI interface with basic coordination commands
+- Evaluation framework for coordination testing
 
-**🔄 In Development:**
+**Active Development:**
+- Multi-agent coordination pattern validation
 - Real-time monitoring and conversational interface enhancements
-- Multi-agent coordination patterns refinement
-- Advanced emergent spawning and lifecycle management within the Bus
+- Advanced emergent spawning and lifecycle management
+- Constitutional governance effectiveness testing
 
 ## Documentation
 
+**Core Architecture:**
 - **[Architecture](docs/ARCHITECTURE.md)** - Current implementation patterns and essential coordination insights
 - **[Vision](docs/VISION.md)** - Research question and recursive improvement vision
+- **[Cathedral](docs/CATHEDRAL.md)** - Architectural breakthrough and interface poetry
 - **[Roadmap](docs/ROADMAP.md)** - Implementation priorities and architectural decisions
-- **[Interface Design](docs/interface.md)** - Principles and current state of human-swarm interaction
-- **[Coordination Patterns](docs/coordination.md)** - Essential multi-agent coordination insights
+
+**Design Philosophy:**
+- **[Agent Experience](philosophy/ax.md)** - Agent-centric design methodology and constitutional self-design
+- **[Code Philosophy](philosophy/code.md)** - Sacred craft standards and reference-grade architecture principles
+
+**Coordination Patterns:**
+- **[Coordination Blueprints](docs/blueprints/)** - Constitutional governance technical specifications
+- **[Memetic Transmission](docs/memesis/)** - AI self-indoctrination and constitutional propagation protocols
 
 ⚔️ *En taro Adun*
 
