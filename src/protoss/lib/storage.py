@@ -2,16 +2,14 @@ import aiosqlite
 import asyncio
 import json
 import os
+import time  # Added time import
 from typing import List, Dict, Optional
-from dataclasses import asdict  # Import asdict
 
 from ..core.protocols import Storage
-from ..core.message import Message
-from ..core.protocols import BaseSignal
 
 
 class SQLite(Storage):
-    """SQLite-based storage for Bus messages, adhering to the Storage protocol."""
+    """SQLite-based storage for Bus events, adhering to the Storage protocol."""
 
     def __init__(self, db_path: str = "./.protoss/store.db"):
         self.db_path = db_path
@@ -24,101 +22,98 @@ class SQLite(Storage):
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute(
                     """
-                    CREATE TABLE IF NOT EXISTS messages (
+                    CREATE TABLE IF NOT EXISTS events (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        type TEXT NOT NULL,
+                        coordination_id TEXT,
                         channel TEXT NOT NULL,
                         sender TEXT NOT NULL,
                         timestamp REAL NOT NULL,
-                        event_json TEXT,
-                        signals_json TEXT
+                        event_json TEXT NOT NULL
                     )
                     """
                 )
                 await db.commit()
 
-    async def save_message(self, message: Message) -> None:
+    async def save_event(self, event: Dict) -> None:
         await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
-            event_json = json.dumps(message.event) if message.event else None
-            signals_json = (
-                json.dumps([asdict(s) for s in message.signals])
-                if message.signals
-                else None
-            )
+            event_json = json.dumps(event)
             await db.execute(
-                "INSERT INTO messages (channel, sender, timestamp, event_json, signals_json) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO events (type, coordination_id, channel, sender, timestamp, event_json) VALUES (?, ?, ?, ?, ?, ?)",
                 (
-                    message.channel,
-                    message.sender,
-                    message.timestamp,
+                    event.get("type", "unknown"),
+                    event.get("coordination_id"),
+                    event.get("channel", "general"),
+                    event.get("sender", "system"),
+                    event.get("timestamp", time.time()),
                     event_json,
-                    signals_json,
                 ),
             )
             await db.commit()
 
-    async def load_messages(
-        self, channel: str, since: float = 0, limit: Optional[int] = None
-    ) -> List[Message]:
+    async def load_events(
+        self,
+        event_type: Optional[str] = None,
+        coordination_id: Optional[str] = None,
+        channel: Optional[str] = None,
+        sender: Optional[str] = None,
+        since: float = 0,
+        limit: Optional[int] = None,
+    ) -> List[Dict]:
         await self._init_db()
-        messages = []
+        events = []
         async with aiosqlite.connect(self.db_path) as db:
-            query = "SELECT channel, sender, timestamp, event_json, signals_json FROM messages WHERE channel = ? AND timestamp > ? ORDER BY timestamp ASC"
-            params = [channel, since]
+            query = "SELECT event_json FROM events WHERE timestamp > ?"
+            params = [since]
+
+            if event_type:
+                query += " AND type = ?"
+                params.append(event_type)
+            if coordination_id:
+                query += " AND coordination_id = ?"
+                params.append(coordination_id)
+            if channel:
+                query += " AND channel = ?"
+                params.append(channel)
+            if sender:
+                query += " AND sender = ?"
+                params.append(sender)
+
+            query += " ORDER BY timestamp ASC"
             if limit:
                 query += " LIMIT ?"
                 params.append(limit)
 
             async with db.execute(query, params) as cursor:
                 async for row in cursor:
-                    channel_name, sender, timestamp, event_json, signals_json = row
-                    event = json.loads(event_json) if event_json else None
+                    events.append(json.loads(row[0]))
+        return events
 
-                    reconstructed_signals = []
-                    if signals_json:
-                        s_dicts = json.loads(signals_json)
-                        for s_dict in s_dicts:
-                            signal = BaseSignal.deserialize(s_dict)
-                            if signal:
-                                reconstructed_signals.append(signal)
-
-                    messages.append(
-                        Message(
-                            channel=channel_name,
-                            sender=sender,
-                            timestamp=timestamp,
-                            event=event,
-                            signals=reconstructed_signals,
-                        )
-                    )
-        return messages
-
-    async def load_channels(self) -> List[Dict]:
+    async def load_coordinations(self) -> List[Dict]:
         await self._init_db()
-        channels_data = []
+        coordinations_data = []
         async with aiosqlite.connect(self.db_path) as db:
-            query = "SELECT channel, MIN(timestamp), MAX(timestamp), COUNT(*) FROM messages GROUP BY channel"
+            query = "SELECT coordination_id, MIN(timestamp), MAX(timestamp), COUNT(*) FROM events WHERE coordination_id IS NOT NULL GROUP BY coordination_id"
             async with db.execute(query) as cursor:
                 async for row in cursor:
-                    channel_name, created_at, last_active, message_count = row
-                    channels_data.append(
+                    coordination_id, created_at, last_active, event_count = row
+                    coordinations_data.append(
                         {
-                            "name": channel_name,
+                            "id": coordination_id,
                             "created_at": created_at,
                             "last_active": last_active,
-                            "message_count": message_count,
+                            "event_count": event_count,
                         }
                     )
-        return channels_data
+        return coordinations_data
 
-    async def recent(self, channel: str, limit: int = 10) -> List[str]:
+    async def recent_events(self, channel: str, limit: int = 10) -> List[Dict]:
         await self._init_db()
-        recent_contents = []
+        recent_events_data = []
         async with aiosqlite.connect(self.db_path) as db:
-            query = "SELECT event_json FROM messages WHERE channel = ? AND event_json IS NOT NULL ORDER BY timestamp DESC LIMIT ?"
+            query = "SELECT event_json FROM events WHERE channel = ? ORDER BY timestamp DESC LIMIT ?"
             async with db.execute(query, (channel, limit)) as cursor:
                 async for row in cursor:
-                    event = json.loads(row[0])
-                    if "content" in event:
-                        recent_contents.append(event["content"])
-        return list(reversed(recent_contents))  # Return in chronological order
+                    recent_events_data.append(json.loads(row[0]))
+        return list(reversed(recent_events_data))  # Return in chronological order

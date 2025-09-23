@@ -23,7 +23,12 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
 
     # Multi-identity case (conclave): spawn multiple processes
     if len(identities) > 1:
-        sacred_names = ["tassadar", "zeratul", "artanis", "fenix"]
+        sacred_names = [
+            "tassadar",
+            "zeratul",
+            "artanis",
+            "fenix",
+        ]  # Constitutional Sacred Four
         for i, sacred_name in enumerate(sacred_names):
             agent_id = f"{sacred_name}-{asyncio.get_event_loop().time():.0f}"
             identity_param = {"identity_index": i}

@@ -77,9 +77,12 @@ class Probe:
         """
         Handles the logic for channel creation and optional instruction delivery.
         """
-        # Create a URL-friendly slug from the description for the channel name.
+        # Create constitutional task channel
+        from protoss.lib.channels import task_channel
+        import re
+
         channel_slug = re.sub(r"[\s_]+", "-", description.lower()).strip("-")
-        new_channel_id = f"task:{channel_slug}:{uuid.uuid4().hex[:8]}:active"
+        new_channel_id = task_channel(channel_slug)
 
         try:
             self.bus.create_channel(new_channel_id)

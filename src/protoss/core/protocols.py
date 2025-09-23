@@ -34,53 +34,45 @@ class BaseSignal:
 
 
 class Storage(Protocol):
-    """Storage protocol for Bus channel persistence."""
+    """Storage protocol for Bus event persistence."""
 
-    async def save_message(
-        self, channel: str, sender: str, content: str, timestamp: float = None
-    ) -> None:
-        """Save message transmission to channel.
+    async def save_event(self, event: Dict) -> None:
+        """Save structured coordination event.
 
         Args:
-            channel: Channel name to save to
-            sender: Agent ID sending the message
-            content: Message content
-            timestamp: Optional timestamp (uses current time if None)
+            event: Event dictionary with type, channel, sender, timestamp, etc.
         """
         ...
 
-    async def load_messages(
-        self, channel: str, since: float = 0, limit: Optional[int] = None
+    async def load_events(
+        self,
+        event_type: Optional[str] = None,
+        coordination_id: Optional[str] = None,
+        channel: Optional[str] = None,
+        sender: Optional[str] = None,
+        since: float = 0,
+        limit: Optional[int] = None,
     ) -> List[Dict]:
-        """Load message transmissions from channel since timestamp.
+        """Load coordination events with filtering.
 
         Args:
-            channel: Channel name to load from
-            since: Timestamp to load messages since (0 for all)
-            limit: Maximum number of messages to return
+            event_type: Filter by event type (agent_spawn, agent_message, etc.)
+            coordination_id: Filter by coordination session
+            channel: Filter by channel
+            sender: Filter by sender
+            since: Timestamp to load events since
+            limit: Maximum number of events
 
         Returns:
-            List of message dictionaries with sender, content, timestamp
+            List of event dictionaries
         """
         ...
 
-    async def load_channels(self) -> List[Dict]:
-        """Load all channels with activity stats.
+    async def load_coordinations(self) -> List[Dict]:
+        """Load coordination session metadata.
 
         Returns:
-            List of channel dictionaries with name, created_at, last_active, message_count
-        """
-        ...
-
-    async def recent(self, channel: str, limit: int = 10) -> List[str]:
-        """Get recent message content from channel.
-
-        Args:
-            channel: Channel name
-            limit: Number of recent messages to return
-
-        Returns:
-            List of recent message content strings
+            List of coordination dictionaries with id, created_at, last_active, event_count
         """
         ...
 

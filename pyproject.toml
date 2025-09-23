@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [project]
 name = "protoss"
 version = "0.0.1"
-description = "Distributed AI coordination architecture. Ephemeral agent swarms with democratic oversight."
+description = "Constitutional AI coordination through emergent agent swarms."
 authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
 license = "MIT"

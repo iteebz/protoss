@@ -4,6 +4,7 @@ import asyncio
 import json
 from datetime import datetime
 from typing import Dict, Any
+import time
 
 import websockets
 from textual.app import App, ComposeResult
@@ -50,35 +51,79 @@ class MonitorApp(App):
         self.sub_title = f"Monitoring the Khala at {self.config.bus_url}"
         asyncio.create_task(self.run_client())
 
-    def _format_message(self, msg: Dict[str, Any]) -> str:
-        """Formats a message from the bus into a rich-text string for the Log widget."""
-        now = datetime.now().strftime("%H:%M:%S")
-        channel = msg.get("channel", "unknown")
-        sender = msg.get("sender", "system")
-        content = msg.get("content", "")
+    def _format_message(self, event: Dict[str, Any]) -> str:
+        """Formats a structured event into a rich-text string for the Log widget."""
+        now = datetime.fromtimestamp(event.get("timestamp", time.time())).strftime(
+            "%H:%M:%S"
+        )
+        event_type = event.get("type", "unknown_event")
+        channel = event.get("channel", "unknown")
+        sender = event.get("sender", "system")
+        coordination_id = event.get("coordination_id", "N/A")
 
-        # Use Textual's rich markup
-        return f"[dim]{now}[/] | [blue]#{channel:<15}[/] | [cyan]{sender:<15}[/] | {content}"
+        # Default content for non-agent_message events
+        content_display = f"[yellow]{event_type}[/]"
 
-        def _update_trees(self, msg: Dict[str, Any]):
-            """Update the channel and agent trees with new data."""
-            channel_name = msg.get("channel")
-            sender_id = msg.get("sender")
+        if event_type == "agent_message":
+            message_content = event.get("content", "")
+            content_display = message_content
+        elif event_type == "coordination_complete":
+            result = event.get("payload", {}).get("result", "Coordination finished.")
+            content_display = f"[green]COORDINATION COMPLETE:[/][white] {result}[/]"
+        elif event_type == "agent_spawn":
+            agent_id = event.get("payload", {}).get("agent_id", "unknown")
+            agent_type = event.get("payload", {}).get("agent_type", "unknown")
+            content_display = (
+                f"[blue]Agent Spawned:[/][white] {agent_id} ({agent_type})[/]"
+            )
+        elif event_type == "agent_despawn":
+            agent_id = event.get("payload", {}).get("agent_id", "unknown")
+            agent_type = event.get("payload", {}).get("agent_type", "unknown")
+            content_display = (
+                f"[red]Agent Despawned:[/][white] {agent_id} ({agent_type})[/]"
+            )
+        elif event_type == "agent_connected":
+            agent_id = event.get("payload", {}).get("agent_id", "unknown")
+            content_display = f"[green]Agent Connected:[/][white] {agent_id}[/]"
+        elif event_type == "agent_disconnected":
+            agent_id = event.get("payload", {}).get("agent_id", "unknown")
+            content_display = f"[red]Agent Disconnected:[/][white] {agent_id}[/]"
+        elif event_type == "vision_seed":
+            vision = event.get("payload", {}).get("vision", "No vision provided")
+            content_display = f"[magenta]Vision Seeded:[/][white] {vision}[/]"
 
-            if not channel_name or not sender_id or sender_id in ["system", "gateway"]:
-                return
+        return f"[dim]{now}[/] | [blue]#{channel:<10}[/] | [cyan]{sender:<10}[/] | [purple]{coordination_id[:8]}[/] | {content_display}"
 
-            # Ensure channel node exists
-            if channel_name not in self.channels:
-                channel_node = self._channel_tree.root.add(channel_name)
-                self.channels[channel_name] = channel_node
-            else:
-                channel_node = self.channels[channel_name]
+    def _update_trees(self, event: Dict[str, Any]):
+        """Update the channel and agent trees with new data based on event types."""
+        event_type = event.get("type")
+        channel_name = event.get("channel")
+        sender_id = event.get("sender")  # This is the agent_id for agent events
 
-            # Add agent to channel node if not already present
-            if sender_id not in self.agents:
-                agent_node = channel_node.add_leaf(sender_id)
-                self.agents[sender_id] = agent_node
+        if not channel_name or not sender_id:
+            return
+
+        # Ensure channel node exists
+        if channel_name not in self.channels:
+            channel_node = self._channel_tree.root.add(channel_name)
+            self.channels[channel_name] = channel_node
+        else:
+            channel_node = self.channels[channel_name]
+
+        if event_type == "agent_spawn":
+            agent_id = event.get("payload", {}).get("agent_id", sender_id)
+            if agent_id not in self.agents:
+                agent_node = channel_node.add_leaf(agent_id)
+                self.agents[agent_id] = agent_node
+                agent_node.set_attribute("status", "online")
+                agent_node.update_render()
+        elif event_type == "agent_despawn":
+            agent_id = event.get("payload", {}).get("agent_id", sender_id)
+            if agent_id in self.agents:
+                agent_node = self.agents[agent_id]
+                agent_node.set_attribute("status", "offline")
+                agent_node.update_render()
+                # Optionally remove or grey out despawned agents
 
     async def run_client(self):
         """The main loop to connect, listen, and update the UI."""

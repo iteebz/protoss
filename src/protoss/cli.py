@@ -7,6 +7,8 @@ import signal
 import sys
 import typer
 
+from typing import Optional
+from uuid import uuid4
 from protoss import Protoss
 
 from .core.config import Config
@@ -14,10 +16,7 @@ from .core.khala import Khala
 
 
 app = typer.Typer(
-    help="""Constitutional AI coordination through emergent agent swarms.
-
-Usage: protoss \"constitutional vision\"
-Pure constitutional emergence - no ceremony required."""
+    help="AI coordination through emergent agent swarms.", no_args_is_help=True
 )
 
 
@@ -37,42 +36,49 @@ def bus(
     bus_main()
 
 
-@app.command()
 def coordinate(
-    vision: str = typer.Argument(..., help="Constitutional vision to manifest"),
-    port: int = typer.Option(8888, "--port", "-p", help="Bus port"),
-    timeout: int = typer.Option(3600, "--timeout", "-t", help="Timeout in seconds"),
-    debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
-    max_agents: int = typer.Option(
-        100, "--max-agents", "-m", help="Max agents for coordination"
-    ),
+    vision: str,
+    port: int = 8888,
+    coordination_id: Optional[str] = None,  # New: Allow specifying coordination_id
 ):
-    """Constitutional coordination through pure emergence."""
+    """Core coordination interface."""
 
     async def run_coordination():
         try:
+            current_coordination_id = (
+                coordination_id if coordination_id else str(uuid4())
+            )
+            print(f"Initiating coordination: {current_coordination_id} - {vision}")
             async with Protoss(
-                vision,
-                port=port,
-                timeout=timeout,
-                debug=debug,
-                max_agents=max_agents,
+                vision, port=port, coordination_id=current_coordination_id
             ) as swarm:
                 result = await swarm
-                print("Constitutional emergence complete!")
-                print()
-                print(result)
-
-        except KeyboardInterrupt:
-            print("\nCoordination interrupted by user")
+                print(f"Coordination complete: {result}")
         except Exception as e:
             print(f"Coordination failed: {e}")
-            if debug:
-                import traceback
+            import traceback
 
-                traceback.print_exc()
+            traceback.print_exc()
 
     asyncio.run(run_coordination())
+
+
+# Remove callback - let typer handle commands normally
+
+
+@app.command()
+def coord(
+    vision: str = typer.Argument(..., help="Vision to manifest"),
+    port: int = typer.Option(8888, "--port", "-p", help="Bus port"),
+    coordination_id: Optional[str] = typer.Option(
+        None,
+        "--coordination-id",
+        "-id",
+        help="Optional ID for the coordination session.",
+    ),
+):
+    """Alternative coordination command."""
+    coordinate(vision, port, coordination_id)
 
 
 @app.command()
@@ -84,13 +90,13 @@ def status():
         khala = Khala(bus_url=config.bus_url)
         try:
             await khala.connect(client_id="status_client")
-            await khala.send(content="", msg_type="status_req")
+            await khala.send(
+                channel="system", sender="status_client", event_type="status_req"
+            )
 
             response_message = await khala.receive()
             if response_message and response_message.msg_type == "status_resp":
-                status_data = (
-                    response_message.event
-                )  # Assuming event contains the status dict
+                status_data = response_message.event
 
                 print("Protoss Status")
                 print(f"Status: {status_data.get('status', 'unknown')}")
@@ -135,22 +141,17 @@ def start(
     _ensure_protoss_dir()
 
     try:
+        log_file = open(f"{PROTOSS_DIR}/bus.log", "a")
         bus_process = subprocess.Popen(
-            ["python", "-m", "src.protoss.cli", "bus", f"--port={port}"]
+            ["python", "-m", "src.protoss.cli", "bus", f"--port={port}"],
+            stdout=log_file,
+            stderr=log_file,
         )
         with open(BUS_PID_FILE, "w") as f:
             f.write(str(bus_process.pid))
         print(f"Bus started with PID {bus_process.pid}")
 
-        print("Protoss infrastructure is running. Press Ctrl+C to stop.")
-
-        def signal_handler(sig, frame):
-            print("\nStopping Protoss infrastructure...")
-            stop()
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.pause()
+        print("Protoss infrastructure is running.")
 
     except Exception as e:
         print(f"Failed to start Protoss infrastructure: {e}")
@@ -214,33 +215,40 @@ def ask(
         khala = Khala(bus_url=config.bus_url)
 
         if not channel_id:
-            import uuid
+            from protoss.lib.channels import query_channel
 
-            current_channel_id = f"ask-{uuid.uuid4().hex[:8]}"
+            ask_channel_id = query_channel()
         else:
-            current_channel_id = channel_id
+            ask_channel_id = channel_id
 
-        print(f"Asking swarm in channel {current_channel_id}...")
+        print(f"Asking swarm in channel {ask_channel_id}...")
+
+        # Generate a coordination_id for the ask command
+        ask_coordination_id = str(uuid4())
 
         try:
             await khala.connect(client_id="human_asker")
             # Send the initial question, which implicitly joins the channel
             await khala.send(
                 content=f"{question} @arbiter",
-                channel=current_channel_id,
+                channel=ask_channel_id,
                 sender="human",
+                coordination_id=ask_coordination_id,  # Use the generated ID
+                event_type="human_ask",
             )
             print(f"Human: {question}")
 
             print("Waiting for Arbiter's response...")
-            async for message in khala.listen():
+            async for event in khala.listen():  # Listen for structured events
                 if (
-                    message
-                    and message.msg_type == "event"
-                    and message.channel == current_channel_id
+                    event
+                    and event.get("type") == "agent_message"
+                    and event.get("channel") == ask_channel_id
                 ):
-                    sender = message.sender
-                    content = message.event.get("content")
+                    sender = event.get("sender")
+                    content = event.get("message", {}).get(
+                        "content"
+                    )  # Extract content from message sub-dict
 
                     if sender and sender.startswith("arbiter-"):
                         print(f"\nARBITER: {content}")
@@ -265,19 +273,3 @@ def ask(
             await khala.disconnect()
 
     asyncio.run(run_ask())
-
-
-def main():
-    """CLI entry point."""
-    try:
-        app()
-    except Exception as e:
-        print(f"CLI Error: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise
-
-
-if __name__ == "__main__":
-    main()

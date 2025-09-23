@@ -6,13 +6,15 @@ import logging
 import websockets
 import argparse
 from typing import List, Optional, Dict
+import uuid
+
+import cogency
 
 from ..core.config import Config
 from ..core.message import Message
 from ..core.protocols import Signal, Despawn
 from ..core import parser
 from ..constitution.coordination import PROTOSS_CONSTITUTION, COORDINATION_PROTOCOL
-from .registry import AGENT_REGISTRY
 from ..core.khala import Khala
 
 logger = logging.getLogger(__name__)
@@ -23,26 +25,24 @@ class Agent:
 
     def __init__(
         self,
-        agent_id: str,
         agent_type: str,
-        channel_id: str,
-        config: Config,
-        identity_index: int = 0,
+        channel: str,
+        bus_url: str,
+        coordination_id: str,
+        config: Config = None,
     ):
-        self.id = agent_id
         self.agent_type = agent_type
-        self.channel_id = channel_id
-        self.config = config
-        self.identity_index = identity_index  # For conclave multi-identity
-        self.khala: Optional[Khala] = None
-
-        if agent_type not in AGENT_REGISTRY:
-            raise ValueError(f"Unknown agent type: {agent_type}")
-
-        if agent_type not in AGENT_REGISTRY:
-            raise ValueError(f"Unknown agent type: {agent_type}")
-
-        self.registry_data = AGENT_REGISTRY[agent_type]
+        self.channel = channel
+        self.bus_url = bus_url
+        self.coordination_id = coordination_id  # New: Store coordination ID
+        self.config = config or Config()
+        self.khala = Khala(config=self.config)
+        self._running = True
+        self.agent_id = f"{agent_type}-{uuid.uuid4().hex[:6]}"
+        self.identity = []
+        self.guidelines = []
+        self.tools = []
+        self._load_identity()
 
     async def _connect_websocket(self):
         """Establishes a connection to the Bus using the Khala."""
@@ -103,7 +103,6 @@ class Agent:
 
     async def __call__(self, context: str) -> str:
         """Constitutional Cogency execution with registry-driven configuration."""
-        from cogency.core.agent import Agent as CogencyAgent
 
         identity = self._get_identity()
         guidelines = self.registry_data["guidelines"]
@@ -118,7 +117,7 @@ class Agent:
 {guidelines}
 """
 
-        agent = CogencyAgent(instructions=instructions, tools=self.tools)
+        agent = cogency.Agent(instructions=instructions, tools=self.tools)
 
         response = ""
         async for event in agent(
@@ -136,66 +135,79 @@ class Agent:
         return response
 
     async def broadcast(
-        self, event: Optional[Dict] = None, signals: Optional[List[Signal]] = None
+        self,
+        content: str = "",
+        channel: Optional[str] = None,
+        event_type: str = "agent_message",
+        event_payload: Optional[Dict] = None,
+        signals: Optional[List[Signal]] = None,
     ):
-        """Broadcast a structured message to the Bus using the Khala."""
+        """Broadcast a structured event to the Bus using the Khala."""
         if not self.khala or not (
             self.khala._websocket
             and self.khala._websocket.state == websockets.protocol.State.OPEN
         ):
-            logger.warning(f"{self.id} khala not open, cannot broadcast message.")
+            logger.warning(f"{self.agent_id} khala not open, cannot broadcast event.")
             return
 
         try:
             await self.khala.send(
-                content=event.get("content", "") if event else "",
-                channel=self.channel_id,
-                sender=self.id,
+                channel=channel or self.channel,
+                sender=self.agent_id,
+                content=content,
+                event_type=event_type,
+                coordination_id=self.coordination_id,
+                event_payload=event_payload,
                 signals=signals,
             )
         except Exception as e:
-            logger.error(f"Error broadcasting message via Khala: {e}")
+            logger.error(f"Error broadcasting event via Khala: {e}")
 
     def _should_despawn(self, content: str) -> bool:
         """Check if agent output contains !despawn signal."""
         signals = parser.signals(content)
         return any(isinstance(signal, Despawn) for signal in signals)
 
-    async def coordinate(self):
-        """The main coordination loop for agents that require continuous interaction."""
-        logger.info(f"{self.id} starting coordinate loop.")
-        consecutive_errors = 0
-        MAX_CONSECUTIVE_ERRORS = 5
+    async def run(self):
+        """Agent main loop."""
+        logger.info(
+            f"Agent {self.agent_id} ({self.agent_type}) online in {self.channel}"
+        )
+        await self.khala.connect(bus_url=self.bus_url, agent_id=self.agent_id)
+        self.khala.register(self.channel, self.agent_id)
 
-        while True:
-            try:
-                message = await self._receive_message()
-                if message:
-                    consecutive_errors = 0
-                    response = await self(message.event.get("content", ""))
+        # Emit agent_spawn event
+        await self.send_message(
+            content=f"Agent {self.agent_id} ({self.agent_type}) spawned.",
+            event_type="agent_spawn",
+            event_payload={"agent_id": self.agent_id, "agent_type": self.agent_type},
+        )
 
-                    if response and self._should_despawn(response):
-                        logger.info(
-                            f"{self.id} detected !despawn in own response - terminating"
-                        )
-                        break
-
-            except websockets.exceptions.ConnectionClosedOK:
-                break
-            except Exception as e:
-                consecutive_errors += 1
-                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                    logger.critical(
-                        f"{self.id} experienced {consecutive_errors} consecutive errors. Despawning: {e}"
-                    )
-                    break
-                else:
-                    logger.error(
-                        f"{self.id} error in coordinate loop (consecutive: {consecutive_errors}): {e}"
-                    )
-            await asyncio.sleep(0.1)
-
-        logger.info(f"{self.id} coordinate loop ended - agent despawning")
+        try:
+            while self._running:
+                try:
+                    message = await self.khala.recv()
+                    if message:
+                        await self._process_message(message)
+                except asyncio.CancelledError:
+                    logger.info(f"Agent {self.agent_id} cancelled.")
+                    self._running = False
+                except Exception as e:
+                    logger.error(f"Agent {self.agent_id} error: {e}")
+                    # self._running = False # Consider if agent should stop on any error
+                await asyncio.sleep(0.1)  # Yield control
+        finally:
+            logger.info(f"Agent {self.agent_id} ({self.agent_type}) offline.")
+            # Emit agent_despawn event before disconnecting
+            await self.send_message(
+                content=f"Agent {self.agent_id} ({self.agent_type}) despawned.",
+                event_type="agent_despawn",
+                event_payload={
+                    "agent_id": self.agent_id,
+                    "agent_type": self.agent_type,
+                },
+            )
+            await self.khala.disconnect()
 
 
 if __name__ == "__main__":

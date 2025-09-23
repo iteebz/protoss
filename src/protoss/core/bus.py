@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-import functools
+import time
 from typing import Dict, List, Set, Optional
 from dataclasses import dataclass, field, asdict
 
@@ -12,7 +12,8 @@ from .message import Message
 from . import parser
 from .protocols import Signal, Mention
 from . import gateway
-from protoss.lib.storage import SQLite as SQLiteStorage  # Import SQLiteStorage
+from .protocols import Storage
+from protoss.lib.storage import SQLite
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +41,15 @@ class Bus:
         self.max_history = max_history
         self.port = port
         self.max_agents = max_agents
-        self.storage: Optional[SQLiteStorage] = (
-            SQLiteStorage(storage_path) if storage_path else None
-        )
+        # Initialize storage backend (defaulting to SQLite)
+        self.storage: Storage = SQLite(storage_path or "./.protoss/store.db")
         self.active_agents: Dict[str, Set[str]] = {}  # channel -> agent_ids
+        self.active_coordinations: Dict[
+            str, Dict[str, Set[str]]
+        ] = {}  # coordination_id -> {channel -> agent_ids}
+        self.coordination_status: Dict[
+            str, str
+        ] = {}  # coordination_id -> status (e.g., "active", "complete")
 
         # WebSocket server
         self.server = None
@@ -54,9 +60,7 @@ class Bus:
         if self.server:
             return
 
-        self.server = await websockets.serve(
-            functools.partial(self._handler), "localhost", self.port
-        )
+        self.server = await websockets.serve(self._handler, "localhost", self.port)
         logger.info(f"🔮 Bus online on port {self.port}")
 
     async def stop(self):
@@ -71,11 +75,27 @@ class Bus:
         self,
         channel: str,
         sender: str,
-        event: Optional[Dict] = None,
+        event_type: str = "agent_message",
+        coordination_id: Optional[str] = None,
+        event_payload: Optional[Dict] = None,
         signals: Optional[List[Signal]] = None,
     ):
-        message = Message(channel=channel, sender=sender, event=event, signals=signals)
-        await self._broadcast(message)
+        # Create the Message object
+        message = Message(
+            channel=channel, sender=sender, event=event_payload, signals=signals or []
+        )
+
+        # Create the structured event dictionary
+        structured_event = {
+            "type": event_type,
+            "channel": channel,
+            "sender": sender,
+            "timestamp": message.timestamp,
+            "coordination_id": coordination_id,
+            "message": asdict(message),  # Include the full message as a dictionary
+            "payload": event_payload,  # Include the payload directly in the event
+        }
+        await self._broadcast(structured_event)
 
     def register(self, channel_id: str, agent_id: str):
         """Register agent to channel."""
@@ -86,19 +106,9 @@ class Bus:
             self.active_agents[channel_id] = set()
         self.active_agents[channel_id].add(agent_id)
 
-    async def get_history(
-        self, channel_id: str, since_timestamp: float = 0
-    ) -> List[Message]:
-        if self.storage:
-            return await self.storage.load_messages(channel_id, since_timestamp)
-
-        if channel_id not in self.channels:
-            return []
-        return [
-            msg
-            for msg in self.channels[channel_id].history
-            if msg.timestamp > since_timestamp
-        ]
+    async def get_events(self, **kwargs) -> List[Dict]:
+        """Get events from storage."""
+        return await self.storage.load_events(**kwargs)
 
     def deregister(self, agent_id: str):
         for channel in self.channels.values():
@@ -123,105 +133,235 @@ class Bus:
     async def _message(self, agent_id: str, raw_message: str):
         """Handle incoming message from agent."""
         data = json.loads(raw_message)
-        msg_type = data.get("type", "event")
+        event_type = data.get("type", "agent_message")  # Default to agent_message
         channel = data.get("channel", "general")
+        coordination_id = data.get("coordination_id")
 
-        if msg_type == "history_req":
-            messages = await self.get_history(channel)
-            history_events = [msg.event for msg in messages if msg.event]
-            response = {
+        # Handle system requests (status, history)
+        if event_type == "status_req":
+            bus_metrics = self.status()
+            response_event = {
+                "type": "status_resp",
+                "channel": channel,
+                "sender": "system",
+                "timestamp": time.time(),
+                "payload": {"status": "online", "bus": bus_metrics},
+            }
+            await self._send(agent_id, response_event)
+            return
+
+        if event_type == "history_req":
+            events = await self.get_events(channel=channel)
+            response_event = {
                 "type": "history_resp",
                 "channel": channel,
-                "history": history_events,
+                "sender": "system",
+                "timestamp": time.time(),
+                "payload": {"history": events},
             }
-            await self._send(agent_id, json.dumps(response))
+            await self._send(agent_id, response_event)
             return
 
-        event_data = data.get("event")
-        if not event_data or not isinstance(event_data, dict):
-            return
-
-        content = event_data.get("content", "")
+        # For agent-generated events, extract content and signals
+        content = data.get("content", "")
         signals = parser.signals(content)
-        await self.transmit(channel, agent_id, event=event_data, signals=signals)
+
+        # Create event payload with content
+        payload = data.get("payload", {})
+        if content:
+            payload["content"] = content
+
+        # Transmit the structured event
+        await self.transmit(
+            channel=channel,
+            sender=agent_id,
+            event_type=event_type,
+            coordination_id=coordination_id,
+            event_payload=payload,
+            signals=signals,
+        )
 
     async def _connect(self, agent_id: str):
-        """Handle agent connection."""
+        """Handle agent connection and emit agent_connected event."""
         logger.info(f"🔮 {agent_id} connected")
+        await self.transmit(
+            channel="system",  # System channel for connection events
+            sender=agent_id,
+            event_type="agent_connected",
+            event_payload={"agent_id": agent_id},
+        )
 
     async def _disconnect(self, agent_id: str):
-        """Handle agent disconnection."""
+        """Handle agent disconnection and emit agent_disconnected event."""
         self.deregister(agent_id)
         logger.info(f"🔌 {agent_id} disconnected")
+        await self.transmit(
+            channel="system",  # System channel for disconnection events
+            sender=agent_id,
+            event_type="agent_disconnected",
+            event_payload={"agent_id": agent_id},
+        )
 
-    async def _broadcast(self, message: Message):
-        """Broadcast a message to a channel and handle its side-effects."""
-        self._ensure_channel(message.channel)
+    async def _broadcast(self, event: Dict):
+        """Broadcast a structured event to relevant subscribers and handle its side-effects."""
+        event_type = event.get("type", "unknown")
+        channel = event.get("channel", "general")
+        sender = event.get("sender", "system")
+        event.get("coordination_id")  # New field for tracking
 
-        self.channels[message.channel].history.append(message)
-        if len(self.channels[message.channel].history) > self.max_history:
-            self.channels[message.channel].history.pop(0)
+        self._ensure_channel(channel)
 
-        if self.storage:
-            await self.storage.save_message(message)
+        # Store message in history if it's a message event
+        if event_type == "agent_message" and "message" in event:
+            message = event["message"]
+            self.channels[channel].history.append(message)
+            if len(self.channels[channel].history) > self.max_history:
+                self.channels[channel].history.pop(0)
+            content = message.event.get("content", "") if message.event else "Signal"
+            logger.info(f"⚡ {channel} ({sender}): {content[:60]}")
+        else:
+            logger.info(f"⚡ {channel} ({sender}): {event_type} event")
 
-        content = message.event.get("content", "") if message.event else "Signal"
-        logger.info(f"⚡ {message.channel} ({message.sender}): {content[:60]}")
+        # Save ALL events to storage
+        logger.info(f"🔍 Saving event to storage: {event_type}")
+        try:
+            await self.storage.save_event(event)
+            logger.info("✅ Event saved successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to save event: {e}")
+            import traceback
 
-        await self._send_to_subscribers(message)
+            traceback.print_exc()
 
-        await self._handle_mentions(message)
+        # Send the raw event dictionary to all subscribers
+        await self._send_to_subscribers(event)
 
-    async def _send_to_subscribers(self, message: Message):
-        """Send message to channel subscribers."""
+        # Handle mentions only for agent_message events
+        if event_type == "agent_message" and "message" in event:
+            await self._handle_mentions(event["message"])
+
+        # Facilitate coordination lifecycle events
+        await self._coordinate_lifecycle(event)
+
+    async def _send_to_subscribers(self, event: Dict):
+        """Send event to channel subscribers."""
         if not self.server:
             return
 
-        subscribers = self.channels.get(message.channel, Channel()).subscribers
+        channel = event.get("channel", "general")
+        sender = event.get("sender", "system")
+
+        subscribers = self.channels.get(channel, Channel()).subscribers
         if not subscribers:
             return
 
-        json_payload = json.dumps(asdict(message))
+        json.dumps(event)  # Send the raw event dictionary
 
         for agent_id in subscribers:
-            if agent_id == message.sender:
+            if agent_id == sender:  # Don't send event back to sender
                 continue
 
-            await self._send(agent_id, json_payload)
+            await self._send(agent_id, event)  # Pass the event dictionary directly
 
     def is_running(self) -> bool:
         """Check if the Bus server is currently running."""
         return self.server is not None
 
-    async def _handle_mentions(self, message: Message):
+    async def _handle_mentions(self, event: Dict):
         """Handle @mentions by spawning agents if needed."""
-        if not message.event or not message.signals:
+        message = event.get("message")
+        if not message or not message.get("event") or not message.get("signals"):
             return
 
-        for signal in message.signals:
+        for signal in message["signals"]:
             if isinstance(signal, Mention):
                 agent_type = signal.agent_name
                 if gateway.should_spawn(
-                    agent_type, message.channel, self.active_agents, self.max_agents
+                    agent_type, message["channel"], self.active_agents, self.max_agents
                 ):
                     try:
                         bus_url = f"ws://localhost:{self.port}"
-                        await gateway.spawn_agent(agent_type, message.channel, bus_url)
+                        await gateway.spawn_agent(
+                            agent_type, message["channel"], bus_url
+                        )
                         logger.info(
-                            f"Spawned {agent_type} for @mention in {message.channel}"
+                            f"Spawned {agent_type} for @mention in {message["channel"]}"
+                        )
+                        # Emit agent_spawn event
+                        await self.transmit(
+                            channel=message["channel"],
+                            sender=agent_type,  # The newly spawned agent is the sender
+                            event_type="agent_spawn",
+                            coordination_id=event.get("coordination_id"),
+                            event_payload={
+                                "agent_type": agent_type,
+                                "spawned_by": message["sender"],
+                            },
                         )
                     except Exception as e:
                         logger.error(f"Failed to spawn {agent_type}: {e}")
 
-    async def _send(self, agent_id: str, message: str):
-        """Send message to specific agent."""
+    async def _coordinate_lifecycle(self, event: Dict):
+        """Facilitates the lifecycle of coordination sessions based on events."""
+        event_type = event.get("type")
+        coordination_id = event.get("coordination_id")
+        sender = event.get("sender")
+        channel = event.get("channel")
+
+        if not coordination_id:
+            return  # Only track events with a coordination_id
+
+        # Initialize coordination tracking if not present
+        if coordination_id not in self.active_coordinations:
+            self.active_coordinations[coordination_id] = {}
+            self.coordination_status[coordination_id] = "active"
+            logger.info(f"Started new coordination: {coordination_id}")
+
+        # Track agents within the coordination
+        if channel not in self.active_coordinations[coordination_id]:
+            self.active_coordinations[coordination_id][channel] = set()
+
+        if event_type == "agent_spawn":
+            self.active_coordinations[coordination_id][channel].add(sender)
+            logger.info(
+                f"Coordination {coordination_id}: Agent {sender} spawned in {channel}"
+            )
+        elif event_type == "agent_despawn":
+            if sender in self.active_coordinations[coordination_id][channel]:
+                self.active_coordinations[coordination_id][channel].remove(sender)
+                logger.info(
+                    f"Coordination {coordination_id}: Agent {sender} despawned from {channel}"
+                )
+
+        # Check for coordination completion
+        if self.coordination_status[coordination_id] == "active":
+            all_agents_despawned = True
+            for ch, agents in self.active_coordinations[coordination_id].items():
+                if agents:  # If there are still active agents in any channel
+                    all_agents_despawned = False
+                    break
+
+            if all_agents_despawned:
+                self.coordination_status[coordination_id] = "complete"
+                logger.info(f"Coordination {coordination_id} completed.")
+                # Emit a coordination_complete event
+                await self.transmit(
+                    channel=channel,  # Or a dedicated system channel
+                    sender="system",
+                    event_type="coordination_complete",
+                    coordination_id=coordination_id,
+                    event_payload={"result": "Coordination finished successfully."},
+                )
+
+    async def _send(self, agent_id: str, event: Dict):
+        """Send event to specific agent."""
         websocket = self.connections.get(agent_id)
         if websocket and (websocket.state == websockets.protocol.State.OPEN):
-            await websocket.send(message)
+            await websocket.send(json.dumps(event))
 
-    async def _handler(self, websocket: websockets.ServerProtocol, path: str):
+    async def _handler(self, websocket: websockets.ServerProtocol):
         """Handle websocket connections."""
-        agent_id = path.lstrip("/")
+        agent_id = websocket.request.path.lstrip("/")
         self.connections[agent_id] = websocket
 
         await self._connect(agent_id)
