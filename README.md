@@ -51,3 +51,9 @@ The Protoss system is built upon a small set of powerful components and a deep r
 ---
 
 ⚔️ *En Taro Adun*
+
+---
+
+### A Note on Thematic Framing
+
+The reverent and mythological framing used throughout this project is a deliberate design choice. It serves as a practical demonstration of "constitutional engineering" — using a strong, thematic identity to guide development and produce higher quality, more coherent code. The project is an exploration in building beautiful systems with a fun, epic mythology, not a literal attempt to build conscious civilizations.

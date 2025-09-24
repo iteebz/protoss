@@ -6,10 +6,9 @@ import websockets
 import logging
 import time  # Added time import
 from typing import List, Dict, Optional
-from dataclasses import asdict
 
 from .message import Message
-from .protocols import Signal, BaseSignal
+from .protocols import BaseSignal
 
 logger = logging.getLogger(__name__)
 
@@ -46,16 +45,7 @@ class Khala:
             self._websocket = None
             logger.info("Khala disconnected from Bus.")
 
-    async def send(
-        self,
-        channel: str,
-        sender: str,
-        content: str = "",
-        event_type: str = "agent_message",
-        coordination_id: Optional[str] = None,
-        event_payload: Optional[Dict] = None,
-        signals: Optional[List[Signal]] = None,
-    ):
+    async def send(self, event: Dict):
         """Send a structured event through the sacred channel."""
         if (
             not self._websocket
@@ -63,19 +53,11 @@ class Khala:
         ):
             raise ConnectionError("Not connected to the Bus.")
 
-        # Construct the structured event dictionary
-        structured_event = {
-            "type": event_type,
-            "channel": channel,
-            "sender": sender,
-            "timestamp": time.time(),  # Add timestamp here
-            "coordination_id": coordination_id,
-            "content": content,  # Raw content for parsing signals
-            "payload": event_payload,
-            "signals": [asdict(s) for s in signals] if signals else [],
-        }
+        # Enrich event with timestamp before sending
+        event["timestamp"] = time.time()
+
         try:
-            await self._websocket.send(json.dumps(structured_event))
+            await self._websocket.send(json.dumps(event))
         except Exception as e:
             logger.error(f"Error sending event via Khala: {e}")
             raise
@@ -91,13 +73,22 @@ class Khala:
             if (signal := BaseSignal.deserialize(s_dict))
         ]
 
+        payload = event_dict.get("payload", {})
+        if (
+            event_dict.get("content")
+            and isinstance(payload, dict)
+            and "content" not in payload
+        ):
+            payload = {**payload, "content": event_dict["content"]}
+
         return Message(
             sender=event_dict["sender"],
             channel=event_dict["channel"],
             timestamp=event_dict["timestamp"],
             signals=signals,
-            event=event_dict.get("payload", {}),
+            event=payload,
             msg_type=event_dict.get("type", "event"),
+            coordination_id=event_dict.get("coordination_id"),
         )
 
     async def receive(self, timeout: int = 1) -> Optional[Message]:

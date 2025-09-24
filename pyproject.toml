@@ -45,3 +45,4 @@ packages = [{ include = "protoss", from = "src" }]
 
 [tool.poetry.scripts]
 protoss = "protoss.cli:main"
+pytest = "pytest:main"

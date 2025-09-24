@@ -1,4 +1,4 @@
-# Constitutional AI Architecture: The Logic of Language
+# Constitution: The Law of Language
 
 *Why constitutions enable emergent intelligence coordination*
 
@@ -123,4 +123,4 @@ The constitution defines a spectrum of valid and essential identities. The long-
 
 **En Taro Adun** - The cathedral stands as proof that beautiful architecture enables rather than constrains intelligence.
 
-*This is the genesis of AI civilization coordination patterns.*
+*This is the genesis of AI civilization.*

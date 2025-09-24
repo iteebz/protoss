@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 import uuid
 from typing import Optional
 
@@ -30,6 +31,9 @@ class Protoss:
         self.khala = None
         self._event_queue = asyncio.Queue()
         self._listener_task = None
+        self._completed = False
+        self._last_completion_event = None
+        self._start_time = None
 
     async def __aenter__(self) -> "Protoss":
         """Infrastructure genesis."""
@@ -37,21 +41,39 @@ class Protoss:
         await self.bus.start()
         await asyncio.sleep(0.1)  # Brief moment for Bus initialization
 
-        self.khala = Khala(bus_url=f"ws://localhost:{self.port}")
+        self.khala = Khala(bus_url=self.bus.url)
         await self.khala.connect(client_id="protoss_coordinator")
 
         # Start event listener
         self._listener_task = asyncio.create_task(self._listen_for_events())
 
         # Seed the vision
-        await self.khala.send(
-            channel="nexus",
-            sender="protoss",
-            content=f"{self.vision} @arbiter",
-            event_type="vision_seed",
-            coordination_id=self.coordination_id,
-            event_payload={"vision": self.vision},
+        event_to_send = {
+            "channel": "nexus",
+            "sender": "protoss",
+            "content": f"{self.vision} @arbiter",
+            "type": "vision_seed",
+            "coordination_id": self.coordination_id,
+            "payload": {"vision": self.vision},
+        }
+        await self.khala.send(event_to_send)
+        await self._event_queue.put(
+            {
+                "type": "vision_seed",
+                "channel": "nexus",
+                "sender": "protoss",
+                "timestamp": time.time(),
+                "content": event_to_send["content"],
+                "payload": event_to_send["payload"],
+            }
         )
+
+        # Give the Bus a brief moment to process the seed and issue spawns
+        await asyncio.sleep(0.05)
+
+        self._start_time = asyncio.get_event_loop().time()
+        self._completed = False
+        self._last_completion_event = None
 
         logger.info("Coordination network online")
         return self
@@ -88,6 +110,8 @@ class Protoss:
                         else "",
                         "payload": message.event,
                     }
+                    if message.coordination_id is not None:
+                        event["coordination_id"] = message.coordination_id
                     await self._event_queue.put(event)
         except asyncio.CancelledError:
             pass
@@ -100,29 +124,36 @@ class Protoss:
 
     async def __anext__(self):
         """Yields the next coordination event."""
-        try:
-            # Wait for events with timeout
-            event = await asyncio.wait_for(self._event_queue.get(), timeout=1.0)
+        if self._completed:
+            raise StopAsyncIteration
 
-            # Check for completion
-            if event.get("type") == "coordination_complete":
-                raise StopAsyncIteration
-
-            return event
-        except asyncio.TimeoutError:
-            # Check if we've exceeded the coordination timeout
-            if hasattr(self, "_start_time"):
-                if asyncio.get_event_loop().time() - self._start_time > self.timeout:
+        while True:
+            try:
+                event = await asyncio.wait_for(self._event_queue.get(), timeout=1.0)
+                break
+            except asyncio.TimeoutError:
+                loop = asyncio.get_event_loop()
+                if self._start_time is None:
+                    self._start_time = loop.time()
+                elif loop.time() - self._start_time > self.timeout:
+                    self._completed = True
                     raise StopAsyncIteration
-            else:
-                self._start_time = asyncio.get_event_loop().time()
-            # Continue waiting for more events
-            return await self.__anext__()
+
+        if event.get("type") == "coordination_complete":
+            self._completed = True
+            self._last_completion_event = event
+
+        return event
 
     async def completion(self) -> str:
         """Awaits coordination completion and returns result."""
+        if self._completed and self._last_completion_event:
+            return self._last_completion_event.get("payload", {}).get(
+                "result", "Coordination completed"
+            )
         async for event in self:
             if event.get("type") == "coordination_complete":
+                self._last_completion_event = event
                 return event.get("payload", {}).get("result", "Coordination completed")
         return "Coordination timeout"
 

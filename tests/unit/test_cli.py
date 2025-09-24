@@ -44,6 +44,7 @@ def test_start_command_success(
     mock_bus_process = Mock()
     mock_bus_process.pid = 12345
     mock_popen.return_value = mock_bus_process
+    mock_pause.side_effect = SystemExit  # Prevent blocking the test
 
     result = runner.invoke(app, ["start"])
 
@@ -54,12 +55,14 @@ def test_start_command_success(
     mock_makedirs.assert_called_once_with(PROTOSS_DIR, exist_ok=True)
 
     # Check PID file writes
-    mock_open_file.assert_called_once_with(BUS_PID_FILE, "w")
+    mock_open_file.assert_any_call(BUS_PID_FILE, "w")
     mock_open_file().write.assert_called_once_with("12345")
 
     # Check subprocess calls
     mock_popen.assert_called_once_with(
-        ["python", "-m", "src.protoss.cli", "bus", "--port=8888"]
+        ["python", "-m", "src.protoss.cli", "bus", "--port=8888"],
+        stdout=mock_open_file(),
+        stderr=mock_open_file(),
     )
     mock_pause.assert_called_once()
 

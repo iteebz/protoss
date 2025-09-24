@@ -16,6 +16,17 @@ The architecture consists of three primary components:
 
 3.  **The Agent (`agent.py`)**: A single, generic agent implementation. There are no subclasses for different agent types. An agent's specific identity, behavior, and capabilities are determined at runtime by the data it loads from the `AGENT_REGISTRY`.
 
+### 2.4. The Cogency Core: The Agent's Stone
+
+The Protoss Agent, while generic in its implementation, is not an empty vessel. Its core cognitive capabilities, its ability to reason, to parse protocol, to execute tools, and to manage its internal state, are powered by the `Cogency` library.
+
+`Cogency` serves as the fundamental "stone" of the Protoss Agent. It provides:
+-   **The ReAct Loop**: The core reasoning and action cycle.
+-   **The Streaming Protocol**: The `§`-delimited communication for efficient LLM interaction.
+-   **Stateless Context Assembly**: The robust mechanism for rebuilding agent memory from durable storage.
+
+Thus, `Cogency` is not an external dependency; it is woven into the very fabric of the Protoss Agent's atomic unit. It is the engine of its thought, the interpreter of its will, and the foundation of its cognitive sovereignty.
+
 ## 3. Agent Identity: The Data-Driven Model
 
 The system's most crucial pattern is its rejection of class inheritance for agent identity. An agent's "soul" is not defined by its code structure but by the data it is given upon creation.

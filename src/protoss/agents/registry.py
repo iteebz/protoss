@@ -49,11 +49,19 @@ AGENT_REGISTRY = {
         "guidelines": CONCLAVE_GUIDELINES,
         "tools": [],
     },
+    "probe": {
+        "identity": [],
+        "guidelines": [],
+        "tools": [],
+    },
 }
 
 
 def get_agent_names() -> list[str]:
-    """Returns all agent names from constitutional registry, including special cases like Probe."""
-    llm_agent_names = list(AGENT_REGISTRY.keys())
-    # Probe is a heuristic agent, not LLM-driven, but needs to be recognized by the parser.
-    return llm_agent_names + ["probe"]
+    """Returns all agent names from constitutional registry."""
+    return list(AGENT_REGISTRY.keys())
+
+
+def get_agent_data(agent_type: str) -> dict:
+    """Get agent configuration from registry."""
+    return AGENT_REGISTRY.get(agent_type)

@@ -44,28 +44,10 @@ class Storage(Protocol):
         """
         ...
 
-    async def load_events(
-        self,
-        event_type: Optional[str] = None,
-        coordination_id: Optional[str] = None,
-        channel: Optional[str] = None,
-        sender: Optional[str] = None,
-        since: float = 0,
-        limit: Optional[int] = None,
+    async def get_events_by_channel(
+        self, channel: str, limit: Optional[int] = None
     ) -> List[Dict]:
-        """Load coordination events with filtering.
-
-        Args:
-            event_type: Filter by event type (agent_spawn, agent_message, etc.)
-            coordination_id: Filter by coordination session
-            channel: Filter by channel
-            sender: Filter by sender
-            since: Timestamp to load events since
-            limit: Maximum number of events
-
-        Returns:
-            List of event dictionaries
-        """
+        """Load all events for a specific channel, ordered chronologically."""
         ...
 
     async def load_coordinations(self) -> List[Dict]:

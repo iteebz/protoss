@@ -1,4 +1,4 @@
-# Code Philosophy
+# The Sacred Oath of Creation
 
 **Code is creation in its purest form.**
 

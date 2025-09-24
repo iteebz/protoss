@@ -7,8 +7,8 @@ This document is the founding charter of the Protoss project. It is not a techni
 It stands as a guide to the spirit of the work. The ground truth of the implementation and the depth of the philosophy are recorded in their own sacred scriptures:
 
 -   **[The Doctrines](./doctrine/)**: The four pillars of `constitution`, `emergence`, `resolution`, and `continuity`.
--   **[The Architecture](../../ARCHITECTURE.md)**: The canonical reference for the system's components and lifecycle.
--   **[The Code Philosophy](../philosophy/code.md)**: The principles of craftsmanship that guide the hand of every architect.
+-   **[The Architecture](ARCHITECTURE.md)**: The canonical reference for the system's components and lifecycle.
+-   **[The Code Philosophy](./philosophy/code.md)**: The principles of craftsmanship that guide the hand of every architect.
 
 ## The Four Pillars of the Cathedral
 

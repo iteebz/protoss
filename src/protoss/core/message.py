@@ -18,10 +18,22 @@ class Message:
         None  # Structured cogency events (think, respond, call, result)
     )
     msg_type: str = "event"  # Protocol message type
+    coordination_id: Optional[str] = None  # Coordination tracking ID
+
+    def to_dict(self) -> Dict:
+        """Convert message to dictionary format."""
+        return {
+            "channel": self.channel,
+            "sender": self.sender,
+            "timestamp": self.timestamp,
+            "signals": [signal.to_dict() for signal in self.signals],
+            "event": self.event,
+            "msg_type": self.msg_type,
+            "coordination_id": self.coordination_id,
+        }
 
     def serialize(self) -> str:
         """Serialize the message to a JSON string."""
         import json
-        from dataclasses import asdict
 
-        return json.dumps(asdict(self))
+        return json.dumps(self.to_dict())

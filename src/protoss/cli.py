@@ -91,7 +91,12 @@ def status():
         try:
             await khala.connect(client_id="status_client")
             await khala.send(
-                channel="system", sender="status_client", event_type="status_req"
+                {
+                    "type": "status_req",
+                    "channel": "system",
+                    "sender": "status_client",
+                    "payload": {},
+                }
             )
 
             response_message = await khala.receive()
@@ -152,6 +157,7 @@ def start(
         print(f"Bus started with PID {bus_process.pid}")
 
         print("Protoss infrastructure is running.")
+        signal.pause()  # Keep the main process alive
 
     except Exception as e:
         print(f"Failed to start Protoss infrastructure: {e}")
@@ -215,9 +221,7 @@ def ask(
         khala = Khala(bus_url=config.bus_url)
 
         if not channel_id:
-            from protoss.lib.channels import query_channel
-
-            ask_channel_id = query_channel()
+            ask_channel_id = f"query:{uuid4().hex[:8]}:active"
         else:
             ask_channel_id = channel_id
 
@@ -230,25 +234,28 @@ def ask(
             await khala.connect(client_id="human_asker")
             # Send the initial question, which implicitly joins the channel
             await khala.send(
-                content=f"{question} @arbiter",
-                channel=ask_channel_id,
-                sender="human",
-                coordination_id=ask_coordination_id,  # Use the generated ID
-                event_type="human_ask",
+                {
+                    "type": "human_ask",
+                    "channel": ask_channel_id,
+                    "sender": "human",
+                    "coordination_id": ask_coordination_id,
+                    "content": f"{question} @arbiter",
+                    "payload": {"content": question},
+                }
             )
             print(f"Human: {question}")
 
             print("Waiting for Arbiter's response...")
-            async for event in khala.listen():  # Listen for structured events
+            async for message in khala.listen():  # Listen for structured events
                 if (
-                    event
-                    and event.get("type") == "agent_message"
-                    and event.get("channel") == ask_channel_id
+                    message
+                    and message.msg_type == "agent_message"
+                    and message.channel == ask_channel_id
                 ):
-                    sender = event.get("sender")
-                    content = event.get("message", {}).get(
-                        "content"
-                    )  # Extract content from message sub-dict
+                    sender = message.sender
+                    content = ""
+                    if message.event:
+                        content = message.event.get("content", "")
 
                     if sender and sender.startswith("arbiter-"):
                         print(f"\nARBITER: {content}")
@@ -256,7 +263,7 @@ def ask(
                     elif (
                         sender == "system" and "has joined the coordination" in content
                     ):
-                        pass
+                        continue
                     elif sender != "human":
                         print(f"[{sender}]: {content}")
 

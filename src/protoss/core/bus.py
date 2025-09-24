@@ -1,16 +1,17 @@
-"""Message routing and coordination for distributed agents."""
+"""A simple, unified message bus for agent coordination."""
 
 import asyncio
 import json
 import logging
+import socket
 import time
-from typing import Dict, List, Set, Optional
-from dataclasses import dataclass, field, asdict
+from typing import Any, Dict, Set, Optional, List
+from dataclasses import dataclass, field
 
 import websockets
 from .message import Message
 from . import parser
-from .protocols import Signal, Mention
+from .protocols import Mention, BaseSignal
 from . import gateway
 from .protocols import Storage
 from protoss.lib.storage import SQLite
@@ -20,375 +21,448 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Channel:
-    """Represents a single coordination channel."""
+    """Channel state with history and subscribers."""
 
-    subscribers: Set[str] = field(default_factory=set)
     history: List[Message] = field(default_factory=list)
+    subscribers: Set[str] = field(default_factory=set)
+
+
+@dataclass
+class Coordination:
+    """Lifecycled coordination state tracked by the Bus."""
+
+    channels: Dict[str, Set[str]] = field(default_factory=dict)
+    status: str = "active"
+    had_agents: bool = False
+
+    def add_agent(self, channel: str, agent_id: str) -> None:
+        channel_agents = self.channels.setdefault(channel, set())
+        channel_agents.add(agent_id)
+        self.had_agents = True
+
+    def remove_agent(self, channel: str, agent_id: str) -> None:
+        if channel in self.channels:
+            self.channels[channel].discard(agent_id)
+
+    def is_empty(self) -> bool:
+        return all(not agents for agents in self.channels.values())
+
+
+@dataclass
+class Event:
+    """Canonical coordination event flowing through the Bus."""
+
+    type: str
+    channel: str
+    sender: str
+    timestamp: float
+    payload: Dict[str, Any]
+    message: Message
+    coordination_id: Optional[str] = None
+    content: str = ""
+    signals: List[BaseSignal] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert event to the canonical wire format."""
+        event_dict = {
+            "type": self.type,
+            "channel": self.channel,
+            "sender": self.sender,
+            "timestamp": self.timestamp,
+            "coordination_id": self.coordination_id,
+            "content": self.content,
+            "payload": self.payload,
+            "signals": [signal.to_dict() for signal in self.signals],
+            "message": self.message.to_dict(),
+        }
+
+        if self.coordination_id is None:
+            event_dict.pop("coordination_id")
+        return event_dict
+
+
+# ==============================================================================
+# The Purified Bus Facade
+# ==============================================================================
 
 
 class Bus:
-    """Message routing and coordination for distributed agents."""
+    """A single facade for message routing and coordination.
+    Responsibilities are owned explicitly inside the facade."""
 
     def __init__(
         self,
         port: int = 8888,
-        max_history: int = 50,
-        max_agents: int = 10,
+        max_agents: int = 100,
         storage_path: Optional[str] = None,
     ):
-        """Initialize Bus coordination system."""
-        self.channels: Dict[str, Channel] = {}
-        self.max_history = max_history
         self.port = port
         self.max_agents = max_agents
-        # Initialize storage backend (defaulting to SQLite)
+        self.server: Optional[websockets.WebSocketServer] = None
         self.storage: Storage = SQLite(storage_path or "./.protoss/store.db")
-        self.active_agents: Dict[str, Set[str]] = {}  # channel -> agent_ids
-        self.active_coordinations: Dict[
-            str, Dict[str, Set[str]]
-        ] = {}  # coordination_id -> {channel -> agent_ids}
-        self.coordination_status: Dict[
-            str, str
-        ] = {}  # coordination_id -> status (e.g., "active", "complete")
 
-        # WebSocket server
-        self.server = None
+        # State owned by the Bus coordinator
         self.connections: Dict[str, websockets.ServerProtocol] = {}
+        self.channels: Dict[str, Channel] = {}  # Channel state with history
+        self.active_agents: Dict[str, Set[str]] = {}  # channel -> agent_ids
+        self.coordinations: Dict[str, Coordination] = {}
+
+    @property
+    def url(self) -> str:
+        """Public WebSocket URL for connecting clients."""
+        return f"ws://127.0.0.1:{self.port}"
 
     async def start(self):
-        """Start Bus server."""
+        """Starts the WebSocket server."""
         if self.server:
             return
-
-        self.server = await websockets.serve(self._handler, "localhost", self.port)
+        self.server = await websockets.serve(
+            self._handler,
+            "127.0.0.1",
+            self.port,
+            family=socket.AF_INET,
+        )
+        # Capture the actual port the OS bound when port=0 was requested.
+        if self.server.sockets:
+            self.port = self.server.sockets[0].getsockname()[1]
         logger.info(f"🔮 Bus online on port {self.port}")
 
     async def stop(self):
-        """Stop Bus server."""
+        """Stops the WebSocket server."""
         if self.server:
             self.server.close()
             await self.server.wait_closed()
             self.server = None
             logger.info("Bus offline")
 
-    async def transmit(
-        self,
-        channel: str,
-        sender: str,
-        event_type: str = "agent_message",
-        coordination_id: Optional[str] = None,
-        event_payload: Optional[Dict] = None,
-        signals: Optional[List[Signal]] = None,
-    ):
-        # Create the Message object
-        message = Message(
-            channel=channel, sender=sender, event=event_payload, signals=signals or []
-        )
+    async def transmit(self, channel: str, sender: str, event_type: str, **kwargs):
+        """Creates, records, and broadcasts a canonical event."""
+        coordination_id = kwargs.pop("coordination_id", None)
+        payload = kwargs.pop("event_payload", None)
+        if payload is None:
+            payload = kwargs.pop("payload", None)
+        payload = dict(payload or {})
 
-        # Create the structured event dictionary
-        structured_event = {
-            "type": event_type,
-            "channel": channel,
-            "sender": sender,
-            "timestamp": message.timestamp,
-            "coordination_id": coordination_id,
-            "message": asdict(message),  # Include the full message as a dictionary
-            "payload": event_payload,  # Include the payload directly in the event
-        }
-        await self._broadcast(structured_event)
+        content = kwargs.pop("content", None)
+        if content is None:
+            content = payload.get("content", "")
+        elif content and "content" not in payload:
+            payload = {**payload, "content": content}
 
-    def register(self, channel_id: str, agent_id: str):
-        """Register agent to channel."""
-        self._ensure_channel(channel_id)
-        self.channels[channel_id].subscribers.add(agent_id)
-
-        if channel_id not in self.active_agents:
-            self.active_agents[channel_id] = set()
-        self.active_agents[channel_id].add(agent_id)
-
-    async def get_events(self, **kwargs) -> List[Dict]:
-        """Get events from storage."""
-        return await self.storage.load_events(**kwargs)
-
-    def deregister(self, agent_id: str):
-        for channel in self.channels.values():
-            channel.subscribers.discard(agent_id)
-
-        # Remove from active agents tracking
-        for channel_agents in self.active_agents.values():
-            channel_agents.discard(agent_id)
-
-    def status(self) -> dict:
-        return {
-            "channels": len(self.channels),
-            "agents": sum(len(c.subscribers) for c in self.channels.values()),
-            "messages": sum(len(c.history) for c in self.channels.values()),
-        }
-
-    def _ensure_channel(self, channel_id: str):
-        """Ensure channel exists."""
-        if channel_id not in self.channels:
-            self.channels[channel_id] = Channel()
-
-    async def _message(self, agent_id: str, raw_message: str):
-        """Handle incoming message from agent."""
-        data = json.loads(raw_message)
-        event_type = data.get("type", "agent_message")  # Default to agent_message
-        channel = data.get("channel", "general")
-        coordination_id = data.get("coordination_id")
-
-        # Handle system requests (status, history)
-        if event_type == "status_req":
-            bus_metrics = self.status()
-            response_event = {
-                "type": "status_resp",
-                "channel": channel,
-                "sender": "system",
-                "timestamp": time.time(),
-                "payload": {"status": "online", "bus": bus_metrics},
-            }
-            await self._send(agent_id, response_event)
-            return
-
-        if event_type == "history_req":
-            events = await self.get_events(channel=channel)
-            response_event = {
-                "type": "history_resp",
-                "channel": channel,
-                "sender": "system",
-                "timestamp": time.time(),
-                "payload": {"history": events},
-            }
-            await self._send(agent_id, response_event)
-            return
-
-        # For agent-generated events, extract content and signals
-        content = data.get("content", "")
-        signals = parser.signals(content)
-
-        # Create event payload with content
-        payload = data.get("payload", {})
-        if content:
-            payload["content"] = content
-
-        # Transmit the structured event
-        await self.transmit(
+        signals = parser.signals(content) if content else []
+        message_obj = Message(
             channel=channel,
-            sender=agent_id,
-            event_type=event_type,
+            sender=sender,
+            event=payload,
+            msg_type=event_type,
             coordination_id=coordination_id,
-            event_payload=payload,
+        )
+        message_obj.signals = signals
+
+        event = Event(
+            type=event_type,
+            channel=channel,
+            sender=sender,
+            timestamp=message_obj.timestamp,
+            payload=payload,
+            message=message_obj,
+            coordination_id=coordination_id,
+            content=content,
             signals=signals,
         )
 
-    async def _connect(self, agent_id: str):
-        """Handle agent connection and emit agent_connected event."""
-        logger.info(f"🔮 {agent_id} connected")
-        await self.transmit(
-            channel="system",  # System channel for connection events
-            sender=agent_id,
-            event_type="agent_connected",
-            event_payload={"agent_id": agent_id},
-        )
+        channel_state = self.channels.setdefault(channel, Channel())
+        channel_state.history.append(message_obj)
 
-    async def _disconnect(self, agent_id: str):
-        """Handle agent disconnection and emit agent_disconnected event."""
-        self.deregister(agent_id)
-        logger.info(f"🔌 {agent_id} disconnected")
-        await self.transmit(
-            channel="system",  # System channel for disconnection events
-            sender=agent_id,
-            event_type="agent_disconnected",
-            event_payload={"agent_id": agent_id},
-        )
+        await self._persist_event(event)
+        await self._update_lifecycle(event)
 
-    async def _broadcast(self, event: Dict):
-        """Broadcast a structured event to relevant subscribers and handle its side-effects."""
-        event_type = event.get("type", "unknown")
-        channel = event.get("channel", "general")
-        sender = event.get("sender", "system")
-        event.get("coordination_id")  # New field for tracking
+        if event.type in {"agent_message", "vision_seed"}:
+            await self._dispatch_mentions(event)
+        if event.type == "agent_message":
+            await self._handle_probe_command(event)
 
-        self._ensure_channel(channel)
+        await self._broadcast_event(event)
 
-        # Store message in history if it's a message event
-        if event_type == "agent_message" and "message" in event:
-            message = event["message"]
-            self.channels[channel].history.append(message)
-            if len(self.channels[channel].history) > self.max_history:
-                self.channels[channel].history.pop(0)
-            content = message.event.get("content", "") if message.event else "Signal"
-            logger.info(f"⚡ {channel} ({sender}): {content[:60]}")
-        else:
-            logger.info(f"⚡ {channel} ({sender}): {event_type} event")
-
-        # Save ALL events to storage
-        logger.info(f"🔍 Saving event to storage: {event_type}")
+    async def _persist_event(self, event: Event) -> None:
+        """Persist the event, logging any failure."""
         try:
-            await self.storage.save_event(event)
-            logger.info("✅ Event saved successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to save event: {e}")
-            import traceback
+            await self.storage.save_event(event.to_dict())
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error("❌ Failed to save event: %s", exc, exc_info=True)
 
-            traceback.print_exc()
-
-        # Send the raw event dictionary to all subscribers
-        await self._send_to_subscribers(event)
-
-        # Handle mentions only for agent_message events
-        if event_type == "agent_message" and "message" in event:
-            await self._handle_mentions(event["message"])
-
-        # Facilitate coordination lifecycle events
-        await self._coordinate_lifecycle(event)
-
-    async def _send_to_subscribers(self, event: Dict):
-        """Send event to channel subscribers."""
-        if not self.server:
-            return
-
-        channel = event.get("channel", "general")
-        sender = event.get("sender", "system")
-
-        subscribers = self.channels.get(channel, Channel()).subscribers
-        if not subscribers:
-            return
-
-        json.dumps(event)  # Send the raw event dictionary
-
-        for agent_id in subscribers:
-            if agent_id == sender:  # Don't send event back to sender
+    async def _dispatch_mentions(self, event: Event) -> None:
+        """Spawn agents based on @mentions in the event content."""
+        for signal in event.signals:
+            if not isinstance(signal, Mention) or signal.agent_name == "probe":
                 continue
 
-            await self._send(agent_id, event)  # Pass the event dictionary directly
+            agent_type = signal.agent_name
+            channel = event.channel
+            if not gateway.should_spawn(
+                agent_type, channel, self.active_agents, self.max_agents
+            ):
+                continue
 
-    def is_running(self) -> bool:
-        """Check if the Bus server is currently running."""
-        return self.server is not None
+            try:
+                bus_url = self.url
+                spawn_coro = gateway.spawn_agent(agent_type, channel, bus_url)
 
-    async def _handle_mentions(self, event: Dict):
-        """Handle @mentions by spawning agents if needed."""
-        message = event.get("message")
-        if not message or not message.get("event") or not message.get("signals"):
-            return
-
-        for signal in message["signals"]:
-            if isinstance(signal, Mention):
-                agent_type = signal.agent_name
-                if gateway.should_spawn(
-                    agent_type, message["channel"], self.active_agents, self.max_agents
-                ):
+                async def _complete_spawn():
                     try:
-                        bus_url = f"ws://localhost:{self.port}"
-                        await gateway.spawn_agent(
-                            agent_type, message["channel"], bus_url
-                        )
+                        await spawn_coro
                         logger.info(
-                            f"Spawned {agent_type} for @mention in {message["channel"]}"
+                            "Spawning %s for @mention in %s", agent_type, channel
                         )
-                        # Emit agent_spawn event
                         await self.transmit(
-                            channel=message["channel"],
-                            sender=agent_type,  # The newly spawned agent is the sender
+                            channel=channel,
+                            sender="system",
                             event_type="agent_spawn",
-                            coordination_id=event.get("coordination_id"),
+                            coordination_id=event.coordination_id,
                             event_payload={
                                 "agent_type": agent_type,
-                                "spawned_by": message["sender"],
+                                "spawned_by": event.sender,
                             },
                         )
-                    except Exception as e:
-                        logger.error(f"Failed to spawn {agent_type}: {e}")
+                    except Exception as spawn_error:  # pragma: no cover
+                        logger.error(
+                            "Failed to spawn %s: %s", agent_type, spawn_error,
+                            exc_info=True,
+                        )
 
-    async def _coordinate_lifecycle(self, event: Dict):
-        """Facilitates the lifecycle of coordination sessions based on events."""
-        event_type = event.get("type")
-        coordination_id = event.get("coordination_id")
-        sender = event.get("sender")
-        channel = event.get("channel")
+                asyncio.create_task(_complete_spawn())
+            except Exception as exc:  # pragma: no cover
+                logger.error("Failed to spawn %s: %s", agent_type, exc, exc_info=True)
 
-        if not coordination_id:
-            return  # Only track events with a coordination_id
+    async def _handle_probe_command(self, event: Event) -> None:
+        """Execute probe commands emitted via @probe mention."""
+        if event.type != "agent_message":
+            return
 
-        # Initialize coordination tracking if not present
-        if coordination_id not in self.active_coordinations:
-            self.active_coordinations[coordination_id] = {}
-            self.coordination_status[coordination_id] = "active"
-            logger.info(f"Started new coordination: {coordination_id}")
+        for signal in event.signals:
+            if isinstance(signal, Mention) and signal.agent_name == "probe":
+                command_str = event.payload.get("content", event.content)
+                if not command_str:
+                    return
+                try:
+                    command = json.loads(command_str)
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.error("Error handling probe command: %s", exc)
+                    return
 
-        # Track agents within the coordination
-        if channel not in self.active_coordinations[coordination_id]:
-            self.active_coordinations[coordination_id][channel] = set()
+                action = command.get("action")
+                if action == "create_channel":
+                    await self._probe_create_channel(command, event.coordination_id)
+                else:
+                    logger.error("Unknown probe action: %s", action)
+                return
 
-        if event_type == "agent_spawn":
-            self.active_coordinations[coordination_id][channel].add(sender)
-            logger.info(
-                f"Coordination {coordination_id}: Agent {sender} spawned in {channel}"
+    async def _probe_create_channel(
+        self, command: Dict[str, Any], coordination_id: Optional[str]
+    ) -> None:
+        import re
+        from uuid import uuid4
+
+        description = command.get("description")
+        instruction = command.get("instruction")
+        if not description:
+            raise ValueError("Probe 'create_channel' missing 'description'.")
+
+        channel_slug = re.sub(r"[\s_]+", "-", description.lower()).strip("-")
+        new_channel_id = f"task:{channel_slug}-{uuid4().hex[:8]}:active"
+
+        logger.info("Probe creating new channel: %s", new_channel_id)
+        if instruction:
+            await self.transmit(
+                channel=new_channel_id,
+                sender="system",
+                event_type="agent_message",
+                coordination_id=coordination_id,
+                event_payload={"content": instruction},
             )
-        elif event_type == "agent_despawn":
-            if sender in self.active_coordinations[coordination_id][channel]:
-                self.active_coordinations[coordination_id][channel].remove(sender)
-                logger.info(
-                    f"Coordination {coordination_id}: Agent {sender} despawned from {channel}"
-                )
 
-        # Check for coordination completion
-        if self.coordination_status[coordination_id] == "active":
-            all_agents_despawned = True
-            for ch, agents in self.active_coordinations[coordination_id].items():
-                if agents:  # If there are still active agents in any channel
-                    all_agents_despawned = False
-                    break
+    def _coordination_agent_label(self, event: Event) -> Optional[str]:
+        return (
+            event.payload.get("agent_type")
+            or event.payload.get("agent_id")
+            or event.sender
+        )
 
-            if all_agents_despawned:
-                self.coordination_status[coordination_id] = "complete"
-                logger.info(f"Coordination {coordination_id} completed.")
-                # Emit a coordination_complete event
-                await self.transmit(
-                    channel=channel,  # Or a dedicated system channel
-                    sender="system",
-                    event_type="coordination_complete",
-                    coordination_id=coordination_id,
-                    event_payload={"result": "Coordination finished successfully."},
-                )
+    async def _update_lifecycle(self, event: Event) -> None:
+        """Track coordination lifecycle and emit completion when appropriate."""
+        coordination_id = event.coordination_id
+        if not coordination_id:
+            return
 
-    async def _send(self, agent_id: str, event: Dict):
-        """Send event to specific agent."""
-        websocket = self.connections.get(agent_id)
-        if websocket and (websocket.state == websockets.protocol.State.OPEN):
-            await websocket.send(json.dumps(event))
+        coordination = self.coordinations.setdefault(coordination_id, Coordination())
+        coordination.channels.setdefault(event.channel, set())
+
+        if event.type == "coordination_complete":
+            coordination.status = "complete"
+            return
+
+        if coordination.status == "complete":
+            return
+
+        agent_label = self._coordination_agent_label(event)
+
+        if event.type == "agent_spawn":
+            if agent_label:
+                coordination.add_agent(event.channel, agent_label)
+            return
+
+        if event.type == "agent_despawn" and agent_label:
+            coordination.remove_agent(event.channel, agent_label)
+
+        if coordination.had_agents and coordination.is_empty():
+            await self._emit_coordination_complete(coordination_id, event.channel)
+
+    async def _emit_coordination_complete(
+        self, coordination_id: str, channel: str
+    ) -> None:
+        coordination = self.coordinations.setdefault(coordination_id, Coordination())
+        if coordination.status == "complete":
+            return
+
+        coordination.status = "complete"
+        logger.info("Coordination %s completed.", coordination_id)
+        await self.transmit(
+            channel=channel,
+            sender="system",
+            event_type="coordination_complete",
+            coordination_id=coordination_id,
+            event_payload={"result": "Coordination finished successfully."},
+        )
+
+    async def _send_history(
+        self,
+        websocket: websockets.ServerProtocol,
+        channel: str,
+        since: Optional[float] = None,
+    ):
+        """Respond to history requests with persisted events."""
+        history = await self.get_events(channel=channel, since=since)
+        response = {
+            "type": "history_resp",
+            "channel": channel,
+            "sender": "system",
+            "timestamp": time.time(),
+            "payload": {"history": history},
+        }
+        await websocket.send(json.dumps(response))
+
+    async def get_events(
+        self, channel: str, since: Optional[float] = None
+    ) -> List[Dict]:
+        """Retrieves events from storage for a given channel."""
+        return await self.storage.load_events(channel=channel, since=since)
 
     async def _handler(self, websocket: websockets.ServerProtocol):
-        """Handle websocket connections."""
+        """Handles a new agent's WebSocket connection and routes its messages."""
         agent_id = websocket.request.path.lstrip("/")
         self.connections[agent_id] = websocket
-
-        await self._connect(agent_id)
-
+        logger.info(f"⚡ {agent_id} connected")
         try:
-            async for message in websocket:
-                await self._message(agent_id, message)
+            async for raw_message in websocket:
+                data = json.loads(raw_message)
+                channel = data.get("channel")
+                if not channel:
+                    continue
+
+                event_type = data.get("type", "agent_message")
+                if event_type == "history_req":
+                    await self._send_history(websocket, channel, data.get("since"))
+                    continue
+
+                self.register(channel, agent_id)
+
+                payload = data.get("payload") or {"content": data.get("content", "")}
+                await self.transmit(
+                    channel=channel,
+                    sender=agent_id,
+                    event_type=event_type,
+                    coordination_id=data.get("coordination_id"),
+                    content=data.get("content"),
+                    payload=payload,
+                )
+
         except websockets.ConnectionClosed:
             pass
         finally:
             self.connections.pop(agent_id, None)
-            await self._disconnect(agent_id)
+            for agents in self.active_agents.values():
+                agents.discard(agent_id)
+            logger.info(f"🔌 {agent_id} disconnected")
+
+    async def _broadcast_event(self, event: Event):
+        """Broadcast the canonical event to channel subscribers."""
+        wire_event = event.to_dict()
+        channel = wire_event.get("channel", "")
+        sender = wire_event.get("sender", "")
+        subscribers = self.active_agents.get(channel, set())
+
+        payload = json.dumps(wire_event)
+        await asyncio.gather(
+            *(
+                self.connections[subscriber].send(payload)
+                for subscriber in subscribers
+                if subscriber != sender and subscriber in self.connections
+            ),
+            return_exceptions=True,  # Don't fail if one connection is broken
+        )
+
+    def register(self, channel: str, agent_id: str):
+        """Register agent to channel."""
+        if channel not in self.channels:
+            self.channels[channel] = Channel()
+        if channel not in self.active_agents:
+            self.active_agents[channel] = set()
+
+        self.channels[channel].subscribers.add(agent_id)
+        self.active_agents[channel].add(agent_id)
+
+    def deregister(self, agent_id: str):
+        """Deregister agent from all channels."""
+        for channel_agents in self.active_agents.values():
+            channel_agents.discard(agent_id)
+        for channel in self.channels.values():
+            channel.subscribers.discard(agent_id)
+
+    async def _broadcast(self, message: Message):
+        """Legacy broadcast method for tests."""
+        payload = message.event or {}
+        content = payload.get("content", "")
+        event = Event(
+            type="agent_message",
+            channel=message.channel,
+            sender=message.sender,
+            timestamp=message.timestamp,
+            payload=payload,
+            message=message,
+            coordination_id=message.coordination_id,
+            content=content,
+            signals=message.signals,
+        )
+
+        # Ensure channel exists and store message
+        if message.channel not in self.channels:
+            self.channels[message.channel] = Channel()
+        self.channels[message.channel].history.append(message)
+
+        await self._broadcast_event(event)
 
 
 def main():
-    """Entry point for running the unified Bus as a standalone process."""
+    """Entry point for running the Bus as a standalone process."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run the unified Protoss Bus.")
-    parser.add_argument("--port", type=int, default=8888, help="Port to run the Bus on")
+    parser = argparse.ArgumentParser(description="Run the Protoss Bus.")
+    parser.add_argument("--port", type=int, default=8888, help="Port to run on")
     parser.add_argument(
         "--max-agents", type=int, default=100, help="Max agents per channel"
     )
     parser.add_argument(
-        "--storage-path",
-        type=str,
-        help="Path to SQLite database file for message history.",
+        "--storage-path", type=str, help="Path to SQLite database file."
     )
     args = parser.parse_args()
 
@@ -400,13 +474,12 @@ def main():
     bus = Bus(
         port=args.port, max_agents=args.max_agents, storage_path=args.storage_path
     )
-
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(bus.start())
         loop.run_forever()
     except KeyboardInterrupt:
-        logger.info("Constitutional coordination shutting down.")
+        logger.info("Bus shutting down.")
         loop.run_until_complete(bus.stop())
 
 
