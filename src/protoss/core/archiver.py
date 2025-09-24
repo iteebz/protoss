@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional, List, Dict # Added List, Dict
+from typing import Optional, List, Dict  # Added List, Dict
 
 from .nexus import Nexus
 from .message import Event
@@ -41,7 +41,9 @@ class Archiver:
     async def _listen_for_events(self):
         """Listens for all events from the Nexus and persists them."""
         try:
-            async for event in self.nexus.subscribe(event_type=None): # Subscribe to all events
+            async for event in self.nexus.subscribe(
+                event_type=None
+            ):  # Subscribe to all events
                 await self._persist_event(event)
         except asyncio.CancelledError:
             pass

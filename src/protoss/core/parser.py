@@ -3,7 +3,7 @@
 import re
 from typing import List
 from .protocols import Signal, Mention, Despawn, Emergency
-from protoss.agents.registry import get_agent_names
+from protoss.units.registry import get_unit_names
 
 
 def signals(content: str) -> List:
@@ -14,10 +14,10 @@ def signals(content: str) -> List:
     signals_found: List[Signal] = []
 
     # Dynamically get known agent names
-    KNOWN_AGENTS = get_agent_names()
+    KNOWN_UNITS = get_unit_names()
 
     # @mentions for known agents
-    for agent_name in KNOWN_AGENTS:
+    for agent_name in KNOWN_UNITS:
         # Regex to match @agent_name as a standalone word, case-insensitive
         # Ensures @ is preceded by non-alphanumeric/underscore or start of string
         # Ensures agent_name is followed by non-alphanumeric/underscore or end of string

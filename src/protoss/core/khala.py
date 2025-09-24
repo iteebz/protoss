@@ -21,7 +21,7 @@ class Khala:
         self._websocket: Optional[websockets.WebSocketClientProtocol] = None
         self.id: str = "client"
 
-    async def connect(self, client_id: Optional[str] = None):
+    async def connect(self, unit_id: Optional[str] = None):
         """Establish sacred connection to the Bus."""
         if not self.bus_url:
             raise ValueError("Bus URL required for khala connection.")
@@ -30,7 +30,7 @@ class Khala:
             return
 
         try:
-            uri = f"{self.bus_url}/{client_id if client_id else self.id}"
+            uri = f"{self.bus_url}/{unit_id if unit_id else self.id}"
             self._websocket = await websockets.connect(uri)
             logger.info(f"Khala connected to Bus at {uri}")
         except Exception as e:

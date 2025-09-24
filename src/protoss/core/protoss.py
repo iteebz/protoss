@@ -1,18 +1,17 @@
 """Protoss - Constitutional AI coordination through emergent agent swarms."""
 
-import asyncio
 import logging
-import time
 import uuid
 from typing import Optional
 
-from .external_bus import ExternalBus # Renamed Bus to ExternalBus
+from .bus import Bus
 from .khala import Khala
 from .nexus import Nexus
 from .coordinator import Coordinator
 from .archiver import Archiver
 from .observer import Observer
-from .message import Event # Import Event dataclass
+from .message import Event  # Import Event dataclass
+from . import gateway
 
 logger = logging.getLogger(__name__)
 
@@ -34,24 +33,29 @@ class Protoss:
 
         # New Architecture Components
         self.nexus = Nexus()
-        self.external_bus = ExternalBus(nexus=self.nexus, port=self.port)
+        self.bus = Bus(nexus=self.nexus, port=self.port)
         self.coordinator = Coordinator(nexus=self.nexus)
         self.archiver = Archiver(nexus=self.nexus)
-        self.observer = Observer(nexus=self.nexus, coordinator=self.coordinator, bus_url=self.external_bus.url) # Pass coordinator
+        self.observer = Observer(
+            nexus=self.nexus,
+            coordinator=self.coordinator,
+            bus_url=self.bus.url,
+            spawn_unit_func=gateway.spawn_unit,
+        )
 
         # Old components (will be removed or refactored)
-        self.khala = None # Khala will connect to ExternalBus
+        self.khala = None  # Khala will connect to Bus
         self._last_completion_event: Optional[Event] = None
 
     async def __aenter__(self) -> "Protoss":
         """Infrastructure genesis."""
-        await self.external_bus.start()
+        await self.bus.start()
         await self.coordinator.start()
         await self.archiver.start()
         await self.observer.start()
 
-        self.khala = Khala(bus_url=self.external_bus.url)
-        await self.khala.connect(client_id="protoss_coordinator")
+        self.khala = Khala(bus_url=self.bus.url)
+        await self.khala.connect(unit_id="protoss_coordinator")
 
         # Seed the vision via Nexus
         vision_event = Event(
@@ -71,11 +75,11 @@ class Protoss:
         """Infrastructure dissolution."""
         if self.khala:
             await self.khala.disconnect()
-        
+
         await self.observer.stop()
         await self.archiver.stop()
         await self.coordinator.stop()
-        await self.external_bus.stop()
+        await self.bus.stop()
 
         logger.info("Coordination complete")
 
@@ -84,7 +88,9 @@ class Protoss:
 
     async def completion(self) -> str:
         """Awaits coordination completion and returns result."""
-        async for event in self.nexus.subscribe(event_type="coordination_complete", channel="nexus"):
+        async for event in self.nexus.subscribe(
+            event_type="coordination_complete", channel="nexus"
+        ):
             if event.coordination_id == self.coordination_id:
                 self._last_completion_event = event
                 return event.payload.get("result", "Coordination completed")

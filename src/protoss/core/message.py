@@ -3,20 +3,21 @@
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
-from ..core.protocols import BaseSignal # Corrected import
+from ..core.protocols import BaseSignal  # Corrected import
 
 
 @dataclass
 class Event:
     """Canonical internal event structure for the Nexus."""
+
     type: str
     channel: str
     sender: str
     timestamp: float = field(default_factory=time.time)
     payload: Dict[str, Any] = field(default_factory=dict)
     coordination_id: Optional[str] = None
-    content: Optional[str] = None # Raw content, if applicable
-    signals: List[BaseSignal] = field(default_factory=list) # Added signals field
+    content: Optional[str] = None  # Raw content, if applicable
+    signals: List[BaseSignal] = field(default_factory=list)  # Added signals field
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary format for serialization."""
@@ -44,7 +45,7 @@ class Message:
     channel: str  # Target channel or agent_id for direct messages
     sender: str  # Agent ID that created this message
     timestamp: float = field(default_factory=time.time)  # Unix timestamp
-    signals: List[Signal] = field(default_factory=list)  # Parsed @ and ! commands
+    signals: List[BaseSignal] = field(default_factory=list)  # Parsed @ and ! commands
     event: Optional[Dict] = (
         None  # Structured cogency events (think, respond, call, result)
     )

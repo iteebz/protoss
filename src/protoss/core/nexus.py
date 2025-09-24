@@ -1,11 +1,12 @@
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Tuple
+from typing import AsyncIterator, Dict, List, Optional, Tuple
 
 from .message import Event  # Assuming Event dataclass will be defined here or imported
 
 logger = logging.getLogger(__name__)
+
 
 class Nexus:
     """
@@ -15,7 +16,9 @@ class Nexus:
 
     def __init__(self):
         # Mapping event_type -> list of (queue, filter_channel)
-        self._subscribers: Dict[Optional[str], List[Tuple[asyncio.Queue, Optional[str]]]] = defaultdict(list)
+        self._subscribers: Dict[
+            Optional[str], List[Tuple[asyncio.Queue, Optional[str]]]
+        ] = defaultdict(list)
         # A general queue for subscribers interested in all events
         self._general_subscribers: List[asyncio.Queue] = []
         self._lock = asyncio.Lock()
@@ -40,7 +43,9 @@ class Nexus:
 
         logger.debug(f"Published event: {event.type} to channel {event.channel}")
 
-    async def subscribe(self, event_type: Optional[str] = None, channel: Optional[str] = None) -> AsyncIterator[Event]:
+    async def subscribe(
+        self, event_type: Optional[str] = None, channel: Optional[str] = None
+    ) -> AsyncIterator[Event]:
         """
         Subscribes to events.
         If event_type is None, subscribes to all events.
@@ -52,14 +57,16 @@ class Nexus:
                 self._general_subscribers.append(queue)
             else:
                 self._subscribers[event_type].append((queue, channel))
-        
+
         logger.debug(f"New subscriber for event_type={event_type}, channel={channel}")
 
         try:
             while True:
                 yield await queue.get()
         except asyncio.CancelledError:
-            logger.debug(f"Subscriber cancelled for event_type={event_type}, channel={channel}")
+            logger.debug(
+                f"Subscriber cancelled for event_type={event_type}, channel={channel}"
+            )
         finally:
             async with self._lock:
                 if event_type is None:

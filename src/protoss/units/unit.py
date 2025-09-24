@@ -1,7 +1,6 @@
-import asyncio
 import logging
 import websockets
-from typing import List, Optional, Dict
+from typing import Optional, Dict
 import uuid
 
 from ..core.config import Config
@@ -9,7 +8,7 @@ from ..core.message import Message, Event
 from ..core.protocols import Despawn
 from ..core import parser
 from ..core.khala import Khala
-from .registry import get_agent_data
+from .registry import get_unit_data
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +26,14 @@ class Unit:
     ):
         self.unit_type = unit_type
         self.channel = channel
-        self.bus_url = bus_url
         self.coordination_id = coordination_id
-        self.config = config or Config()
-        self.khala = Khala(config=self.config)
+        runtime_bus_url = bus_url or (config.bus_url if config else None)
+        if config is None:
+            self.config = Config(bus_url=runtime_bus_url or Config().bus_url)
+        else:
+            self.config = config
+        self.bus_url = runtime_bus_url or self.config.bus_url
+        self.khala: Optional[Khala] = None
         self._running = True
         self.unit_id = f"{unit_type}-{uuid.uuid4().hex[:6]}"
         self.identity_index = 0
@@ -38,7 +41,7 @@ class Unit:
 
     def _load_identity(self):
         """Load unit configuration from registry."""
-        self.registry_data = get_agent_data(self.unit_type) # Still using get_agent_data for now
+        self.registry_data = get_unit_data(self.unit_type)  # Updated function call
         if not self.registry_data:
             raise ValueError(f"Unknown unit type: {self.unit_type}")
 
@@ -51,9 +54,9 @@ class Unit:
         ):
             return
         try:
-            self.khala = Khala(bus_url=self.config.bus_url)
-            await self.khala.connect(client_id=f"unit/{self.unit_id}")
-            logger.info(f"{self.unit_id} connected to Bus at {self.config.bus_url}")
+            self.khala = Khala(bus_url=self.bus_url)
+            await self.khala.connect(unit_id=f"unit/{self.unit_id}")
+            logger.info(f"{self.unit_id} connected to Bus at {self.bus_url}")
         except Exception as e:
             logger.error(f"{self.unit_id} failed to connect to Bus: {e}")
             self.khala = None
@@ -71,7 +74,13 @@ class Unit:
             signals=message.signals,
         )
 
-    async def send_message(self, content: str, event_type: str, event_payload: Dict = None, coordination_id: Optional[str] = None):
+    async def send_message(
+        self,
+        content: str,
+        event_type: str,
+        event_payload: Dict = None,
+        coordination_id: Optional[str] = None,
+    ):
         """Sends a message to the Khala."""
         if not self.khala or not (
             self.khala._websocket
@@ -100,6 +109,44 @@ class Unit:
         signals = parser.signals(content)
         return any(isinstance(signal, Despawn) for signal in signals)
 
+    async def recv_message(self, timeout: int = 1) -> Optional[Event]:
+        """Receive a message from the Bus and convert it to a canonical Event."""
+        if not self.khala:
+            return None
+
+        message = await self.khala.receive(timeout=timeout)
+        if not message:
+            return None
+        return self._message_to_event(message)
+
     async def run(self):
-        """Main loop for the unit. To be implemented by subclasses."""
-        raise NotImplementedError("Subclasses must implement run() method.")
+        """Main loop for the unit, handling common setup/teardown."""
+        logger.info(f"Unit {self.unit_id} ({self.unit_type}) online in {self.channel}")
+        await self._connect_websocket()
+
+        # Emit unit_spawn event
+        await self.send_message(
+            content=f"Unit {self.unit_id} ({self.unit_type}) spawned.",
+            event_type="unit_spawn",
+            event_payload={"unit_id": self.unit_id, "unit_type": self.unit_type},
+        )
+
+        try:
+            # Delegate to subclass implementation
+            await self.execute()
+        finally:
+            logger.info(f"Unit {self.unit_id} ({self.unit_type}) offline.")
+            # Emit unit_despawn event before disconnecting
+            await self.send_message(
+                content=f"Unit {self.unit_id} ({self.unit_type}) despawned.",
+                event_type="unit_despawn",
+                event_payload={
+                    "unit_id": self.unit_id,
+                    "unit_type": self.unit_type,
+                },
+            )
+            await self.khala.disconnect()
+
+    async def execute(self):
+        """Unit-specific execution behavior. Must be implemented by subclasses."""
+        raise NotImplementedError("Subclasses must implement execute()")

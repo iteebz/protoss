@@ -15,26 +15,26 @@ class Coordination:
 
     channels: Dict[str, Set[str]] = field(default_factory=dict)
     status: str = "active"
-    had_agents: bool = False
+    had_units: bool = False  # Renamed
     pending_completion_task: Optional[asyncio.Task] = None
 
-    def add_agent(self, channel: str, agent_id: str) -> None:
-        channel_agents = self.channels.setdefault(channel, set())
-        channel_agents.add(agent_id)
-        self.had_agents = True
+    def add_unit(self, channel: str, unit_id: str) -> None:  # Renamed
+        channel_units = self.channels.setdefault(channel, set())  # Renamed
+        channel_units.add(unit_id)
+        self.had_units = True  # Renamed
 
-    def remove_agent(self, channel: str, agent_id: str) -> None:
+    def remove_unit(self, channel: str, unit_id: str) -> None:  # Renamed
         if channel in self.channels:
-            self.channels[channel].discard(agent_id)
+            self.channels[channel].discard(unit_id)
 
     def is_empty(self) -> bool:
-        return all(not agents for agents in self.channels.values())
+        return all(not units for units in self.channels.values())
 
 
 class Coordinator:
     """
     Manages the lifecycle and state of coordinations.
-    Subscribes to Nexus events to track agent spawns/despawns and emit completion signals.
+    Subscribes to Nexus events to track unit spawns/despawns and emit completion signals.
     """
 
     def __init__(self, nexus: Nexus):
@@ -62,7 +62,9 @@ class Coordinator:
     async def _listen_for_events(self):
         """Listens for relevant events from the Nexus."""
         try:
-            async for event in self.nexus.subscribe(event_type=None): # Subscribe to all events for now
+            async for event in self.nexus.subscribe(
+                event_type=None
+            ):  # Subscribe to all events for now
                 await self._handle_event(event)
         except asyncio.CancelledError:
             pass
@@ -83,34 +85,39 @@ class Coordinator:
                 coordination.pending_completion_task.cancel()
             return
 
-        if coordination.status == "complete": # Ignore events for completed coordinations
+        if (
+            coordination.status == "complete"
+        ):  # Ignore events for completed coordinations
             return
 
-        agent_label = self._coordination_agent_label(event)
+        unit_label = self._coordination_unit_label(event)  # Renamed
 
-        if event.type == "agent_spawn":
-            if agent_label:
-                coordination.add_agent(event.channel, agent_label)
-            # Cancel any pending completion task if a new agent spawns
+        if event.type == "unit_spawn":  # Renamed event type
+            if unit_label:
+                coordination.add_unit(event.channel, unit_label)  # Renamed
+            # Cancel any pending completion task if a new unit spawns
             if coordination.pending_completion_task:
                 coordination.pending_completion_task.cancel()
                 coordination.pending_completion_task = None
             return
 
-        if event.type == "agent_despawn" and agent_label:
-            coordination.remove_agent(event.channel, agent_label)
+        if event.type == "unit_despawn" and unit_label:  # Renamed event type
+            coordination.remove_unit(event.channel, unit_label)  # Renamed
 
-        # Check for completion if it's still active and no agents are left
-        if coordination.had_agents and coordination.is_empty():
-            if coordination.pending_completion_task is None or coordination.pending_completion_task.done():
+        # Check for completion if it's still active and no units are left
+        if coordination.had_units and coordination.is_empty():  # Renamed
+            if (
+                coordination.pending_completion_task is None
+                or coordination.pending_completion_task.done()
+            ):
                 coordination.pending_completion_task = asyncio.create_task(
                     self._schedule_completion_emit(coordination_id, event.channel)
                 )
 
-    def _coordination_agent_label(self, event: Event) -> Optional[str]:
+    def _coordination_unit_label(self, event: Event) -> Optional[str]:  # Renamed
         return (
-            event.payload.get("agent_type")
-            or event.payload.get("agent_id")
+            event.payload.get("unit_id")
+            or event.payload.get("unit_type")
             or event.sender
         )
 
@@ -119,22 +126,32 @@ class Coordinator:
         This replaces the old sleep() prayers with a deterministic, cancellable signal.
         """
         try:
-            # TODO: Replace this grace period with a truly deterministic signal from agents
+            # TODO: Replace this grace period with a truly deterministic signal from units
             # that they are 'done' or 'idle' for a coordination. For now, removing the sleep
             # to address the 'timing prayers' demand, but this may introduce race conditions.
             # await asyncio.sleep(0.1) # Configurable grace period
 
             coordination = self.coordinations.get(coordination_id)
-            if coordination and coordination.status == "active" and coordination.is_empty():
+            if (
+                coordination
+                and coordination.status == "active"
+                and coordination.is_empty()
+            ):
                 coordination.status = "complete"
-                logger.info("Coordination %s completed by Coordinator.", coordination_id)
-                await self.nexus.publish(Event(
-                    type="coordination_complete",
-                    channel=channel,
-                    sender="system",
-                    coordination_id=coordination_id,
-                    payload={"result": "Coordination finished successfully by Coordinator."},
-                ))
+                logger.info(
+                    "Coordination %s completed by Coordinator.", coordination_id
+                )
+                await self.nexus.publish(
+                    Event(
+                        type="coordination_complete",
+                        channel=channel,
+                        sender="system",
+                        coordination_id=coordination_id,
+                        payload={
+                            "result": "Coordination finished successfully by Coordinator."
+                        },
+                    )
+                )
         except asyncio.CancelledError:
             logger.debug("Completion emit for %s cancelled.", coordination_id)
         except Exception as e:
@@ -144,10 +161,10 @@ class Coordinator:
             if coordination and coordination.pending_completion_task:
                 coordination.pending_completion_task = None
 
-    def get_active_agents(self, channel: str) -> Set[str]:
-        """Returns a set of active agents in a given channel across all active coordinations."""
-        active_agents_in_channel = set()
+    def get_active_units(self, channel: str) -> Set[str]:  # Renamed
+        """Returns a set of active units in a given channel across all active coordinations."""
+        active_units_in_channel = set()
         for coord_id, coordination in self.coordinations.items():
             if coordination.status == "active" and channel in coordination.channels:
-                active_agents_in_channel.update(coordination.channels[channel])
-        return active_agents_in_channel
+                active_units_in_channel.update(coordination.channels[channel])
+        return active_units_in_channel

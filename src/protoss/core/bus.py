@@ -5,17 +5,15 @@ import json
 import logging
 import socket
 import time
-from typing import Any, Dict, Set, Optional, List
+from typing import Dict, Set, Optional, List
 from dataclasses import dataclass, field
 
 import websockets
-from .message import Message, Event # Import Event from message.py
+from .message import Message, Event  # Import Event from message.py
 from . import parser
-from .protocols import Mention, BaseSignal
-from . import gateway
 from .protocols import Storage
 from protoss.lib.storage import SQLite
-from .nexus import Nexus # Import Nexus
+from .nexus import Nexus  # Import Nexus
 
 logger = logging.getLogger(__name__)
 
@@ -50,26 +48,26 @@ class Coordination:
 
 
 # ==============================================================================
-# The Purified ExternalBus Facade
+# The Purified Bus Facade
 # ==============================================================================
 
 
-class ExternalBus:
+class Bus:
     """A single facade for message routing and coordination.
     Responsibilities are owned explicitly inside the facade."""
 
     def __init__(
         self,
-        nexus: Nexus, # Inject Nexus
+        nexus: Nexus,  # Inject Nexus
         port: int = 8888,
         storage_path: Optional[str] = None,
     ):
-        self.nexus = nexus # Store Nexus instance
+        self.nexus = nexus  # Store Nexus instance
         self.port = port
         self.server: Optional[websockets.WebSocketServer] = None
         self.storage: Storage = SQLite(storage_path or "./.protoss/store.db")
 
-        # State owned by the ExternalBus
+        # State owned by the Bus facade
         self.connections: Dict[str, websockets.ServerProtocol] = {}
         self.channels: Dict[str, Channel] = {}  # Channel state with history
 
@@ -91,7 +89,7 @@ class ExternalBus:
         # Capture the actual port the OS bound when port=0 was requested.
         if self.server.sockets:
             self.port = self.server.sockets[0].getsockname()[1]
-        logger.info(f"🔮 ExternalBus online on port {self.port}")
+        logger.info(f"🔮 Bus online on port {self.port}")
 
     async def stop(self):
         """Stops the WebSocket server."""
@@ -99,7 +97,7 @@ class ExternalBus:
             self.server.close()
             await self.server.wait_closed()
             self.server = None
-            logger.info("ExternalBus offline")
+            logger.info("Bus offline")
 
     async def transmit(self, channel: str, sender: str, event_type: str, **kwargs):
         """Creates a canonical Event and publishes it to the Nexus."""
@@ -123,14 +121,13 @@ class ExternalBus:
             sender=sender,
             timestamp=message_obj.timestamp,
             payload=payload,
-            message=message_obj,
             coordination_id=coordination_id,
             content=content,
             signals=signals,
         )
 
         await self.nexus.publish(event)
-        await self._broadcast_event(event) # Still broadcast to external subscribers
+        await self._broadcast_event(event)  # Still broadcast to external subscribers
 
     async def _handler(self, websocket: websockets.ServerProtocol):
         """Handles a new agent's WebSocket connection and routes its messages."""
@@ -169,7 +166,7 @@ class ExternalBus:
             pass
         finally:
             self.connections.pop(agent_id, None)
-            # active_agents is no longer managed by ExternalBus, so no deregister from there
+            # active_units is no longer managed by Bus, so no deregister from there
             logger.info(f"🔌 {agent_id} disconnected")
 
     async def _broadcast_event(self, event: Event):
@@ -177,7 +174,9 @@ class ExternalBus:
         wire_event = event.to_dict()
         channel = wire_event.get("channel", "")
         sender = wire_event.get("sender", "")
-        subscribers = self.channels.get(channel, Channel()).subscribers # Use ExternalBus's channel subscribers
+        subscribers = self.channels.get(
+            channel, Channel()
+        ).subscribers  # Use Bus channel subscribers
 
         payload = json.dumps(wire_event)
         await asyncio.gather(
@@ -219,9 +218,7 @@ class ExternalBus:
         await websocket.send(json.dumps(response))
 
     async def get_events(
-        self,
-        channel: str,
-        since: Optional[float] = None
+        self, channel: str, since: Optional[float] = None
     ) -> List[Dict]:
         """Retrieves events from storage for a given channel."""
         # This will eventually query the Archiver
@@ -244,12 +241,9 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Instantiate Nexus and pass to ExternalBus
+    # Instantiate Nexus and pass to Bus
     nexus = Nexus()
-    bus = ExternalBus(
-        nexus=nexus,
-        port=args.port, storage_path=args.storage_path
-    )
+    bus = Bus(nexus=nexus, port=args.port, storage_path=args.storage_path)
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(bus.start())
