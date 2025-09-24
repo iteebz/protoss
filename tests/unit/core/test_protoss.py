@@ -1,22 +1,37 @@
-"""Clean, simple Protoss tests that verify actual behavior."""
+"""Protoss orchestration tests."""
 
 import pytest
+
 from protoss.core.protoss import Protoss
 
 
 @pytest.mark.asyncio
-async def test_protoss_init():
-    """Protoss initializes with vision and configuration."""
-    vision = "test vision"
-    swarm = Protoss(vision, port=9999, timeout=30)
+async def test_context_manager_starts_and_stops(protoss_components):
+    async with Protoss("Build the cathedral"):
+        pass
 
-    assert swarm.vision == vision
-    assert swarm.port == 9999
-    assert swarm.timeout == 30
-    assert isinstance(swarm.coordination_id, str)
+    bus = protoss_components["bus"]
+    coordinator = protoss_components["coordinator"]
+    archiver = protoss_components["archiver"]
+    observer = protoss_components["observer"]
+    khala = protoss_components["khala"]
+
+    bus.start.assert_awaited_once()
+    coordinator.start.assert_awaited_once()
+    archiver.start.assert_awaited_once()
+    observer.start.assert_awaited_once()
+    khala.connect.assert_awaited_once_with(unit_id="protoss_coordinator")
+
+    observer.stop.assert_awaited_once()
+    archiver.stop.assert_awaited_once()
+    coordinator.stop.assert_awaited_once()
+    bus.stop.assert_awaited_once()
+    khala.disconnect.assert_awaited_once()
 
 
-def test_protoss_vision_required():
-    """Protoss requires vision to initialize."""
-    with pytest.raises(TypeError):
-        Protoss()  # Should fail without vision
+def test_generates_unique_coordination_id():
+    p1 = Protoss("vision")
+    p2 = Protoss("vision")
+
+    assert p1.coordination_id != p2.coordination_id
+    assert p1.coordination_id

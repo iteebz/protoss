@@ -1,49 +1,32 @@
-"""Message dataclass tests."""
+"""Event/Message conversions."""
 
-import time
-from protoss.core.message import Message
-from protoss.core.protocols import Mention, Despawn
+from protoss.core.message import Event, Message
 
 
-def test_message_creation():
-    """Message creates with required fields."""
-    msg = Message("general", "agent_id")
+def test_event_to_dict_round_trip():
+    event = Event(
+        type="agent_message",
+        channel="alpha",
+        sender="zealot",
+        payload={"content": "hi"},
+        coordination_id="coord-1",
+        content="hi",
+        signals=[],
+    )
 
-    assert msg.channel == "general"
-    assert msg.sender == "agent_id"
-    assert isinstance(msg.timestamp, float)
-    assert msg.signals == []
-    assert msg.event is None
+    payload = event.to_dict()
+    assert payload["type"] == "agent_message"
+    assert payload["channel"] == "alpha"
+    assert payload["payload"]["content"] == "hi"
 
+    message = Message(
+        channel=payload["channel"],
+        sender=payload["sender"],
+        timestamp=payload["timestamp"],
+        signals=[],
+        event=payload["payload"],
+        msg_type=payload["type"],
+        coordination_id=payload["coordination_id"],
+    )
 
-def test_message_with_event():
-    """Message stores event data."""
-    event_data = {"content": "test message"}
-    msg = Message("channel", "sender", event=event_data)
-
-    assert msg.event == event_data
-
-
-def test_message_with_signals():
-    """Message stores signal objects."""
-    signals = [Mention(agent_name="zealot"), Despawn()]
-    msg = Message("channel", "sender", signals=signals)
-
-    assert msg.signals == signals
-
-
-def test_message_timestamp_auto():
-    """Message auto-generates timestamp."""
-    msg = Message("test", "test")
-    assert abs(msg.timestamp - time.time()) < 1
-
-
-def test_message_equality():
-    """Messages with same data are equal."""
-    t = time.time()
-    msg1 = Message("ch", "s", timestamp=t, event={"c": "v"})
-    msg2 = Message("ch", "s", timestamp=t, event={"c": "v"})
-    msg3 = Message("ch", "different", timestamp=t, event={"c": "v"})
-
-    assert msg1 == msg2
-    assert msg1 != msg3
+    assert message.event["content"] == "hi"

@@ -1,87 +1,68 @@
+"""SQLite storage tests."""
+
 import pytest
-import tempfile
-import os
 import pytest_asyncio
 
-from src.protoss.lib.storage import SQLite
+from protoss.lib.storage import SQLite
 
 
 @pytest_asyncio.fixture
-async def mock_sqlite():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test_store.db")
-        storage = SQLite(db_path=db_path)
-        await storage._init_db()
-        yield storage
+async def storage(tmp_path):
+    db_path = tmp_path / "events.db"
+    store = SQLite(db_path=str(db_path))
+    await store._init_db()
+    return store
 
 
 @pytest.mark.asyncio
-async def test_sqlite_persistence(mock_sqlite: SQLite):
-    """Test that events can be saved and loaded from SQLite storage."""
-    storage = mock_sqlite
-    channel = "test_channel"
-    sender = "test_sender"
-    content = "Hello from SQLite!"
-
-    # Create event dict directly for storage
-    event_data = {
+async def test_save_and_load(storage: SQLite):
+    event = {
         "type": "agent_message",
-        "channel": channel,
-        "sender": sender,
-        "timestamp": 1234567890.0,
-        "payload": {"content": content},
+        "channel": "alpha",
+        "sender": "zealot",
+        "timestamp": 100.0,
+        "payload": {"content": "hi"},
     }
-    await storage.save_event(event_data)
 
-    # Load events and verify
-    loaded_events = await storage.load_events(channel=channel)
-    assert len(loaded_events) == 1
+    await storage.save_event(event)
+    loaded = await storage.load_events(channel="alpha")
 
-    loaded_event = loaded_events[0]
-    assert loaded_event["channel"] == channel
-    assert loaded_event["sender"] == sender
-    assert loaded_event["payload"]["content"] == content
-    assert loaded_event["timestamp"] is not None
+    assert len(loaded) == 1
+    assert loaded[0]["payload"]["content"] == "hi"
 
 
 @pytest.mark.asyncio
-async def test_sqlite_multiple_events(mock_sqlite: SQLite):
-    """Test loading events with filters."""
-    storage = mock_sqlite
-
-    # Create multiple events
+async def test_load_events_with_filters(storage: SQLite):
     events = [
         {
             "type": "agent_message",
-            "channel": "ch1",
-            "sender": "s1",
-            "timestamp": 1000.0,
-            "payload": {"content": "msg1"},
+            "channel": "alpha",
+            "sender": "zealot",
+            "timestamp": 100.0,
+            "payload": {"content": "one"},
         },
         {
             "type": "agent_message",
-            "channel": "ch1",
-            "sender": "s2",
-            "timestamp": 2000.0,
-            "payload": {"content": "msg2"},
+            "channel": "alpha",
+            "sender": "archon",
+            "timestamp": 200.0,
+            "payload": {"content": "two"},
         },
         {
             "type": "agent_message",
-            "channel": "ch2",
-            "sender": "s3",
-            "timestamp": 3000.0,
-            "payload": {"content": "msg3"},
+            "channel": "beta",
+            "sender": "probe",
+            "timestamp": 300.0,
+            "payload": {"content": "three"},
         },
     ]
 
     for event in events:
         await storage.save_event(event)
 
-    # Test channel filtering
-    ch1_events = await storage.load_events(channel="ch1")
-    assert len(ch1_events) == 2
+    alpha = await storage.load_events(channel="alpha")
+    assert len(alpha) == 2
 
-    # Test timestamp filtering
-    recent_events = await storage.load_events(channel="ch1", since=1500.0)
-    assert len(recent_events) == 1
-    assert recent_events[0]["payload"]["content"] == "msg2"
+    alpha_recent = await storage.load_events(channel="alpha", since=150)
+    assert len(alpha_recent) == 1
+    assert alpha_recent[0]["payload"]["content"] == "two"

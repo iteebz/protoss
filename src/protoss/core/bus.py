@@ -126,6 +126,14 @@ class Bus:
             signals=signals,
         )
 
+        channel_state = self.channels.setdefault(channel, Channel())
+        channel_state.history.append(message_obj)
+
+        try:
+            await self.storage.save_event(event.to_dict())
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error("Failed to persist event: %s", exc)
+
         await self.nexus.publish(event)
         await self._broadcast_event(event)  # Still broadcast to external subscribers
 

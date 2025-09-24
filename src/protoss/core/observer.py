@@ -73,12 +73,11 @@ class Observer:
             channel = event.channel
 
             # Query Coordinator for active units
-            active_units_in_channel = self.coordinator.get_active_units(
-                channel
-            )  # Renamed to get_active_units
+            active_units_in_channel = self.coordinator.get_active_units(channel)
+            active_units_snapshot = {channel: set(active_units_in_channel)}
 
             if not gateway.should_spawn_unit(
-                unit_type, channel, active_units_in_channel, self.max_units
+                unit_type, channel, active_units_snapshot, self.max_units
             ):
                 continue
 

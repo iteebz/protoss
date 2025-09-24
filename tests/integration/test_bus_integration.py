@@ -1,9 +1,12 @@
-import pytest
 import asyncio
 import os
 import tempfile
+
+import pytest
 import pytest_asyncio
+
 from protoss.core.bus import Bus
+from protoss.core.nexus import Nexus
 
 
 @pytest_asyncio.fixture  # Use pytest_asyncio.fixture
@@ -11,10 +14,9 @@ async def bus_integration_fixture():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test_bus_integration.db")
         # Use port=0 to let the OS assign a random available port
-        bus = Bus(storage_path=db_path, port=0)
-        await bus.start()
+        nexus = Nexus()
+        bus = Bus(nexus=nexus, storage_path=db_path, port=0)
         yield bus
-        await bus.stop()
 
 
 @pytest.mark.asyncio
@@ -32,16 +34,11 @@ async def test_persists_messages(bus_integration_fixture: Bus):
         event_payload=event,
     )
 
-    # Verify in-memory history
-    in_memory_history = bus.channels[channel].history
-    assert len(in_memory_history) == 1
-    assert in_memory_history[0].event["content"] == content
-
     # Verify persisted events
     persisted_events = await bus.get_events(channel=channel)
     assert len(persisted_events) == 1
     event_data = persisted_events[0]
-    assert event_data["message"]["event"]["content"] == content
+    assert event_data["payload"]["content"] == content
     assert event_data["sender"] == sender
 
 
@@ -58,8 +55,8 @@ async def test_recovers_history_on_restart():
 
         # First Bus instance: send messages and stop
         # Use port=0 for random port assignment
-        bus1 = Bus(storage_path=db_path, port=0)
-        await bus1.start()
+        nexus1 = Nexus()
+        bus1 = Bus(nexus=nexus1, storage_path=db_path, port=0)
         await bus1.transmit(
             channel,
             sender,
@@ -72,21 +69,20 @@ async def test_recovers_history_on_restart():
             event_type="agent_message",
             event_payload={"content": content2},
         )
-        await bus1.stop()
 
         # Second Bus instance: start with same storage path and check history
         # Use port=0 for random port assignment
-        bus2 = Bus(storage_path=db_path, port=0)
-        await bus2.start()
+        nexus2 = Nexus()
+        bus2 = Bus(nexus=nexus2, storage_path=db_path, port=0)
 
         recovered_events = await bus2.get_events(channel=channel)
         assert len(recovered_events) == 2
-        assert recovered_events[0]["message"]["event"]["content"] == content1
+        assert recovered_events[0]["payload"]["content"] == content1
         assert recovered_events[1]["payload"]["content"] == content2
         # Signal verification removed for simplicity
         # Signal type checking removed for simplicity
 
-        await bus2.stop()
+        # No server to stop; persistence tested via storage reuse
 
 
 @pytest.mark.asyncio

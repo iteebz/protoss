@@ -1,35 +1,36 @@
-"""Gateway spawning function tests."""
+"""Gateway spawning tests."""
+
+from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from protoss.core import gateway
 
 
-def test_should_spawn_basic():
-    """Gateway allows spawning valid agent types."""
-    active_agents = {"channel1": set()}
+def test_should_spawn_unit_respects_limits():
+    active = {"alpha": {"zealot-1"}}
 
-    assert gateway.should_spawn("zealot", "channel1", active_agents)
-    assert not gateway.should_spawn("invalid", "channel1", active_agents)
-
-
-def test_should_spawn_max_agents():
-    """Gateway respects max agent limit."""
-    active_agents = {"channel1": {"zealot-1", "archon-1"}}
-
-    assert not gateway.should_spawn("oracle", "channel1", active_agents, max_agents=2)
-    assert gateway.should_spawn("oracle", "channel1", active_agents, max_agents=5)
-
-
-def test_should_spawn_duplicate_prevention():
-    """Gateway prevents duplicate agent types per channel."""
-    active_agents = {"channel1": {"zealot-1"}}
-
-    assert not gateway.should_spawn("zealot", "channel1", active_agents)
-    assert gateway.should_spawn("archon", "channel1", active_agents)
+    assert not gateway.should_spawn_unit("zealot", "alpha", active, max_units=2)
+    assert gateway.should_spawn_unit("archon", "alpha", active, max_units=2)
+    assert not gateway.should_spawn_unit("unknown", "alpha", active)
 
 
 @pytest.mark.asyncio
-async def test_spawn_agent_invalid_type():
-    """Gateway rejects invalid agent types."""
-    with pytest.raises(ValueError, match="Unknown agent type"):
-        await gateway.spawn_agent("invalid", "channel1", "ws://localhost:8888")
+async def test_spawn_unit_rejects_unknown_type():
+    with pytest.raises(ValueError):
+        await gateway.spawn_unit("unknown", "alpha", "ws://bus")
+
+
+@pytest.mark.asyncio
+async def test_spawn_unit_invokes_subprocess():
+    with patch(
+        "protoss.core.gateway.asyncio.create_subprocess_exec", new_callable=AsyncMock
+    ) as create_proc:
+        process = AsyncMock()
+        process.pid = 42
+        create_proc.return_value = process
+
+        pids = await gateway.spawn_unit("zealot", "alpha", "ws://bus")
+
+    assert create_proc.await_count == 1
+    assert pids == [42]
