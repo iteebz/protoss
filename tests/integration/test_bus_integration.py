@@ -6,7 +6,6 @@ import pytest
 import pytest_asyncio
 
 from protoss.core.bus import Bus
-from protoss.core.nexus import Nexus
 
 
 @pytest_asyncio.fixture  # Use pytest_asyncio.fixture
@@ -14,8 +13,7 @@ async def bus_integration_fixture():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test_bus_integration.db")
         # Use port=0 to let the OS assign a random available port
-        nexus = Nexus()
-        bus = Bus(nexus=nexus, storage_path=db_path, port=0)
+        bus = Bus(storage_path=db_path, port=0)
         yield bus
 
 
@@ -55,8 +53,7 @@ async def test_recovers_history_on_restart():
 
         # First Bus instance: send messages and stop
         # Use port=0 for random port assignment
-        nexus1 = Nexus()
-        bus1 = Bus(nexus=nexus1, storage_path=db_path, port=0)
+        bus1 = Bus(storage_path=db_path, port=0)
         await bus1.transmit(
             channel,
             sender,
@@ -72,8 +69,7 @@ async def test_recovers_history_on_restart():
 
         # Second Bus instance: start with same storage path and check history
         # Use port=0 for random port assignment
-        nexus2 = Nexus()
-        bus2 = Bus(nexus=nexus2, storage_path=db_path, port=0)
+        bus2 = Bus(storage_path=db_path, port=0)
 
         recovered_events = await bus2.get_events(channel=channel)
         assert len(recovered_events) == 2

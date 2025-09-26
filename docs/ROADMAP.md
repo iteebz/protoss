@@ -1,55 +1,61 @@
 # Protoss Roadmap
 
-*This document outlines the project's ultimate vision and the implementation priorities to achieve it.*
+## Vision
+**Can constitutional frameworks enable AI swarm coordination that transcends individual agent capabilities?**
 
-## The Grand Vision: Recursive Self-Improvement
+Ultimate test: **Recursive Self-Improvement** - swarm improves its own constitutional framework while maintaining alignment and working on external projects.
 
-The fundamental research question of the Protoss project is:
+## Constitutional Evolution Phases
 
-**Can a swarm of AI agents, coordinated by a constitutional framework, achieve breakthroughs in complexity that a single agent cannot? Can a swarm of Claude 5-level intelligences produce Claude 6-level research?**
+### Phase 0: Human Orchestration (Current)
+**Reality**: Human control with constitutional themes
 
-The ultimate test of this is **Recursive Self-Improvement (RSI)**: the ability of the Protoss swarm to operate on and improve its own codebase, using the same coordination protocols it uses for any other task.
+**Foundational Infrastructure** (Complete):
+- Bus & Gateway: Core messaging and agent-spawning mechanics
+- Data-Driven Agents: Generic Agent class configured by AGENT_REGISTRY
+- Core Doctrines: Constitution, emergence, resolution, continuity
 
-### RSI Success Metrics
+**Monitoring & Observability**:
+- `protoss monitor`: Real-time swarm view (active agents, channels, activity)
+- `protoss status`: Current swarm state snapshot
+- Khala Visualization: Real-time coordination flow analysis
 
-Success is defined by the swarm's ability to work on the `protoss/` codebase to improve its own coordination architecture while simultaneously:
+**Conversational Interface & Resource Management**:
+- `protoss ask`: Strategic questions to @arbiter
+- Escalation Protocol: Agent-to-human summoning process
+- Resource Tracking: Token usage, cost tracking, rate limiting
 
--   Working on external projects.
--   Maintaining constitutional code quality.
--   Escalating appropriately to human oversight for constitutional matters.
--   Evolving its own coordination capabilities.
+**Advanced Coordination Patterns**:
+- Git Coordination: Multi-agent work on single codebase (branch-per-task, bus-coordinated merges, conflict resolution via @conclave)
+- Multi-Channel Coordination: Cross-channel agent protocols
+- Constitutional Testing: Framework validation under human control
 
-If successful, the implication is that Protoss is a universal coordination substrate for any complex cognitive work, including the work of AI development itself.
+### Phase 1: Bounded Constitutional Evolution
+**Architecture**: Constitutional changes at checkpoints with human oversight
+
+- Constitutional kernel design (immutable invariants + enforcement)
+- Drift detection system (behavioral monitoring against constitutional expectations)
+- Checkpoint ritual implementation (human review pipeline for constitutional amendments)
+- Constitutional DNA embedding (framework integration in agent spawning process)
+- Version control integration (protected branches + cryptographic signatures)
+- Constitutional Evolution: AI systems authoring amendments based on coordination experience
+
+### Phase 2: Autonomous Constitutional Governance
+**Architecture**: Self-governed emergence under constitutional invariants
+
+- Meta-coordination agents (analyze swarm coordination patterns)
+- Safe experimentation environments (isolated constitutional modification testing)
+- Constitutional approval flow (swarm proposes changes for human review per SAFETY.md)
+- Autonomous governance protocols (self-modification within invariant constraints)
+- Multi-swarm federation (coordination between sovereign cathedral instances with different constitutional identities)
+
+## Success Metrics
+- **Phase 0**: Effective orchestration with constitutional guidance, complete human oversight
+- **Phase 1**: Constitutional evolution maintains alignment with human review, drift detection works
+- **Phase 2**: Emergent coordination capabilities, recursive self-improvement within bounds
+
+**No phase proceeds without demonstrated safety at the previous level.**
 
 ---
 
-## Implementation Phases
-
-The following phases outline the path toward the grand vision of RSI.
-
-### Phase 1: Foundational Infrastructure (Complete)
--   **Bus & Gateway**: The core messaging and agent-spawning mechanics.
--   **Data-Driven Agents**: The generic `Agent` class configured by the `AGENT_REGISTRY`.
--   **Core Doctrines**: The establishment of `constitution`, `emergence`, `resolution`, and `continuity`.
-
-### Phase 2: Monitoring & Observability
--   `protoss monitor`: A lightweight, real-time view of the swarm (active agents, channels, recent activity).
--   `protoss status`: A snapshot of the current swarm state.
--   **Khala Visualization**: Real-time psionic network visualization for coordination flow analysis.
--   This phase provides the basic visibility required for effective human oversight.
-
-### Phase 3: Conversational Interface & Resource Management
--   `protoss ask`: A mechanism for posing strategic questions to the `@arbiter`.
--   **Escalation Protocol**: Formalizing the process by which agents can summon a human.
--   **Resource Tracking**: Implementing token usage, cost tracking, and rate limiting to make the swarm budget-aware.
-
-### Phase 4: Advanced Coordination Patterns
--   **Git Coordination**: A robust protocol for multi-agent work on a single codebase (e.g., branch-per-task, bus-coordinated merges, conflict resolution via `@conclave`).
--   **Multi-Channel Coordination**: Defining how agents can coordinate across different channel contexts if needed.
--   **Constitutional Evolution**: AI systems authoring their own constitutional frameworks based on coordination experience.
--   **Multi-Swarm Federation**: Protocols for coordination between sovereign cathedral instances with different constitutional identities.
-
-### Phase 5: Recursive Self-Improvement
--   **Meta-Coordination Agents**: Units that can analyze the swarm's own coordination patterns.
--   **Safe Experimentation**: Isolated environments for testing self-modifications.
--   **Constitutional Approval Flow**: The process by which the swarm proposes changes to its own constitution for human review, as defined in `SAFETY.md`.
+**Bounded sovereignty through constitutional evolution, not absolute autonomy.**

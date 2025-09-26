@@ -6,22 +6,20 @@ import sys
 import json
 from typing import Dict, Set, List
 
-from ..units.registry import UNIT_REGISTRY  # Updated import
+from ..agents.registry import AGENT_REGISTRY  # Updated import
 
 logger = logging.getLogger(__name__)
 
 
-async def spawn_unit(
-    unit_type: str, channel: str, bus_url: str
-) -> List[int]:  # Renamed function
-    """Spawn unit process(es). Returns list of PIDs."""
-    if unit_type not in UNIT_REGISTRY:
-        raise ValueError(f"Unknown unit type: {unit_type}")
+async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
+    """Spawn agent process(es). Returns list of PIDs."""
+    if agent_type not in AGENT_REGISTRY:
+        raise ValueError(f"Unknown agent type: {agent_type}")
 
     pids = []
-    registry_data = UNIT_REGISTRY[unit_type]
+    registry_data = AGENT_REGISTRY[agent_type]
     identities = registry_data["identity"]
-    module = "protoss.units.agent"  # Updated module path
+    module = "protoss.agents.agent"  # Updated module path
 
     # Multi-identity case (conclave): spawn multiple processes
     if len(identities) > 1:
@@ -32,17 +30,17 @@ async def spawn_unit(
             "fenix",
         ]  # Constitutional Sacred Four
         for i, sacred_name in enumerate(sacred_names):
-            unit_id = f"{sacred_name}-{asyncio.get_event_loop().time():.0f}"  # Renamed variable
+            agent_id = f"{sacred_name}-{asyncio.get_event_loop().time():.0f}"
             identity_param = {"identity_index": i}
 
             cmd = [
                 sys.executable,
                 "-m",
                 module,
-                "--unit-id",  # Renamed argument
-                unit_id,
-                "--unit-type",  # Renamed argument
-                unit_type,
+                "--agent-id",
+                agent_id,
+                "--agent-type",
+                agent_type,
                 "--channel",
                 channel,
                 "--bus-url",
@@ -52,23 +50,21 @@ async def spawn_unit(
             ]
 
             process = await asyncio.create_subprocess_exec(*cmd)
-            logger.info(f"Spawned Sacred Four {unit_id} PID {process.pid}")
+            logger.info(f"Spawned Sacred Four {agent_id} PID {process.pid}")
             pids.append(process.pid)
 
     else:
         # Single identity case: spawn one process
-        unit_id = (
-            f"{unit_type}-{asyncio.get_event_loop().time():.0f}"  # Renamed variable
-        )
+        agent_id = f"{agent_type}-{asyncio.get_event_loop().time():.0f}"
 
         cmd = [
             sys.executable,
             "-m",
             module,
-            "--unit-id",  # Renamed argument
-            unit_id,
-            "--unit-type",  # Renamed argument
-            unit_type,
+            "--agent-id",
+            agent_id,
+            "--agent-type",
+            agent_type,
             "--channel",
             channel,
             "--bus-url",
@@ -76,37 +72,30 @@ async def spawn_unit(
         ]
 
         process = await asyncio.create_subprocess_exec(*cmd)
-        logger.info(f"Spawned {unit_id} PID {process.pid}")
+        logger.info(f"Spawned {agent_id} PID {process.pid}")
         pids.append(process.pid)
 
     return pids
 
 
-def should_spawn_unit(
-    unit_type: str,  # Renamed argument
+def should_spawn_agent(
+    agent_type: str,
     channel: str,
-    active_units: Dict[str, Set[str]],  # Renamed argument
-    max_units: int = 10,  # Renamed argument
+    active_agents: Dict[str, Set[str]],
+    max_agents: int = 10,
 ) -> bool:
-    """Determine if unit should be spawned."""
-    if unit_type not in UNIT_REGISTRY:
+    """Determine if agent should be spawned."""
+    if agent_type not in AGENT_REGISTRY:
         return False
 
-    channel_units = active_units.get(channel, set())  # Renamed variable
+    channel_agents = active_agents.get(channel, set())
 
-    # Check max units per channel
-    if len(channel_units) >= max_units:
+    # Check max agents per channel
+    if len(channel_agents) >= max_agents:
         return False
 
-    # Check if unit type already active in channel
-    if any(uid.startswith(f"{unit_type}-") for uid in channel_units):
+    # Check if agent type already active in channel
+    if any(aid.startswith(f"{agent_type}-") for aid in channel_agents):
         return False
 
     return True
-
-
-# Backward compatibility helper for legacy imports (can be removed once callers updated)
-def should_spawn(
-    unit_type: str, channel: str, active_units: Dict[str, Set[str]], max_units: int = 10
-) -> bool:  # pragma: no cover - temporary shim
-    return should_spawn_unit(unit_type, channel, active_units, max_units)

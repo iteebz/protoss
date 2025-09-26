@@ -1,10 +1,6 @@
 """Protoss CLI interface."""
 
 import asyncio
-import os
-import subprocess
-import signal
-import sys
 import typer
 
 from typing import Optional
@@ -18,22 +14,6 @@ from .core.khala import Khala
 app = typer.Typer(
     help="AI coordination through emergent agent swarms.", no_args_is_help=True
 )
-
-
-@app.command()
-def bus(
-    port: int = typer.Option(8888, "--port", "-p", help="Port to run the Bus on"),
-    max_agents: int = typer.Option(
-        100, "--max-agents", "-m", help="Max agents per channel"
-    ),
-):
-    """Start the unified Protoss Bus as a standalone process."""
-    from .core.bus import main as bus_main
-
-    print(f"Starting unified Protoss Bus on port {port}...")
-
-    sys.argv = ["protoss-bus", f"--port={port}", f"--max-agents={max_agents}"]
-    bus_main()
 
 
 def coordinate(
@@ -82,6 +62,22 @@ def coord(
 
 
 @app.command()
+def nuke():
+    """Nuclear option - clear all protoss and cogency data."""
+    import shutil
+    import os
+
+    paths_to_nuke = [".protoss", ".cogency"]
+    for path in paths_to_nuke:
+        if os.path.exists(path):
+            shutil.rmtree(path)
+            print(f"Nuked {path}")
+        else:
+            print(f"{path} not found")
+    print("Nuclear purification complete.")
+
+
+@app.command()
 def status():
     """Show Protoss coordination system status."""
 
@@ -125,71 +121,6 @@ def status():
             await khala.disconnect()
 
     asyncio.run(show_status())
-
-
-PROTOSS_DIR = ".protoss"
-BUS_PID_FILE = f"{PROTOSS_DIR}/bus.pid"
-
-
-def _ensure_protoss_dir():
-    os.makedirs(PROTOSS_DIR, exist_ok=True)
-
-
-@app.command()
-def start(
-    port: int = typer.Option(8888, "--port", "-p", help="Port to run the Bus on"),
-    max_agents: int = typer.Option(
-        100, "--max-agents", "-m", help="Max agents per channel"
-    ),
-):
-    """Start the Protoss Bus and Gateway as background daemons."""
-    _ensure_protoss_dir()
-
-    try:
-        log_file = open(f"{PROTOSS_DIR}/bus.log", "a")
-        bus_process = subprocess.Popen(
-            ["python", "-m", "src.protoss.cli", "bus", f"--port={port}"],
-            stdout=log_file,
-            stderr=log_file,
-        )
-        with open(BUS_PID_FILE, "w") as f:
-            f.write(str(bus_process.pid))
-        print(f"Bus started with PID {bus_process.pid}")
-
-        print("Protoss infrastructure is running.")
-        signal.pause()  # Keep the main process alive
-
-    except Exception as e:
-        print(f"Failed to start Protoss infrastructure: {e}")
-        stop()
-
-
-def _stop_process(name: str, pid_file: str):
-    """Helper to stop a single daemon process."""
-    if not os.path.exists(pid_file):
-        return
-
-    try:
-        with open(pid_file, "r") as f:
-            pid = int(f.read())
-
-        try:
-            os.kill(pid, signal.SIGTERM)
-            print(f"{name} (PID {pid}) stopped.")
-        except ProcessLookupError:
-            print(f"{name} (PID {pid}) was not running.")
-
-    except (IOError, ValueError) as e:
-        print(f"Could not read PID file {pid_file}: {e}")
-    finally:
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
-
-
-@app.command()
-def stop():
-    """Stop the Protoss Bus daemon."""
-    _stop_process("Protoss Bus", BUS_PID_FILE)
 
 
 @app.command()
@@ -280,3 +211,8 @@ def ask(
             await khala.disconnect()
 
     asyncio.run(run_ask())
+
+
+def main():
+    """CLI entry point for pyenv/pip installations."""
+    app()

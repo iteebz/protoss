@@ -18,7 +18,7 @@ from ..constitution.guidelines import (
     CONCLAVE_GUIDELINES,
 )
 
-UNIT_REGISTRY = {
+AGENT_REGISTRY = {
     "zealot": {
         "identity": [ZEALOT_IDENTITY],
         "guidelines": ZEALOT_GUIDELINES,
@@ -49,19 +49,14 @@ UNIT_REGISTRY = {
         "guidelines": CONCLAVE_GUIDELINES,
         "tools": [],
     },
-    "probe": {
-        "identity": [],
-        "guidelines": [],
-        "tools": [],
-    },
 }
 
 
-def get_unit_names() -> list[str]:
-    """Returns all unit names from constitutional registry."""
-    return list(UNIT_REGISTRY.keys())
+def get_agent_names() -> list[str]:
+    """Returns all agent names from constitutional registry."""
+    return list(AGENT_REGISTRY.keys())
 
 
-def get_unit_data(unit_type: str) -> dict:
-    """Get unit configuration from registry."""
-    return UNIT_REGISTRY.get(unit_type)
+def get_agent_data(agent_type: str) -> dict:
+    """Get agent configuration from registry."""
+    return AGENT_REGISTRY.get(agent_type)

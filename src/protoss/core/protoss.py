@@ -6,12 +6,7 @@ from typing import Optional
 
 from .bus import Bus
 from .khala import Khala
-from .nexus import Nexus
-from .coordinator import Coordinator
-from .archiver import Archiver
-from .observer import Observer
-from .message import Event  # Import Event dataclass
-from . import gateway
+from .event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -31,42 +26,31 @@ class Protoss:
         self.timeout = timeout
         self.coordination_id = coordination_id or str(uuid.uuid4())
 
-        # New Architecture Components
-        self.nexus = Nexus()
-        self.bus = Bus(nexus=self.nexus, port=self.port)
-        self.coordinator = Coordinator(nexus=self.nexus)
-        self.archiver = Archiver(nexus=self.nexus)
-        self.observer = Observer(
-            nexus=self.nexus,
-            coordinator=self.coordinator,
-            bus_url=self.bus.url,
-            spawn_unit_func=gateway.spawn_unit,
-        )
-
-        # Old components (will be removed or refactored)
-        self.khala = None  # Khala will connect to Bus
+        self.bus = Bus(port=self.port)
+        self.khala: Optional[Khala] = None
         self._last_completion_event: Optional[Event] = None
 
     async def __aenter__(self) -> "Protoss":
         """Infrastructure genesis."""
         await self.bus.start()
-        await self.coordinator.start()
-        await self.archiver.start()
-        await self.observer.start()
 
         self.khala = Khala(bus_url=self.bus.url)
-        await self.khala.connect(unit_id="protoss_coordinator")
+        await self.khala.connect(agent_id="protoss_client")
 
-        # Seed the vision via Nexus
-        vision_event = Event(
-            type="vision_seed",
-            channel="nexus",
-            sender="protoss",
-            coordination_id=self.coordination_id,
-            payload={"vision": self.vision},
-            content=f"{self.vision} @arbiter",
+        content = self.vision
+        if "@arbiter" not in content:
+            content += " @arbiter"
+
+        # Seed the vision via the Khala
+        await self.khala.send(
+            {
+                "type": "vision_seed",
+                "channel": "nexus",
+                "sender": "protoss_client",
+                "coordination_id": self.coordination_id,
+                "content": content,
+            }
         )
-        await self.nexus.publish(vision_event)
 
         logger.info("Coordination network online")
         return self
@@ -76,25 +60,24 @@ class Protoss:
         if self.khala:
             await self.khala.disconnect()
 
-        await self.observer.stop()
-        await self.archiver.stop()
-        await self.coordinator.stop()
         await self.bus.stop()
 
         logger.info("Coordination complete")
 
-    # The Protoss class no longer directly listens for events or manages an event queue.
-    # Completion is now handled by subscribing to the Coordinator's completion events.
-
-    async def completion(self) -> str:
-        """Awaits coordination completion and returns result."""
-        async for event in self.nexus.subscribe(
-            event_type="coordination_complete", channel="nexus"
-        ):
-            if event.coordination_id == self.coordination_id:
+    async def completion(self) -> Event:
+        """Awaits a constitutional completion signal from the Arbiter."""
+        async for event in self.khala.listen():
+            # The constitutional signal for completion is a message from the arbiter
+            # in the nexus channel that is not a spawn request.
+            if (
+                event.channel == "nexus"
+                and event.coordination_id == self.coordination_id
+                and event.sender.startswith("arbiter")
+                and "@" not in event.content
+            ):
                 self._last_completion_event = event
-                return event.payload.get("result", "Coordination completed")
-        return "Coordination timeout"
+                return event
+        raise TimeoutError("Coordination timeout")  # pragma: no cover
 
     def __await__(self):
         """Allow 'await swarm' syntax."""

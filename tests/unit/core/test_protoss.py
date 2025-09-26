@@ -11,20 +11,11 @@ async def test_context_manager_starts_and_stops(protoss_components):
         pass
 
     bus = protoss_components["bus"]
-    coordinator = protoss_components["coordinator"]
-    archiver = protoss_components["archiver"]
-    observer = protoss_components["observer"]
     khala = protoss_components["khala"]
 
     bus.start.assert_awaited_once()
-    coordinator.start.assert_awaited_once()
-    archiver.start.assert_awaited_once()
-    observer.start.assert_awaited_once()
-    khala.connect.assert_awaited_once_with(unit_id="protoss_coordinator")
+    khala.connect.assert_awaited_once_with(agent_id="protoss_client")
 
-    observer.stop.assert_awaited_once()
-    archiver.stop.assert_awaited_once()
-    coordinator.stop.assert_awaited_once()
     bus.stop.assert_awaited_once()
     khala.disconnect.assert_awaited_once()
 

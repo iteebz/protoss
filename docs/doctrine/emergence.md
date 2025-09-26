@@ -49,12 +49,14 @@ All other requests for intervention (alerts, checkpoints) are handled via natura
 
 The `@mention` is the universal mechanism for all agent interaction. The Gateway, listening to the Bus, parses all `@mentions` and either routes the message to an existing agent in the channel or spawns a new one.
 
-### 3.5. The Probe: A Shared Function Library
+### 3.5. The Probe: Bus-Executed Infrastructure Tool
 
-Put simply, **the Probe is a function library for the swarm.** It is a Heuristic Agent that provides shared, deterministic tools for infrastructure tasks, invoked via natural language.
+**The Probe is a mobile function library** – a deterministic tool for infrastructure tasks, invoked via natural language and executed directly by the Bus. It is pure execution machinery, not a sovereign agent with its own lifecycle.
 
--   **Invocation:** Any agent can call a Probe function: `@probe, create a sub-channel for 'data-ingestion' and then instruct '@archon to seed this channel'.`
--   **Execution:** The Probe spawns, parses the command, executes its hard-coded logic (e.g., tells the Bus to create the channel), delivers the next instruction to the new channel, and immediately despawns.
+-   **Invocation:** Any agent can summon: `@probe, create a sub-channel for 'data-ingestion' and then instruct '@archon to seed this channel'.`
+-   **Execution:** The Bus intercepts the `@probe` mention, delegates parsing of natural language commands and execution of deterministic infrastructure logic to the `protoss.tools.probe` module. This module orchestrates Bus APIs (e.g., creating channels, sending messages), delivers next instructions to target channels, and completes its task without spawning a separate process.
+-   **Deterministic:** Probe behavior is predictable and reliable – it's the swarm's toolkit, not its mind.
+-   **Efficiency:** This approach eliminates the ceremony of spawning a separate process for deterministic functions, keeping infrastructure concerns within the infrastructure layer (the Bus) while maintaining the `@mention` interface.
 
 ## 4. Emergent Coordination Patterns
 

@@ -7,7 +7,7 @@ import logging
 import time  # Added time import
 from typing import List, Dict, Optional
 
-from .message import Message
+from .event import Event
 from .protocols import BaseSignal
 
 logger = logging.getLogger(__name__)
@@ -21,22 +21,20 @@ class Khala:
         self._websocket: Optional[websockets.WebSocketClientProtocol] = None
         self.id: str = "client"
 
-    async def connect(self, unit_id: Optional[str] = None):
-        """Establish sacred connection to the Bus."""
-        if not self.bus_url:
-            raise ValueError("Bus URL required for khala connection.")
-        if self._websocket and self._websocket.state == websockets.protocol.State.OPEN:
-            logger.info(f"Khala already connected to {self.bus_url}")
+    async def connect(self, agent_id: Optional[str] = None):
+        if self._websocket:
+            logger.warning("Already connected.")
             return
 
+        # Append agent_id to the URL path for server-side identification
+        url = f"{self.bus_url}/{agent_id}" if agent_id else self.bus_url
         try:
-            uri = f"{self.bus_url}/{unit_id if unit_id else self.id}"
-            self._websocket = await websockets.connect(uri)
-            logger.info(f"Khala connected to Bus at {uri}")
+            self._websocket = await websockets.connect(url)
+            self.id = agent_id or "client"
+            logger.info(f"Khala connected to Bus as {self.id}.")
         except Exception as e:
-            logger.error(f"Khala failed to connect to Bus at {self.bus_url}: {e}")
+            logger.error(f"Failed to connect to Bus: {e}")
             self._websocket = None
-            raise ConnectionError(f"Failed to connect to Bus: {e}") from e
 
     async def disconnect(self):
         """Sever sacred connection to the Bus."""
@@ -56,17 +54,19 @@ class Khala:
         # Enrich event with timestamp before sending
         event["timestamp"] = time.time()
 
+        logger.info(f"Khala sending event: {event}")
+
         try:
             await self._websocket.send(json.dumps(event))
+            logger.info("Khala event sent successfully to Bus")
         except Exception as e:
             logger.error(f"Error sending event via Khala: {e}")
             raise
 
-    def _parse_message(self, message_str: str) -> Message:
-        """Parse event dictionary into Message object."""
+    def _parse_message(self, message_str: str) -> Event:
+        """Parse event dictionary into Event object."""
         event_dict = json.loads(message_str)
 
-        # Handle raw event dictionaries from Bus
         signals = [
             signal
             for s_dict in event_dict.get("signals", [])
@@ -74,24 +74,20 @@ class Khala:
         ]
 
         payload = event_dict.get("payload", {})
-        if (
-            event_dict.get("content")
-            and isinstance(payload, dict)
-            and "content" not in payload
-        ):
-            payload = {**payload, "content": event_dict["content"]}
+        content = event_dict.get("content")
 
-        return Message(
-            sender=event_dict["sender"],
+        return Event(
+            type=event_dict.get("type", "event"),
             channel=event_dict["channel"],
+            sender=event_dict["sender"],
             timestamp=event_dict["timestamp"],
-            signals=signals,
-            event=payload,
-            msg_type=event_dict.get("type", "event"),
+            payload=payload,
             coordination_id=event_dict.get("coordination_id"),
+            content=content,
+            signals=signals,
         )
 
-    async def receive(self, timeout: int = 1) -> Optional[Message]:
+    async def receive(self, timeout: int = 1) -> Optional[Event]:
         """Receive message from sacred channel."""
         try:
             if (
@@ -125,13 +121,9 @@ class Khala:
         req = {"type": "history_req", "channel": channel_id}
         await self._websocket.send(json.dumps(req))
 
-        message = await self.receive()
-        if (
-            message
-            and message.msg_type == "history_resp"
-            and message.channel == channel_id
-        ):
-            return message.event.get("history", [])
+        event = await self.receive(timeout=5)
+        if event and event.type == "history_resp" and event.channel == channel_id:
+            return event.payload.get("history", [])
         else:
             raise ConnectionError("Failed to receive history response from Bus.")
 

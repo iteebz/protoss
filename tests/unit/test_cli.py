@@ -1,129 +1,104 @@
-"""Unit tests for the Protoss CLI."""
+from unittest.mock import patch, AsyncMock, MagicMock
 
-import os
-import shutil
-import pytest
 from typer.testing import CliRunner
-from unittest.mock import patch, mock_open, Mock
-import signal
 
-from protoss.cli import app, PROTOSS_DIR, BUS_PID_FILE, _stop_process
-
+from protoss.cli import app
 
 runner = CliRunner()
 
 
-@pytest.fixture(autouse=True)
-def clean_protoss_dir():
-    """Ensure a clean .protoss directory for each test."""
-    if os.path.exists(PROTOSS_DIR):
-        shutil.rmtree(PROTOSS_DIR)
-    os.makedirs(PROTOSS_DIR, exist_ok=True)
-
-
-# --- Tests for 'start' command --- #
-
-
-@patch("protoss.cli.stop")
-@patch("signal.pause")
-@patch("signal.signal")
-@patch("time.sleep")
-@patch("subprocess.Popen")
-@patch("builtins.open", new_callable=mock_open)
-@patch("os.makedirs")
-def test_start_command_success(
-    mock_makedirs,
-    mock_open_file,
-    mock_popen,
-    mock_sleep,
-    mock_signal,
-    mock_pause,
-    mock_stop,
-):
-    """Test that the start command successfully launches bus."""
-    mock_bus_process = Mock()
-    mock_bus_process.pid = 12345
-    mock_popen.return_value = mock_bus_process
-    mock_pause.side_effect = SystemExit  # Prevent blocking the test
-
-    result = runner.invoke(app, ["start"])
-
-    assert result.exit_code == 0
-    assert "Bus started with PID 12345" in result.stdout
-    assert "Protoss infrastructure is running" in result.stdout
-
-    mock_makedirs.assert_called_once_with(PROTOSS_DIR, exist_ok=True)
-
-    # Check PID file writes
-    mock_open_file.assert_any_call(BUS_PID_FILE, "w")
-    mock_open_file().write.assert_called_once_with("12345")
-
-    # Check subprocess calls
-    mock_popen.assert_called_once_with(
-        ["python", "-m", "src.protoss.cli", "bus", "--port=8888"],
-        stdout=mock_open_file(),
-        stderr=mock_open_file(),
+@patch("protoss.cli.coordinate")
+def test_coord_invokes_coordination(mock_coordinate):
+    """Verify the 'coord' command parses arguments and calls the core function."""
+    result = runner.invoke(
+        app,
+        [
+            "coord",
+            "test vision",
+            "--port",
+            "9999",
+            "--coordination-id",
+            "test-coord-123",
+        ],
     )
-    mock_pause.assert_called_once()
-
-
-# --- Tests for 'stop' command and its helper --- #
-
-
-@patch("protoss.cli._stop_process")
-def test_stop_command_calls_helpers(mock_stop_helper):
-    """Test that the main 'stop' command calls its helper for each process."""
-    result = runner.invoke(app, ["stop"])
 
     assert result.exit_code == 0
-    mock_stop_helper.assert_called_once_with("Protoss Bus", BUS_PID_FILE)
+    mock_coordinate.assert_called_once_with("test vision", 9999, "test-coord-123")
 
 
-@patch("os.remove")
-@patch("os.kill")
-@patch("builtins.open", new_callable=mock_open, read_data="12345")
-@patch("os.path.exists", return_value=True)
-def test_stop_process_helper_success(
-    mock_exists, mock_open, mock_kill, mock_remove, capsys
-):
-    """Test the _stop_process helper successfully stopping a process."""
-    _stop_process("Test Process", "/fake/pid.file")
+@patch("protoss.cli.Khala")
+def test_status_displays_status(mock_khala_class):
+    """Verify the 'status' command displays the bus status correctly."""
+    # Arrange
+    mock_khala_instance = mock_khala_class.return_value
+    mock_khala_instance.connect = AsyncMock()
+    mock_khala_instance.disconnect = AsyncMock()
+    mock_khala_instance.send = AsyncMock()
 
-    captured = capsys.readouterr()
-    assert "Test Process (PID 12345) stopped." in captured.out
+    # Simulate a status response from the bus
+    status_payload = {
+        "type": "status_resp",
+        "channel": "system",
+        "sender": "bus",
+        "event": {
+            "status": "online",
+            "bus": {"channels": 5, "agents": 10, "messages": 100},
+        },
+    }
+    # Fix: receive is awaited, so it must be an AsyncMock
+    mock_khala_instance.receive = AsyncMock(
+        return_value=MagicMock(msg_type="status_resp", event=status_payload["event"])
+    )
 
-    mock_exists.assert_called_with("/fake/pid.file")
-    mock_open.assert_called_once_with("/fake/pid.file", "r")
-    mock_kill.assert_called_once_with(12345, signal.SIGTERM)
-    mock_remove.assert_called_once_with("/fake/pid.file")
+    # Act
+    result = runner.invoke(app, ["status"])
+
+    # Assert
+    assert result.exit_code == 0
+    assert "Protoss Status" in result.stdout
+    assert "Status: online" in result.stdout
+    assert "Bus metrics: channels=5 agents=10 messages=100" in result.stdout
+    mock_khala_instance.connect.assert_awaited_once()
+    mock_khala_instance.disconnect.assert_awaited_once()
 
 
-@patch("os.remove")
-@patch("os.kill", side_effect=ProcessLookupError)
-@patch("builtins.open", new_callable=mock_open, read_data="12345")
-@patch("os.path.exists", return_value=True)
-def test_stop_process_helper_not_running(
-    mock_exists, mock_open, mock_kill, mock_remove, capsys
-):
-    """Test the _stop_process helper when the process is already dead."""
-    _stop_process("Test Process", "/fake/pid.file")
+@patch("protoss.cli.uuid4")
+@patch("protoss.cli.Khala")
+def test_ask_sends_and_prints(mock_khala_class, mock_uuid):
+    """Verify the 'ask' command sends a question and prints the response."""
+    # Arrange
+    mock_uuid.return_value = MagicMock(hex="fixeduuid")
+    # Fix: The cli slices the hex to 8 characters, so we must match that
+    expected_channel = f"query:{mock_uuid.return_value.hex[:8]}:active"
 
-    captured = capsys.readouterr()
-    assert "Test Process (PID 12345) was not running." in captured.out
+    mock_khala_instance = mock_khala_class.return_value
+    mock_khala_instance.connect = AsyncMock()
+    mock_khala_instance.disconnect = AsyncMock()
+    mock_khala_instance.send = AsyncMock()
 
-    mock_kill.assert_called_once_with(12345, signal.SIGTERM)
-    mock_remove.assert_called_once_with("/fake/pid.file")  # Should still be removed
+    # Simulate an arbiter response
+    async def listen_generator():
+        yield MagicMock(
+            msg_type="agent_message",
+            channel=expected_channel,
+            sender="arbiter-abc",
+            event={"content": "The swarm is ready."},
+        )
 
+    mock_khala_instance.listen.return_value = listen_generator()
 
-@patch("os.remove")
-@patch("os.kill")
-@patch("os.path.exists", return_value=False)
-def test_stop_process_helper_no_pid_file(mock_exists, mock_kill, mock_remove, capsys):
-    """Test the _stop_process helper when the PID file does not exist."""
-    _stop_process("Test Process", "/fake/pid.file")
+    # Act
+    result = runner.invoke(app, ["ask", "Is the swarm ready?"])
 
-    captured = capsys.readouterr()
-    assert captured.out == ""
+    # Assert
+    assert result.exit_code == 0
+    assert f"Asking swarm in channel {expected_channel}..." in result.stdout
+    assert "Human: Is the swarm ready?" in result.stdout
+    assert "ARBITER: The swarm is ready." in result.stdout
 
-    mock_kill.assert_not_called()
-    mock_remove.assert_not_called()
+    # Verify that send was called with the correct question
+    mock_khala_instance.send.assert_awaited_once()
+    sent_data = mock_khala_instance.send.call_args[0][0]
+    assert sent_data["type"] == "human_ask"
+    assert sent_data["channel"] == expected_channel
+    assert "Is the swarm ready? @arbiter" in sent_data["content"]

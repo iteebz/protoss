@@ -1,19 +1,16 @@
-"""Bus contract tests."""
-
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from protoss.core.bus import Bus
-from protoss.core.message import Event
+from protoss.core.event import Event
 from protoss.core.protocols import Mention
 
 
 @pytest.mark.asyncio
 async def test_transmit_publishes_canonical_event(monkeypatch):
-    nexus = AsyncMock()
-    bus = Bus(nexus=nexus, port=0)
+    bus = Bus(port=0)
     bus.storage.save_event = AsyncMock()
 
     captured_event: Event | None = None
@@ -22,7 +19,7 @@ async def test_transmit_publishes_canonical_event(monkeypatch):
         nonlocal captured_event
         captured_event = event
 
-    nexus.publish.side_effect = capture
+    bus.publish = AsyncMock(side_effect=capture)
     mock_signal = Mention(agent_name="mock")
 
     monkeypatch.setattr("protoss.core.parser.signals", lambda content: [mock_signal])
@@ -36,7 +33,7 @@ async def test_transmit_publishes_canonical_event(monkeypatch):
         event_payload={"content": "Hello"},
     )
 
-    assert nexus.publish.await_count == 1
+    assert bus.publish.await_count == 1
     assert captured_event is not None
     assert captured_event.type == "agent_message"
     assert captured_event.channel == "alpha"
@@ -49,8 +46,7 @@ async def test_transmit_publishes_canonical_event(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_handler_registers_sender_and_routes(monkeypatch):
-    nexus = AsyncMock()
-    bus = Bus(nexus=nexus, port=0)
+    bus = Bus(port=0)
     bus.transmit = AsyncMock()
 
     message = {
@@ -78,6 +74,10 @@ async def test_handler_registers_sender_and_routes(monkeypatch):
 
     websocket = StubWebSocket([json.dumps(message)])
 
+    monkeypatch.setattr(
+        bus, "deregister", MagicMock()
+    )  # Mock deregister to prevent interference
+
     await bus._handler(websocket)
 
     assert "zealot" not in bus.connections
@@ -94,8 +94,7 @@ async def test_handler_registers_sender_and_routes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_start_uses_websockets_serve():
-    nexus = AsyncMock()
-    bus = Bus(nexus=nexus, port=0)
+    bus = Bus(port=0)
 
     server = MagicMock()
     server.sockets = [
@@ -115,8 +114,7 @@ async def test_start_uses_websockets_serve():
 
 @pytest.mark.asyncio
 async def test_broadcast_skips_sender():
-    nexus = AsyncMock()
-    bus = Bus(nexus=nexus, port=0)
+    bus = Bus(port=0)
 
     sender_socket = AsyncMock()
     peer_socket = AsyncMock()

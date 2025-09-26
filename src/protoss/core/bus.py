@@ -1,19 +1,19 @@
-"""A simple, unified message bus for agent coordination."""
-
 import asyncio
 import json
 import logging
 import socket
 import time
-from typing import Dict, Set, Optional, List
+from collections import defaultdict
+from typing import Dict, Set, Optional, List, AsyncIterator, Tuple
 from dataclasses import dataclass, field
 
 import websockets
-from .message import Message, Event  # Import Event from message.py
+from .event import Event
 from . import parser
-from .protocols import Storage
+from . import gateway
+from .protocols import Storage, Mention
 from protoss.lib.storage import SQLite
-from .nexus import Nexus  # Import Nexus
+from protoss.tools import probe
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class Channel:
     """Channel state with history and subscribers."""
 
-    history: List[Message] = field(default_factory=list)
+    history: List[Event] = field(default_factory=list)
     subscribers: Set[str] = field(default_factory=set)
 
 
@@ -58,18 +58,25 @@ class Bus:
 
     def __init__(
         self,
-        nexus: Nexus,  # Inject Nexus
         port: int = 8888,
         storage_path: Optional[str] = None,
+        max_units: int = 100,
     ):
-        self.nexus = nexus  # Store Nexus instance
         self.port = port
         self.server: Optional[websockets.WebSocketServer] = None
         self.storage: Storage = SQLite(storage_path or "./.protoss/store.db")
+        self.max_units = max_units
 
         # State owned by the Bus facade
         self.connections: Dict[str, websockets.ServerProtocol] = {}
         self.channels: Dict[str, Channel] = {}  # Channel state with history
+
+        # Nexus functionality merged into Bus
+        self._subscribers: Dict[
+            Optional[str], List[Tuple[asyncio.Queue, Optional[str]]]
+        ] = defaultdict(list)
+        self._general_subscribers: List[asyncio.Queue] = []
+        self._lock = asyncio.Lock()
 
     @property
     def url(self) -> str:
@@ -99,27 +106,74 @@ class Bus:
             self.server = None
             logger.info("Bus offline")
 
+    async def publish(self, event: Event):
+        """
+        Publishes an event to all relevant subscribers (internal and external).
+        """
+        if not isinstance(event, Event):
+            logger.error(f"Attempted to publish non-Event object: {type(event)}")
+            return
+
+        # Publish to internal general subscribers
+        for queue in self._general_subscribers:
+            await queue.put(event)
+
+        # Publish to internal type-specific subscribers
+        if event.type in self._subscribers:
+            for queue, filter_channel in self._subscribers[event.type]:
+                if filter_channel is None or filter_channel == event.channel:
+                    await queue.put(event)
+
+        # Broadcast to external WebSocket subscribers
+        await self._broadcast_event(event)
+
+        logger.debug(f"Published event: {event.type} to channel {event.channel}")
+
+    async def subscribe(
+        self, event_type: Optional[str] = None, channel: Optional[str] = None
+    ) -> AsyncIterator[Event]:
+        """
+        Subscribes to events.
+        If event_type is None, subscribes to all events.
+        If channel is not None, filters events by channel for type-specific subscriptions.
+        """
+        queue = asyncio.Queue()
+        async with self._lock:
+            if event_type is None:
+                self._general_subscribers.append(queue)
+            else:
+                self._subscribers[event_type].append((queue, channel))
+
+        logger.debug(f"New subscriber for event_type={event_type}, channel={channel}")
+
+        try:
+            while True:
+                yield await queue.get()
+        except asyncio.CancelledError:
+            logger.debug(
+                f"Subscriber cancelled for event_type={event_type}, channel={channel}"
+            )
+        finally:
+            async with self._lock:
+                if event_type is None:
+                    if queue in self._general_subscribers:
+                        self._general_subscribers.remove(queue)
+                else:
+                    if (queue, channel) in self._subscribers[event_type]:
+                        self._subscribers[event_type].remove((queue, channel))
+
     async def transmit(self, channel: str, sender: str, event_type: str, **kwargs):
-        """Creates a canonical Event and publishes it to the Nexus."""
+        """Creates a canonical Event, persists it, and publishes it."""
         coordination_id = kwargs.pop("coordination_id", None)
         payload = kwargs.pop("event_payload", None) or kwargs.pop("payload", None) or {}
         content = kwargs.pop("content", None) or payload.get("content", "")
 
         signals = parser.signals(content) if content else []
-        message_obj = Message(
-            channel=channel,
-            sender=sender,
-            event=payload,
-            msg_type=event_type,
-            coordination_id=coordination_id,
-            signals=signals,
-        )
 
         event = Event(
             type=event_type,
             channel=channel,
             sender=sender,
-            timestamp=message_obj.timestamp,
             payload=payload,
             coordination_id=coordination_id,
             content=content,
@@ -127,15 +181,73 @@ class Bus:
         )
 
         channel_state = self.channels.setdefault(channel, Channel())
-        channel_state.history.append(message_obj)
+        channel_state.history.append(event)
 
+        # Persist the event directly, absorbing the Archiver's role.
         try:
             await self.storage.save_event(event.to_dict())
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.error("Failed to persist event: %s", exc)
 
-        await self.nexus.publish(event)
-        await self._broadcast_event(event)  # Still broadcast to external subscribers
+        # Absorb Observer role: check for mentions and spawn units
+        await self._handle_mentions(event)
+
+        await self.publish(event)
+
+    async def _handle_mentions(self, event: Event):
+        """Processes an event to detect @mentions and trigger actions."""
+        if not event.signals:
+            return
+
+        for signal in event.signals:
+            if not isinstance(signal, Mention):
+                continue
+
+            agent_type = signal.agent_name
+            channel = event.channel
+
+            # Handle @probe as an internal Bus function
+            if agent_type == "probe":
+                await self._execute_probe_tool(event)
+                continue
+
+            # Get active units for the channel
+            active_units_in_channel = self.channels.get(channel, Channel()).subscribers
+            active_units_snapshot = {channel: set(active_units_in_channel)}
+
+            if not gateway.should_spawn_agent(
+                agent_type, channel, active_units_snapshot, self.max_units
+            ):
+                continue
+
+            await self._spawn_agent_and_publish_event(agent_type, channel, event)
+
+    async def _execute_probe_tool(self, event: Event):
+        """Executes the probe tool with the given event."""
+        await probe.execute(event, self)
+
+    async def _spawn_agent_and_publish_event(
+        self, agent_type: str, channel: str, original_event: Event
+    ):
+        """Spawns an agent and publishes an agent_spawn event."""
+        try:
+            await gateway.spawn_agent(agent_type, channel, self.url)
+            logger.info("Bus: Spawning %s for @mention in %s", agent_type, channel)
+
+            await self.publish(
+                Event(
+                    type="agent_spawn",
+                    channel=channel,
+                    sender="system",
+                    coordination_id=original_event.coordination_id,
+                    payload={
+                        "agent_type": agent_type,
+                        "spawned_by": original_event.sender,
+                    },
+                )
+            )
+        except Exception as exc:
+            logger.error("Bus: Failed to spawn %s: %s", agent_type, exc, exc_info=True)
 
     async def _handler(self, websocket: websockets.ServerProtocol):
         """Handles a new agent's WebSocket connection and routes its messages."""
@@ -154,7 +266,6 @@ class Bus:
                 content = data.get("content")
                 payload = data.get("payload")
 
-                # For now, history requests are still handled here, but will move to Archiver
                 if event_type == "history_req":
                     await self._send_history(websocket, channel, data.get("since"))
                     continue
@@ -174,7 +285,7 @@ class Bus:
             pass
         finally:
             self.connections.pop(agent_id, None)
-            # active_units is no longer managed by Bus, so no deregister from there
+            self.deregister(agent_id)
             logger.info(f"🔌 {agent_id} disconnected")
 
     async def _broadcast_event(self, event: Event):
@@ -182,9 +293,7 @@ class Bus:
         wire_event = event.to_dict()
         channel = wire_event.get("channel", "")
         sender = wire_event.get("sender", "")
-        subscribers = self.channels.get(
-            channel, Channel()
-        ).subscribers  # Use Bus channel subscribers
+        subscribers = self.channels.get(channel, Channel()).subscribers
 
         payload = json.dumps(wire_event)
         await asyncio.gather(
@@ -204,8 +313,8 @@ class Bus:
 
     def deregister(self, agent_id: str):
         """Deregister agent from all channels."""
-        for channel in self.channels.values():
-            channel.subscribers.discard(agent_id)
+        for channel_state in self.channels.values():
+            channel_state.subscribers.discard(agent_id)
 
     async def _send_history(
         self,
@@ -214,7 +323,6 @@ class Bus:
         since: Optional[float] = None,
     ):
         """Respond to history requests with persisted events."""
-        # This will eventually query the Archiver
         history = await self.storage.load_events(channel=channel, since=since)
         response = {
             "type": "history_resp",
@@ -229,7 +337,6 @@ class Bus:
         self, channel: str, since: Optional[float] = None
     ) -> List[Dict]:
         """Retrieves events from storage for a given channel."""
-        # This will eventually query the Archiver
         return await self.storage.load_events(channel=channel, since=since)
 
 
@@ -249,9 +356,7 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Instantiate Nexus and pass to Bus
-    nexus = Nexus()
-    bus = Bus(nexus=nexus, port=args.port, storage_path=args.storage_path)
+    bus = Bus(port=args.port, storage_path=args.storage_path)
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(bus.start())

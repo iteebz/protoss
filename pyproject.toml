@@ -44,5 +44,5 @@ cogency = {path = "../cogency", develop = true}
 packages = [{ include = "protoss", from = "src" }]
 
 [tool.poetry.scripts]
-protoss = "protoss.cli:main"
+protoss = "protoss.cli:app"
 pytest = "pytest:main"

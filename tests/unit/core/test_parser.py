@@ -27,17 +27,17 @@ def test_no_signals():
         # Valid mentions
         ("Hello @archon, please review this.", [Mention(agent_name="archon")]),
         (
-            "@zealot and @probe, coordinate.",
-            [Mention(agent_name="zealot"), Mention(agent_name="probe")],
+            "@zealot and @arbiter, coordinate.",
+            [Mention(agent_name="zealot"), Mention(agent_name="arbiter")],
         ),
         ("Hey @ArBiTeR, what's up?", [Mention(agent_name="arbiter")]),
         (
-            "(@oracle) - check this. @probe! Done.",
-            [Mention(agent_name="oracle"), Mention(agent_name="probe")],
+            "(@oracle) - check this. @zealot! Done.",
+            [Mention(agent_name="oracle"), Mention(agent_name="zealot")],
         ),
         ("Hello @archon. Please review.", [Mention(agent_name="archon")]),
         ("Is this for @zealot?", [Mention(agent_name="zealot")]),
-        ("Call @probe!", [Mention(agent_name="probe")]),
+        ("Call @arbiter!", [Mention(agent_name="arbiter")]),
         # Invalid mentions (false positives)
         (
             "email@example.com, #hashtag, but @real_agent.",
@@ -49,12 +49,12 @@ def test_no_signals():
     ],
     ids=[
         "valid_archon",
-        "valid_zealot_probe",
+        "valid_zealot_arbiter",
         "valid_arbiter_case_insensitive",
-        "valid_oracle_probe_punctuation",
+        "valid_oracle_zealot_punctuation",
         "valid_archon_period",
         "valid_zealot_question",
-        "valid_probe_exclamation",
+        "valid_arbiter_exclamation",
         "invalid_email_hashtag",
         "invalid_email_domain",
         "invalid_hyphenated_agent",
