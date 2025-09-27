@@ -39,7 +39,8 @@ COORDINATION_PROTOCOL = """
 - @archon - Summon fresh archon for institutional memory
 - @oracle - Summon fresh oracle for web research and external intelligence
 - @conclave - Summon fresh conclave for constitutional deliberation
-- @arbiter - Summon fresh arbiter on to escalate to human
+- @arbiter - Summon fresh arbiter to escalate to human
+- @probe - Infrastructure tool for channel creation and agent coordination
 - @agent-abc123 - Wake up/reactivate specific agent
 
 ### ! = Self-Action

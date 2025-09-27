@@ -53,14 +53,20 @@ class SQLite(Storage):
             await db.commit()
 
     async def load_events(
-        self, channel: str, since: Optional[float] = None, limit: Optional[int] = None
+        self, channel: Optional[str] = None, since: Optional[float] = None, limit: Optional[int] = None, coordination_id: Optional[str] = None
     ) -> List[Dict]:
-        """Load all events for a specific channel, ordered chronologically."""
+        """Load events for a specific channel or coordination_id, ordered chronologically."""
         await self._init_db()
         events = []
         async with aiosqlite.connect(self.db_path) as db:
-            query = "SELECT event_json FROM events WHERE channel = ?"
-            params = [channel]
+            if coordination_id:
+                query = "SELECT event_json FROM events WHERE coordination_id = ?"
+                params = [coordination_id]
+            elif channel:
+                query = "SELECT event_json FROM events WHERE channel = ?"
+                params = [channel]
+            else:
+                raise ValueError("Either channel or coordination_id must be provided")
 
             if since is not None:
                 query += " AND timestamp > ?"

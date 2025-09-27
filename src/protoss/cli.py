@@ -162,7 +162,7 @@ def ask(
         ask_coordination_id = str(uuid4())
 
         try:
-            await khala.connect(client_id="human_asker")
+            await khala.connect(agent_id="human_asker")
             # Send the initial question, which implicitly joins the channel
             await khala.send(
                 {
@@ -180,13 +180,11 @@ def ask(
             async for message in khala.listen():  # Listen for structured events
                 if (
                     message
-                    and message.msg_type == "agent_message"
+                    and message.type == "agent_message"
                     and message.channel == ask_channel_id
                 ):
                     sender = message.sender
-                    content = ""
-                    if message.event:
-                        content = message.event.get("content", "")
+                    content = message.content or ""
 
                     if sender and sender.startswith("arbiter-"):
                         print(f"\nARBITER: {content}")

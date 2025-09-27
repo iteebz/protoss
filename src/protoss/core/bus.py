@@ -1,19 +1,23 @@
-import asyncio
 import json
+import asyncio
 import logging
-import socket
 import time
+from typing import Dict, List, Optional, Set, Tuple, AsyncIterator
 from collections import defaultdict
-from typing import Dict, Set, Optional, List, AsyncIterator, Tuple
+import socket
+
+import aiosqlite
+import websockets
+from websockets import WebSocketServerProtocol
+
 from dataclasses import dataclass, field
 
-import websockets
 from .event import Event
-from . import parser
-from . import gateway
 from .protocols import Storage, Mention
-from protoss.lib.storage import SQLite
-from protoss.tools import probe
+from ..lib.storage import SQLite
+from . import gateway
+from ..tools import probe
+from . import parser
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +131,9 @@ class Bus:
         # Broadcast to external WebSocket subscribers
         await self._broadcast_event(event)
 
+        # Handle @mentions for agent spawning
+        await self._handle_mentions(event)
+
         logger.debug(f"Published event: {event.type} to channel {event.channel}")
 
     async def subscribe(
@@ -186,13 +193,57 @@ class Bus:
         # Persist the event directly, absorbing the Archiver's role.
         try:
             await self.storage.save_event(event.to_dict())
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error("Failed to persist event: %s", exc)
-
-        # Absorb Observer role: check for mentions and spawn units
-        await self._handle_mentions(event)
-
+        except Exception as e:
+            logger.error(f"Error storing message in SQLite: {e}")
+        
+        # Publish the event to subscribers
         await self.publish(event)
+
+    async def get_coordination_history(self, coordination_id: str) -> List[Dict]:
+        """Retrieve all messages for a given coordination_id across all channels."""
+        try:
+            return await self.storage.load_events(coordination_id=coordination_id)
+        except Exception as e:
+            logger.error(
+                f"Error retrieving coordination history for {coordination_id}: {e}"
+            )
+            return []
+
+    async def _get_channel_history(self, channel_id: str) -> List[Dict]:
+        """Retrieve messages for a specific channel."""
+        try:
+            return await self.storage.load_events(channel=channel_id)
+        except Exception as e:
+            logger.error(f"Error retrieving channel history for {channel_id}: {e}")
+            return []
+
+    async def _handle_history_request(
+        self, websocket: WebSocketServerProtocol, request: Dict
+    ):
+        channel_id = request.get("channel")
+        coordination_id = request.get("coordination_id")
+        request.get("sender", "system")
+
+        history_data = []
+        if coordination_id:
+            history_data = await self.get_coordination_history(coordination_id)
+        elif channel_id:
+            history_data = await self._get_channel_history(channel_id)
+        else:
+            logger.warning(
+                "History request received without channel_id or coordination_id."
+            )
+            return
+
+        response = {
+            "type": "history_resp",
+            "channel": channel_id if channel_id else "system",
+            "sender": "bus",
+            "timestamp": time.time(),
+            "payload": {"history": history_data},
+            "coordination_id": coordination_id,
+        }
+        await websocket.send(json.dumps(response))
 
     async def _handle_mentions(self, event: Event):
         """Processes an event to detect @mentions and trigger actions."""
@@ -258,17 +309,22 @@ class Bus:
             async for raw_message in websocket:
                 data = json.loads(raw_message)
                 channel = data.get("channel")
+                sender = agent_id  # Assuming sender is the connected agent_id
+                msg_type = data.get("type", "event")
+                message = data  # The full message dictionary
+
                 if not channel:
+                    logger.warning(f"Received message without channel from {sender}")
+                    continue
+
+                if msg_type == "history_req":
+                    await self._handle_history_request(websocket, message)
                     continue
 
                 event_type = data.get("type", "agent_message")
                 coordination_id = data.get("coordination_id")
                 content = data.get("content")
                 payload = data.get("payload")
-
-                if event_type == "history_req":
-                    await self._send_history(websocket, channel, data.get("since"))
-                    continue
 
                 self.register(channel, agent_id)
 

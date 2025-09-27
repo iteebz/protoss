@@ -45,7 +45,7 @@ class Protoss:
         await self.khala.send(
             {
                 "type": "vision_seed",
-                "channel": "nexus",
+                "channel": "human",
                 "sender": "protoss_client",
                 "coordination_id": self.coordination_id,
                 "content": content,
@@ -68,9 +68,9 @@ class Protoss:
         """Awaits a constitutional completion signal from the Arbiter."""
         async for event in self.khala.listen():
             # The constitutional signal for completion is a message from the arbiter
-            # in the nexus channel that is not a spawn request.
+            # in the human channel that is not a spawn request.
             if (
-                event.channel == "nexus"
+                event.channel == "human"
                 and event.coordination_id == self.coordination_id
                 and event.sender.startswith("arbiter")
                 and "@" not in event.content

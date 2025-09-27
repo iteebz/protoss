@@ -17,12 +17,12 @@ async def test_protoss_client_awaits_arbiter_completion(
 ):
     """
     Verify that the `Protoss` client correctly awaits and returns the
-    completion event from an arbiter agent on the nexus channel.
+    completion event from an arbiter agent on the human channel.
     """
     async with Protoss("My vision @arbiter") as swarm:
         khala = protoss_components["khala"]
         completion_event = event_factory(
-            channel="nexus",
+            channel="human",
             sender="arbiter-123",
             content="Vision fulfilled.",
             coordination_id=swarm.coordination_id,
@@ -39,7 +39,7 @@ async def test_protoss_client_awaits_arbiter_completion(
     # Assert that the initial vision was sent
     khala.send.assert_awaited_once()
     sent_data = khala.send.await_args.args[0]
-    assert sent_data["channel"] == "nexus"
+    assert sent_data["channel"] == "human"
     assert sent_data["content"] == "My vision @arbiter"
 
     # Assert that the result of the coordination is the arbiter's completion event
@@ -60,7 +60,7 @@ async def test_coordination_pull_model_robustness(protoss_components, event_fact
 
         # Simulate agent successfully processing context and responding
         response_event = event_factory(
-            channel="nexus",
+            channel="human",
             sender="arbiter-spawn-test",
             content="Status: All systems operational. Context assembly successful.",
             coordination_id=swarm.coordination_id,

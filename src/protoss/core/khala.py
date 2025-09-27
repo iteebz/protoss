@@ -110,19 +110,31 @@ class Khala:
             self._websocket = None
             return None
 
-    async def request_history(self, channel_id: str) -> List[Dict]:
-        """Request sacred channel history."""
+    async def request_history(
+        self, channel_id: Optional[str] = None, coordination_id: Optional[str] = None
+    ) -> List[Dict]:
+        """Request sacred channel history by channel_id or coordination_id."""
         if (
             not self._websocket
             or self._websocket.state != websockets.protocol.State.OPEN
         ):
             raise ConnectionError("Not connected to the Bus.")
 
-        req = {"type": "history_req", "channel": channel_id}
+        if not channel_id and not coordination_id:
+            raise ValueError("Either channel_id or coordination_id must be provided.")
+
+        req = {"type": "history_req"}
+        if channel_id:
+            req["channel"] = channel_id
+        if coordination_id:
+            req["coordination_id"] = coordination_id
+
         await self._websocket.send(json.dumps(req))
 
-        event = await self.receive(timeout=5)
-        if event and event.type == "history_resp" and event.channel == channel_id:
+        event = await self.receive()
+        if event and event.type == "history_resp":
+            if channel_id and event.channel != channel_id:
+                raise ConnectionError("Received history response for wrong channel.")
             return event.payload.get("history", [])
         else:
             raise ConnectionError("Failed to receive history response from Bus.")

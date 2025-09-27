@@ -47,6 +47,7 @@ class Agent:
         self._load_identity()
 
         # Initialize cogency for LLM agents with constitutional identity
+        logger.debug(f"Initializing cogency agent, cogency available: {cogency is not None}")
         self.cogency_agent = (
             cogency.Agent(
                 llm="gemini",
@@ -56,6 +57,7 @@ class Agent:
             if cogency
             else None
         )
+        logger.debug(f"Cogency agent created: {self.cogency_agent is not None}")
 
     def _load_identity(self):
         """Load agent configuration from registry."""
@@ -106,6 +108,40 @@ class Agent:
         except Exception as e:
             logger.error(f"Agent {self.agent_id} failed to send message: {e}")
             raise
+
+    async def join_coordination(self, coordination_id: str, target_channel: str):
+        """Join a coordination by fetching cross-channel context and switching to target channel."""
+        logger.info(f"Arbiter {self.agent_id} joining coordination {coordination_id} in {target_channel}")
+        
+        try:
+            # Fetch full coordination history across all channels
+            coordination_history = await self.khala.request_history(coordination_id=coordination_id)
+            logger.info(f"Arbiter {self.agent_id} loaded {len(coordination_history)} coordination messages")
+            
+            # Switch to target channel
+            self.channel = target_channel
+            self.coordination_id = coordination_id
+            
+            # Process coordination context through cogency
+            if self.cogency_agent and coordination_history:
+                history_text = "\n".join([
+                    f"[{msg.get('channel', 'unknown')}] {msg.get('sender', 'unknown')}: {msg.get('content', '')}"
+                    for msg in coordination_history
+                ])
+                
+                async for cogency_event in self.cogency_agent(
+                    f"Coordination context (ID: {coordination_id}):\n{history_text}"
+                ):
+                    if cogency_event["type"] == "respond":
+                        # Arbiter synthesizes coordination context and reports
+                        await self.send_message(content=cogency_event["content"])
+                        break
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Arbiter {self.agent_id} failed to join coordination {coordination_id}: {e}")
+            return False
 
     async def _process_message(self, event: Event):
         """Process an incoming message from the Bus."""
