@@ -1,4 +1,4 @@
-"""Simple swarm coordination test."""
+"""Protoss conversational coordination."""
 
 import asyncio
 import logging
@@ -8,8 +8,8 @@ from .agent import Agent
 logger = logging.getLogger(__name__)
 
 
-class Swarm:
-    """Minimal swarm for testing conversational coordination."""
+class Protoss:
+    """Conversational coordination through constitutional agents."""
     
     def __init__(self, channel: str = "human", base_dir: str = None):
         self.bus = Bus()

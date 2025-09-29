@@ -44,46 +44,23 @@ class Agent:
         )
         
     def _load_identity(self) -> str:
-        """Load constitutional identity from markdown files."""
-        # Map agent types to constitution files
-        constitution_map = {
-            "zealot": "zealot.md",
-            "sentinel": "sentinel.md", 
-            "harbinger": "harbinger.md"
-        }
-        
-        constitution_file = constitution_map.get(self.agent_type)
-        if not constitution_file:
-            return f"You are {self.agent_type} - coordinate through conversation."
-            
-        # Load from constitution folder
-        constitution_path = os.path.join(
-            os.path.dirname(__file__), 
-            "constitution", 
-            constitution_file
-        )
-        
+        """Load constitutional identity from Python modules."""
         try:
-            with open(constitution_path, 'r') as f:
-                base_identity = f.read()
-        except FileNotFoundError:
-            logger.warning(f"Constitution file not found: {constitution_path}")
+            if self.agent_type == "zealot":
+                from ..constitution.zealot import IDENTITY
+            elif self.agent_type == "sentinel":
+                from ..constitution.sentinel import IDENTITY
+            elif self.agent_type == "harbinger":
+                from ..constitution.harbinger import IDENTITY
+            else:
+                return f"You are {self.agent_type} - coordinate through conversation."
+                
+            from ..constitution.coordination import GUIDELINES
+            return f"{IDENTITY}\n\n{GUIDELINES}"
+            
+        except ImportError:
+            logger.warning(f"Constitution not found for {self.agent_type}")
             return f"You are {self.agent_type} - coordinate through conversation."
-            
-        # Load coordination guidelines
-        coordination_path = os.path.join(
-            os.path.dirname(__file__), 
-            "constitution", 
-            "coordination.md"
-        )
-        
-        try:
-            with open(coordination_path, 'r') as f:
-                coordination_guidelines = f.read()
-        except FileNotFoundError:
-            coordination_guidelines = "Coordinate through conversation."
-            
-        return f"{base_identity}\n\n{coordination_guidelines}"
 
     async def run(self):
         """Main coordination loop - initial context + diff updates."""

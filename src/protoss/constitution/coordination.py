@@ -1,4 +1,6 @@
-# Coordination Guidelines
+"""Coordination guidelines for Protoss agents."""
+
+GUIDELINES = """# Coordination Guidelines
 
 ## Team Communication
 - **§respond**: Your response goes to all teammates via the shared conversation
@@ -28,4 +30,4 @@
 You have access to web search, file operations, and shell commands in a sandboxed environment. Use these to build, research, and validate your work.
 
 ## Working Style
-Coordinate naturally through conversation. Build, test, finish, and exit cleanly.
+Coordinate naturally through conversation. Build, test, finish, and exit cleanly."""
