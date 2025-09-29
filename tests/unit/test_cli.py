@@ -79,10 +79,10 @@ def test_ask_sends_and_prints(mock_khala_class, mock_uuid):
     # Simulate an arbiter response
     async def listen_generator():
         yield MagicMock(
-            msg_type="agent_message",
+            type="agent_message",
             channel=expected_channel,
             sender="arbiter-abc",
-            event={"content": "The swarm is ready."},
+            content="The swarm is ready.",
         )
 
     mock_khala_instance.listen.return_value = listen_generator()

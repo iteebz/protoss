@@ -30,6 +30,7 @@ async def test_persists_messages(bus_integration_fixture: Bus):
         sender=sender,
         event_type="agent_message",
         event_payload=event,
+        coordination_id="test-coord-1",
     )
 
     # Verify persisted events
@@ -59,12 +60,14 @@ async def test_recovers_history_on_restart():
             sender,
             event_type="agent_message",
             event_payload={"content": content1},
+            coordination_id="test-coord-2",
         )
         await bus1.transmit(
             channel,
             sender,
             event_type="agent_message",
             event_payload={"content": content2},
+            coordination_id="test-coord-3",
         )
 
         # Second Bus instance: start with same storage path and check history
@@ -92,6 +95,7 @@ async def test_history_since_timestamp(bus_integration_fixture: Bus):
         sender,
         event_type="agent_message",
         event_payload={"content": "Message 1"},
+        coordination_id="test-coord-4",
     )
     await asyncio.sleep(0.01)  # Ensure distinct timestamps
     msg2_timestamp = bus.channels[channel].history[-1].timestamp
@@ -100,6 +104,7 @@ async def test_history_since_timestamp(bus_integration_fixture: Bus):
         sender,
         event_type="agent_message",
         event_payload={"content": "Message 2"},
+        coordination_id="test-coord-5",
     )
     await asyncio.sleep(0.01)
     await bus.transmit(
@@ -107,6 +112,7 @@ async def test_history_since_timestamp(bus_integration_fixture: Bus):
         sender,
         event_type="agent_message",
         event_payload={"content": "Message 3"},
+        coordination_id="test-coord-6",
     )
 
     # Get events since msg2_timestamp

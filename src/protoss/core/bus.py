@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Set, Tuple, AsyncIterator
 from collections import defaultdict
 import socket
 
-import aiosqlite
 import websockets
 from websockets import WebSocketServerProtocol
 
@@ -18,6 +17,7 @@ from ..lib.storage import SQLite
 from . import gateway
 from ..tools import probe
 from . import parser
+from ..constitution import kernel
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +187,12 @@ class Bus:
             signals=signals,
         )
 
+        if not kernel.validate_coordination(event):
+            logger.warning(
+                f"Constitutional violation: {event.type} missing coordination_id"
+            )
+            return
+
         channel_state = self.channels.setdefault(channel, Channel())
         channel_state.history.append(event)
 
@@ -195,7 +201,7 @@ class Bus:
             await self.storage.save_event(event.to_dict())
         except Exception as e:
             logger.error(f"Error storing message in SQLite: {e}")
-        
+
         # Publish the event to subscribers
         await self.publish(event)
 
@@ -266,6 +272,12 @@ class Bus:
             active_units_in_channel = self.channels.get(channel, Channel()).subscribers
             active_units_snapshot = {channel: set(active_units_in_channel)}
 
+            if not kernel.validate_spawn(agent_type):
+                logger.warning(
+                    f"Constitutional violation: unknown agent type {agent_type}"
+                )
+                continue
+
             if not gateway.should_spawn_agent(
                 agent_type, channel, active_units_snapshot, self.max_units
             ):
@@ -282,7 +294,7 @@ class Bus:
     ):
         """Spawns an agent and publishes an agent_spawn event."""
         try:
-            await gateway.spawn_agent(agent_type, channel, self.url)
+            await gateway.spawn_agent(agent_type, channel, self.url, original_event.coordination_id)
             logger.info("Bus: Spawning %s for @mention in %s", agent_type, channel)
 
             await self.publish(
@@ -341,7 +353,9 @@ class Bus:
             pass
         finally:
             self.connections.pop(agent_id, None)
-            self.deregister(agent_id)
+            await self.deregister(
+                agent_id, agent_id
+            )  # Updated to await and pass deregistering_agent_id
             logger.info(f"🔌 {agent_id} disconnected")
 
     async def _broadcast_event(self, event: Event):
@@ -367,8 +381,19 @@ class Bus:
             self.channels[channel] = Channel()
         self.channels[channel].subscribers.add(agent_id)
 
-    def deregister(self, agent_id: str):
+    async def deregister(self, agent_id: str, deregistering_agent_id: str = None):
         """Deregister agent from all channels."""
+        if deregistering_agent_id is None:
+            deregistering_agent_id = (
+                agent_id  # Assume self-deregistration if not specified
+            )
+
+        if not kernel.validate_sovereignty(agent_id, deregistering_agent_id):
+            logger.warning(
+                f"Constitutional violation: {deregistering_agent_id} cannot deregister {agent_id}"
+            )
+            return
+
         for channel_state in self.channels.values():
             channel_state.subscribers.discard(agent_id)
 

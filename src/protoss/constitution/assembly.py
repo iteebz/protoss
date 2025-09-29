@@ -10,7 +10,7 @@ def assemble(
     Assemble complete constitutional instructions following proper hierarchy:
     CONSTITUTION -> IDENTITY -> COORDINATION -> GUIDELINES
     """
-    from ..agents.registry import get_agent_data
+    from .registry import get_agent_data
 
     registry_data = get_agent_data(agent_type)
     if not registry_data:

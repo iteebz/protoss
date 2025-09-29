@@ -1,12 +1,10 @@
 """The Lens of Providence: A real-time monitor for the Protoss swarm using Textual."""
 
 import asyncio
-import json
 from datetime import datetime
 from typing import Dict, Any
 import time
 
-import websockets
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
 from textual.widgets import Header, Footer, Log, Tree
@@ -27,6 +25,7 @@ class MonitorApp(App):
     def __init__(self, config: Config, **kwargs):
         super().__init__(**kwargs)
         self.config = config
+        self.bus = None
         self._log_widget = None
         self._channel_tree = None
         self._agent_tree = None
@@ -49,7 +48,13 @@ class MonitorApp(App):
         """Called when the app is mounted."""
         self.title = "Lens of Providence"
         self.sub_title = f"Monitoring the Khala at {self.config.bus_url}"
-        asyncio.create_task(self.run_client())
+
+        # Connect to existing Bus as client via Khala
+        from ..core.khala import Khala
+
+        self.khala = Khala(bus_url=self.config.bus_url)
+
+        asyncio.create_task(self.run_monitor())
 
     def _format_message(self, event: Dict[str, Any]) -> str:
         """Formats a structured event into a rich-text string for the Log widget."""
@@ -125,38 +130,23 @@ class MonitorApp(App):
                 agent_node.update_render()
                 # Optionally remove or grey out despawned agents
 
-    async def run_client(self):
-        """The main loop to connect, listen, and update the UI."""
-        uri = f"{self.config.bus_url}/monitor"
-        while True:
-            try:
-                async with websockets.connect(uri) as websocket:
-                    self.sub_title = f"Monitoring the Khala at {self.config.bus_url} [green]CONNECTED[/]"
-                    await websocket.send(json.dumps({"type": "monitor_req"}))
-                    ack = await websocket.recv()
-                    if json.loads(ack).get("type") != "monitor_ack":
-                        self._log_widget.write_line(
-                            "[red]Failed to register as monitor.[/]"
-                        )
-                        return
+    async def run_monitor(self):
+        """Monitor events using Khala client connection."""
+        try:
+            await self.khala.connect(agent_id="monitor")
+            self.sub_title = (
+                f"Monitoring the Khala at {self.config.bus_url} [green]CONNECTED[/]"
+            )
 
-                    async for raw_message in websocket:
-                        msg = json.loads(raw_message)
-                        formatted_msg = self._format_message(msg)
-                        self._log_widget.write_line(formatted_msg)
-                        self._update_trees(msg)
+            # Listen to all events
+            async for event in self.khala.listen():
+                event_dict = event.to_dict()
+                formatted_msg = self._format_message(event_dict)
+                self._log_widget.write_line(formatted_msg)
+                self._update_trees(event_dict)
 
-            except (
-                websockets.exceptions.ConnectionClosed,
-                ConnectionRefusedError,
-            ) as e:
-                self.sub_title = f"Monitoring the Khala at {self.config.bus_url} [red]DISCONNECTED[/]"
-                self._log_widget.write_line(
-                    f"[red]Lens disconnected: {e}. Retrying...[/]"
-                )
-                await asyncio.sleep(5)
-            except Exception as e:
-                self._log_widget.write_line(
-                    f"[bold red]An unexpected error occurred: {e}[/]"
-                )
-                break
+        except Exception as e:
+            self.sub_title = (
+                f"Monitoring the Khala at {self.config.bus_url} [red]ERROR[/]"
+            )
+            self._log_widget.write_line(f"[bold red]Monitor error: {e}[/]")

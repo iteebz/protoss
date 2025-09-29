@@ -6,12 +6,12 @@ import sys
 import json
 from typing import Dict, Set, List
 
-from ..agents.registry import AGENT_REGISTRY  # Updated import
+from ..constitution.registry import AGENT_REGISTRY
 
 logger = logging.getLogger(__name__)
 
 
-async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
+async def spawn_agent(agent_type: str, channel: str, bus_url: str, coordination_id: str = None) -> List[int]:
     """Spawn agent process(es). Returns list of PIDs."""
     if agent_type not in AGENT_REGISTRY:
         raise ValueError(f"Unknown agent type: {agent_type}")
@@ -19,7 +19,7 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
     pids = []
     registry_data = AGENT_REGISTRY[agent_type]
     identities = registry_data["identity"]
-    module = "protoss.agents.agent"  # Updated module path
+    module = "protoss.core.agent"
 
     # Multi-identity case (conclave): spawn multiple processes
     if len(identities) > 1:
@@ -48,6 +48,9 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
                 "--params",
                 json.dumps(identity_param),
             ]
+            
+            if coordination_id:
+                cmd.extend(["--coordination-id", coordination_id])
 
             process = await asyncio.create_subprocess_exec(*cmd)
             logger.info(f"Spawned Sacred Four {agent_id} PID {process.pid}")
@@ -70,6 +73,9 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str) -> List[int]:
             "--bus-url",
             bus_url,
         ]
+        
+        if coordination_id:
+            cmd.extend(["--coordination-id", coordination_id])
 
         process = await asyncio.create_subprocess_exec(*cmd)
         logger.info(f"Spawned {agent_id} PID {process.pid}")

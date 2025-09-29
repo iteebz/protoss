@@ -37,23 +37,19 @@ class Protoss:
         self.khala = Khala(bus_url=self.bus.url)
         await self.khala.connect(agent_id="protoss_client")
 
-        content = self.vision
-        if "@arbiter" not in content:
-            content += " @arbiter"
-
-        # Seed the vision via the Khala
-        await self.khala.send(
-            {
-                "type": "vision_seed",
-                "channel": "human",
-                "sender": "protoss_client",
-                "coordination_id": self.coordination_id,
-                "content": content,
-            }
-        )
-
         logger.info("Coordination network online")
         return self
+    
+    async def seed_vision(self):
+        """Seed the vision into #human for agent self-selection."""
+        await self.khala.send({
+            "type": "vision_seed", 
+            "channel": "human",
+            "sender": "protoss_client",
+            "coordination_id": self.coordination_id,
+            "content": self.vision,
+        })
+        logger.info(f"Vision seeded: {self.vision}")
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Infrastructure dissolution."""
@@ -65,16 +61,20 @@ class Protoss:
         logger.info("Coordination complete")
 
     async def completion(self) -> Event:
-        """Awaits a constitutional completion signal from the Arbiter."""
+        """Awaits constitutional completion signal from any claiming agent."""
+        # Seed vision after listener is ready
+        await self.seed_vision()
+        
         async for event in self.khala.listen():
-            # The constitutional signal for completion is a message from the arbiter
-            # in the human channel that is not a spawn request.
+            logger.info(f"Completion check: channel={event.channel}, coord={event.coordination_id}, sender={event.sender}, type={event.type}")
+            # Constitutional completion: any agent in #human can signal COMPLETE
             if (
                 event.channel == "human"
                 and event.coordination_id == self.coordination_id
-                and event.sender.startswith("arbiter")
-                and "@" not in event.content
+                and event.type == "agent_message"
+                and ("COMPLETE:" in event.content or "complete" in event.content.lower())
             ):
+                logger.info(f"Completion detected: {event.content}")
                 self._last_completion_event = event
                 return event
         raise TimeoutError("Coordination timeout")  # pragma: no cover

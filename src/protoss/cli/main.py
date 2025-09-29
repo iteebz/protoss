@@ -1,14 +1,19 @@
 """Protoss CLI interface."""
 
 import asyncio
+import logging
 import typer
 
 from typing import Optional
 from uuid import uuid4
 from protoss import Protoss
 
-from .core.config import Config
-from .core.khala import Khala
+# Enable protoss logging
+logging.basicConfig(level=logging.INFO)
+
+from ..core.config import Config
+from ..core.khala import Khala
+from .inspect import ProtossInspector
 
 
 app = typer.Typer(
@@ -130,7 +135,7 @@ def monitor(
     ),
 ):
     """Live monitor for the swarm."""
-    from .clients.monitor import MonitorApp
+    from ..clients.monitor import MonitorApp
 
     config = Config(port=port)
     app = MonitorApp(config=config)
@@ -209,6 +214,82 @@ def ask(
             await khala.disconnect()
 
     asyncio.run(run_ask())
+
+
+@app.command()
+def list():
+    """List all coordination sessions."""
+    inspector = ProtossInspector()
+    try:
+        coordinations = inspector.list_coordinations()
+        if not coordinations:
+            print("No coordination sessions found.")
+            return
+            
+        print(f"{'ID':<32} {'Channel':<12} {'Messages':<8} {'Agents':<20} {'Complete':<8} {'Last Activity'}")
+        print("-" * 100)
+        
+        for coord in coordinations:
+            agents_str = ",".join(coord.active_agents)[:18] + "..." if len(",".join(coord.active_agents)) > 18 else ",".join(coord.active_agents)
+            complete_str = "✓" if coord.complete else "✗"
+            
+            print(f"{coord.coordination_id:<32} {coord.channel:<12} {coord.message_count:<8} {agents_str:<20} {complete_str:<8} {coord.last_activity}")
+            
+    except FileNotFoundError:
+        print("Protoss database not found. Have you run any coordinations?")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+@app.command()
+def logs(
+    coordination_id: str = typer.Argument(..., help="Coordination ID to show logs for")
+):
+    """Show message logs for a coordination session."""
+    inspector = ProtossInspector()
+    try:
+        messages = inspector.get_messages(coordination_id)
+        if not messages:
+            print(f"No messages found for coordination {coordination_id}")
+            return
+            
+        print(f"Messages for coordination {coordination_id}:")
+        print("-" * 80)
+        
+        for msg in messages:
+            timestamp = msg.timestamp.split('.')[0] if '.' in msg.timestamp else msg.timestamp
+            print(f"[{timestamp}] {msg.sender}: {msg.content}")
+            
+    except FileNotFoundError:
+        print("Protoss database not found. Have you run any coordinations?")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+@app.command()
+def check(
+    coordination_id: str = typer.Argument(..., help="Coordination ID to check")
+):
+    """Check if a coordination is complete."""
+    inspector = ProtossInspector()
+    try:
+        is_complete = inspector.is_complete(coordination_id)
+        status = inspector.get_coordination_status(coordination_id)
+        
+        if not status:
+            print(f"Coordination {coordination_id} not found.")
+            return
+            
+        print(f"Coordination {coordination_id}:")
+        print(f"  Complete: {'✓' if is_complete else '✗'}")
+        print(f"  Messages: {status.message_count}")
+        print(f"  Agents: {', '.join(status.active_agents) if status.active_agents else 'None'}")
+        print(f"  Last Activity: {status.last_activity}")
+        
+    except FileNotFoundError:
+        print("Protoss database not found. Have you run any coordinations?")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 def main():

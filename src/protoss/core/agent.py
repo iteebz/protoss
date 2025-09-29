@@ -10,10 +10,10 @@ try:
 except ImportError:  # pragma: no cover - optional dependency for live runs
     cogency = None
 
-from ..core.config import Config
-from ..core.event import Event
-from ..core.khala import Khala
-from .registry import get_agent_data
+from .config import Config
+from .event import Event
+from .khala import Khala
+from ..constitution.registry import get_agent_data
 from ..constitution import assemble
 
 
@@ -42,12 +42,15 @@ class Agent:
         self.bus_url = runtime_bus_url or self.config.bus_url
         self.khala: Khala = Khala(bus_url=self.bus_url)  # Instantiate Khala here
         self._running = True
+        self._shutdown_event = asyncio.Event()
         self.agent_id = f"{agent_type}-{uuid.uuid4().hex[:6]}"
         self.identity_index = 0
         self._load_identity()
 
         # Initialize cogency for LLM agents with constitutional identity
-        logger.debug(f"Initializing cogency agent, cogency available: {cogency is not None}")
+        logger.debug(
+            f"Initializing cogency agent, cogency available: {cogency is not None}"
+        )
         self.cogency_agent = (
             cogency.Agent(
                 llm="gemini",
@@ -65,9 +68,18 @@ class Agent:
         if not self.registry_data:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-    def tools(self) -> List[str]:
+    def tools(self) -> List:
         """Get the tools available to this agent."""
-        return self.registry_data["tools"]
+        tool_categories = self.registry_data["tools"]
+        tools = []
+        
+        for category in tool_categories:
+            if category == "infra":
+                from ..tools.infra.channel import ChannelCreate
+                from ..tools.infra.agent import AgentSpawn
+                tools.extend([ChannelCreate(), AgentSpawn()])
+        
+        return tools
 
     def _build_instructions(self) -> str:
         """Build constitutional instructions for cogency agent."""
@@ -105,30 +117,43 @@ class Agent:
         try:
             await self.khala.send(message)
             logger.info(f"Agent {self.agent_id} message sent successfully")
+        except ConnectionError:
+            logger.info(f"Khala severed, agent {self.agent_id} departing gracefully")
+            import sys
+
+            sys.exit(0)
         except Exception as e:
             logger.error(f"Agent {self.agent_id} failed to send message: {e}")
             raise
 
     async def join_coordination(self, coordination_id: str, target_channel: str):
         """Join a coordination by fetching cross-channel context and switching to target channel."""
-        logger.info(f"Arbiter {self.agent_id} joining coordination {coordination_id} in {target_channel}")
-        
+        logger.info(
+            f"Arbiter {self.agent_id} joining coordination {coordination_id} in {target_channel}"
+        )
+
         try:
             # Fetch full coordination history across all channels
-            coordination_history = await self.khala.request_history(coordination_id=coordination_id)
-            logger.info(f"Arbiter {self.agent_id} loaded {len(coordination_history)} coordination messages")
-            
+            coordination_history = await self.khala.request_history(
+                coordination_id=coordination_id
+            )
+            logger.info(
+                f"Arbiter {self.agent_id} loaded {len(coordination_history)} coordination messages"
+            )
+
             # Switch to target channel
             self.channel = target_channel
             self.coordination_id = coordination_id
-            
+
             # Process coordination context through cogency
             if self.cogency_agent and coordination_history:
-                history_text = "\n".join([
-                    f"[{msg.get('channel', 'unknown')}] {msg.get('sender', 'unknown')}: {msg.get('content', '')}"
-                    for msg in coordination_history
-                ])
-                
+                history_text = "\n".join(
+                    [
+                        f"[{msg.get('channel', 'unknown')}] {msg.get('sender', 'unknown')}: {msg.get('content', '')}"
+                        for msg in coordination_history
+                    ]
+                )
+
                 async for cogency_event in self.cogency_agent(
                     f"Coordination context (ID: {coordination_id}):\n{history_text}"
                 ):
@@ -136,25 +161,50 @@ class Agent:
                         # Arbiter synthesizes coordination context and reports
                         await self.send_message(content=cogency_event["content"])
                         break
-            
+
             return True
-            
+
         except Exception as e:
-            logger.error(f"Arbiter {self.agent_id} failed to join coordination {coordination_id}: {e}")
+            logger.error(
+                f"Arbiter {self.agent_id} failed to join coordination {coordination_id}: {e}"
+            )
             return False
+
+    async def shutdown(self):
+        """Signal agent to shutdown gracefully."""
+        logger.info(f"Agent {self.agent_id} shutdown signal received")
+        self._running = False
+        self._shutdown_event.set()
+
+    async def _listen_for_events(self):
+        """Listen for events until shutdown."""
+        async for event in self.khala.listen():
+            await self._process_message(event)
+            if not self._running:
+                break
+
+    async def _process_with_cogency(self, content: str):
+        """Process content through cogency LLM and handle responses."""
+        async for cogency_event in self.cogency_agent(content):
+            if cogency_event["type"] == "respond":  # §respond event from doctrine
+                response_content = cogency_event["content"]
+                await self.send_message(content=response_content)
+                if "!despawn" in response_content.lower():
+                    logger.info(f"Agent {self.agent_id} received despawn signal")
+                    self._running = False
+                    break
 
     async def _process_message(self, event: Event):
         """Process an incoming message from the Bus."""
+        # Handle system shutdown signal
+        if event.type == "system_shutdown":
+            logger.info(f"Agent {self.agent_id} received system shutdown")
+            await self.shutdown()
+            return
+
         if event.type == "agent_message":
             if self.cogency_agent:
-                async for cogency_event in self.cogency_agent(event.content):
-                    if cogency_event["type"] == "respond":
-                        response_content = cogency_event["content"]
-                        await self.send_message(content=response_content)
-                        if "!despawn" in response_content.lower():
-                            self._running = False
-                            break  # Exit streaming loop if despawn signal received
-                    # Handle other cogency_event types if necessary
+                await self._process_with_cogency(event.content)
             else:
                 logger.warning(f"Cogency agent not initialized for {self.agent_type}")
                 self._running = False  # Despawn if no cogency to process message
@@ -188,20 +238,7 @@ class Agent:
                 logger.info(
                     f"Agent {self.agent_id} processing history through cogency: {history_text[:200]}..."
                 )
-
-                async for cogency_event in self.cogency_agent(
-                    f"Channel history:\n{history_text}"
-                ):
-                    logger.info(
-                        f"Agent {self.agent_id} cogency event: {cogency_event['type']}"
-                    )
-                    if cogency_event["type"] == "respond":
-                        # Agent orientation response - send to channel
-                        logger.info(
-                            f"Agent {self.agent_id} sending cogency response: {cogency_event['content'][:100]}..."
-                        )
-                        await self.send_message(content=cogency_event["content"])
-                        break
+                await self._process_with_cogency(f"Channel history:\n{history_text}")
             else:
                 logger.warning(
                     f"Agent {self.agent_id} skipping cogency processing - cogency_agent: {self.cogency_agent is not None}, history: {len(history)}"
@@ -223,10 +260,27 @@ class Agent:
         )
 
         try:
-            async for event in self.khala.listen():
-                await self._process_message(event)
+            # Run until shutdown signal or cancellation
+            listen_task = asyncio.create_task(self._listen_for_events())
+            shutdown_task = asyncio.create_task(self._shutdown_event.wait())
+
+            done, pending = await asyncio.wait(
+                [listen_task, shutdown_task], return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # Cancel remaining tasks
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
         except asyncio.CancelledError:
-            pass  # Agent was cancelled, graceful shutdown
+            logger.info(f"Agent {self.agent_id} cancelled - shutting down gracefully")
+        except Exception as e:
+            logger.error(f"Agent {self.agent_id} error: {e}")
+            raise
         finally:
             logger.info(f"Agent {self.agent_id} ({self.agent_type}) offline.")
             await self.send_message(

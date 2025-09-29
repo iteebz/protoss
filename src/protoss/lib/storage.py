@@ -53,7 +53,11 @@ class SQLite(Storage):
             await db.commit()
 
     async def load_events(
-        self, channel: Optional[str] = None, since: Optional[float] = None, limit: Optional[int] = None, coordination_id: Optional[str] = None
+        self,
+        channel: Optional[str] = None,
+        since: Optional[float] = None,
+        limit: Optional[int] = None,
+        coordination_id: Optional[str] = None,
     ) -> List[Dict]:
         """Load events for a specific channel or coordination_id, ordered chronologically."""
         await self._init_db()

@@ -32,7 +32,7 @@ AGENT_REGISTRY = {
     "arbiter": {
         "identity": [ARBITER_IDENTITY],
         "guidelines": ARBITER_GUIDELINES,
-        "tools": [],
+        "tools": ["infra"],
     },
     "oracle": {
         "identity": [ORACLE_IDENTITY],

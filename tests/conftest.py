@@ -116,3 +116,74 @@ def mock_websocket_aiter():
         return websocket
 
     return _factory
+
+
+@pytest.fixture
+async def agent_test_harness():
+    """Test harness for agent lifecycle management with proper cleanup."""
+
+    class AgentTestHarness:
+        def __init__(self):
+            self.agents = []
+            self.tasks = []
+
+        async def spawn_agent(
+            self,
+            agent_type: str,
+            channel: str,
+            bus_url: str,
+            coordination_id: str,
+            timeout: float = 1.0,
+        ):
+            """Spawn agent with timeout and proper cleanup."""
+            from protoss.core.agent import Agent
+
+            agent = Agent(
+                agent_type=agent_type,
+                channel=channel,
+                bus_url=bus_url,
+                coordination_id=coordination_id,
+            )
+            self.agents.append(agent)
+
+            # Run agent with timeout
+            task = asyncio.create_task(agent.run())
+            self.tasks.append(task)
+
+            return agent, task
+
+        async def shutdown_agent(self, agent, task, timeout: float = 1.0):
+            """Shutdown agent gracefully with timeout."""
+            await agent.shutdown()
+            try:
+                await asyncio.wait_for(task, timeout=timeout)
+            except asyncio.TimeoutError:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        async def cleanup(self):
+            """Clean shutdown of all agents and tasks."""
+            # Signal all agents to shutdown
+            for agent in self.agents:
+                if agent._running:
+                    await agent.shutdown()
+
+            # Wait for all tasks to complete or timeout
+            if self.tasks:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*self.tasks, return_exceptions=True), timeout=2.0
+                    )
+                except asyncio.TimeoutError:
+                    # Force cancel remaining tasks
+                    for task in self.tasks:
+                        if not task.done():
+                            task.cancel()
+                    await asyncio.gather(*self.tasks, return_exceptions=True)
+
+    harness = AgentTestHarness()
+    yield harness
+    await harness.cleanup()

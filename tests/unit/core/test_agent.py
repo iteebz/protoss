@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from protoss.agents.agent import Agent
-from protoss.agents import registry
+from protoss.core.agent import Agent
+from protoss.constitution import registry
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def agent(monkeypatch):
 
     mock_cogency_agent = AsyncMock(return_value="mocked response !despawn")
     monkeypatch.setattr(
-        "protoss.agents.agent.cogency.Agent",
+        "protoss.core.agent.cogency.Agent",
         lambda llm, instructions, tools: mock_cogency_agent,
     )
 
@@ -90,7 +90,7 @@ async def test_agent_history_processing(monkeypatch):
 
     mock_cogency_agent = mock_cogency_agent_call
     monkeypatch.setattr(
-        "protoss.agents.agent.cogency.Agent",
+        "protoss.core.agent.cogency.Agent",
         lambda llm, instructions, tools: mock_cogency_agent,
     )
 
@@ -100,7 +100,7 @@ async def test_agent_history_processing(monkeypatch):
         {"sender": "human", "content": "Give me status @arbiter"},
         {"sender": "system", "content": "Agent spawned"},
     ]
-    monkeypatch.setattr("protoss.agents.agent.Khala", lambda bus_url: mock_khala)
+    monkeypatch.setattr("protoss.core.agent.Khala", lambda bus_url: mock_khala)
 
     agent = Agent(
         agent_type="arbiter",

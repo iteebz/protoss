@@ -75,7 +75,7 @@ async def test_handler_registers_sender_and_routes(monkeypatch):
     websocket = StubWebSocket([json.dumps(message)])
 
     monkeypatch.setattr(
-        bus, "deregister", MagicMock()
+        bus, "deregister", AsyncMock()
     )  # Mock deregister to prevent interference
 
     await bus._handler(websocket)

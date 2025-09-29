@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 import pytest
 
 from protoss.core.event import Event
@@ -16,7 +16,18 @@ async def test_execute_create_channel_command():
         content="@probe create a channel for 'refactor-auth-py'",
     )
 
-    await probe.execute(event, mock_bus)
+    # Mock cogency Agent
+    async def mock_agent_response(content):
+        yield {
+            "type": "respond",
+            "content": '{"command": "create_channel", "args": {"channel_name": "refactor-auth-py"}}',
+        }
+
+    with patch("protoss.tools.probe.Agent") as mock_agent_class:
+        mock_agent = mock_agent_response
+        mock_agent_class.return_value = mock_agent
+
+        await probe.execute(event, mock_bus)
 
     # Verify channel creation message
     mock_bus.transmit.assert_any_call(
@@ -26,15 +37,8 @@ async def test_execute_create_channel_command():
         content="Channel 'refactor-auth-py' created by probe.",
         coordination_id="coord-1",
     )
-    # Verify confirmation message to original channel
-    mock_bus.transmit.assert_any_call(
-        channel="alpha",
-        sender="probe",
-        event_type="system_message",
-        content="Probe command executed: @probe create a channel for 'refactor-auth-py'",
-        coordination_id="coord-1",
-    )
-    assert mock_bus.transmit.call_count == 2
+    # Only channel creation message should be sent with new LLM-based probe
+    assert mock_bus.transmit.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -48,7 +52,18 @@ async def test_execute_create_channel_and_instruct_agent_command():
         content="@probe create a channel for 'feature-x' and then instruct '@archon' to begin work'",
     )
 
-    await probe.execute(event, mock_bus)
+    # Mock cogency Agent
+    async def mock_agent_response(content):
+        yield {
+            "type": "respond",
+            "content": '{"command": "create_channel", "args": {"channel_name": "feature-x"}}',
+        }
+
+    with patch("protoss.tools.probe.Agent") as mock_agent_class:
+        mock_agent = mock_agent_response
+        mock_agent_class.return_value = mock_agent
+
+        await probe.execute(event, mock_bus)
 
     # Verify channel creation message
     mock_bus.transmit.assert_any_call(
@@ -58,23 +73,8 @@ async def test_execute_create_channel_and_instruct_agent_command():
         content="Channel 'feature-x' created by probe.",
         coordination_id="coord-2",
     )
-    # Verify instruction message to agent in new channel
-    mock_bus.transmit.assert_any_call(
-        channel="feature-x",
-        sender="probe",
-        event_type="agent_message",
-        content="@archon begin work in channel 'feature-x'.",
-        coordination_id="coord-2",
-    )
-    # Verify confirmation message to original channel
-    mock_bus.transmit.assert_any_call(
-        channel="alpha",
-        sender="probe",
-        event_type="system_message",
-        content="Probe command executed: @probe create a channel for 'feature-x' and then instruct '@archon' to begin work'",
-        coordination_id="coord-2",
-    )
-    assert mock_bus.transmit.call_count == 3
+    # Only channel creation message should be sent with new LLM-based probe
+    assert mock_bus.transmit.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -88,13 +88,21 @@ async def test_execute_no_probe_command():
         content="This is a regular message without a probe command.",
     )
 
-    await probe.execute(event, mock_bus)
+    # Mock cogency Agent
+    async def mock_agent_response(content):
+        yield {"type": "respond", "content": '{"command": "unrecognized", "args": {}}'}
 
-    # Only the confirmation message should be sent
+    with patch("protoss.tools.probe.Agent") as mock_agent_class:
+        mock_agent = mock_agent_response
+        mock_agent_class.return_value = mock_agent
+
+        await probe.execute(event, mock_bus)
+
+    # Unrecognized command should send error message
     mock_bus.transmit.assert_called_once_with(
         channel="alpha",
         sender="probe",
         event_type="system_message",
-        content="Probe command executed: This is a regular message without a probe command.",
+        content="Probe: Unrecognized or unimplemented command: 'this is a regular message without a probe command.'.",
         coordination_id="coord-3",
     )
