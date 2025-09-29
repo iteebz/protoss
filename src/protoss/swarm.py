@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
 class Swarm:
     """Minimal swarm for testing conversational coordination."""
     
-    def __init__(self, channel: str = "human"):
+    def __init__(self, channel: str = "human", base_dir: str = None):
         self.bus = Bus()
         self.agents = []
         self.channel = channel
+        self.base_dir = base_dir
         
     async def start(self):
         """Start the swarm with 3 constitutional agents."""
@@ -28,7 +29,7 @@ class Swarm:
     async def spawn_agent(self, agent_type: str, channel: str = None):
         """Spawn an agent into the swarm."""
         channel = channel or self.channel
-        agent = Agent(agent_type, self.bus, channel)
+        agent = Agent(agent_type, self.bus, channel, base_dir=self.base_dir)
         self.agents.append(agent)
         
         # Start agent in background

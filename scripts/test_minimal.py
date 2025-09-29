@@ -20,9 +20,9 @@ async def test_coordination():
     # Give them a task
     await swarm.send_human_message("Please create a simple todo app with backend and frontend. Coordinate who does what.")
     
-    # Let them coordinate for 60 seconds
+    # Let them coordinate for 10 seconds to see initial responses  
     print("Watching agents coordinate...")
-    await swarm.wait_for_completion(timeout=60.0)
+    await asyncio.sleep(10.0)  # Just wait 10 seconds then check conversation
     
     # Show the conversation
     conversation = swarm.get_conversation()

@@ -50,3 +50,8 @@ Thumbs.db
 # Protoss
 .protoss
 archives/
+
+# Test runs and debug artifacts
+test-run-*/
+debug-run-*/
+debug-test/

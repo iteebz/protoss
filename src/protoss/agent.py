@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import time
 from typing import Optional
 
 try:
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Agent:
     """Agent that coordinates through conversation."""
     
-    def __init__(self, agent_type: str, bus: Bus, channel: str = "human", user_id: str = "system"):
+    def __init__(self, agent_type: str, bus: Bus, channel: str = "human", user_id: str = "system", base_dir: str = None):
         self.agent_type = agent_type
         self.bus = bus
         self.channel = channel
@@ -26,16 +27,18 @@ class Agent:
         self.conversation_id = channel  # Use channel as conversation_id
         self.running = True
         self.last_poll_time: float = 0  # Track when we last read messages
+        self.base_dir = base_dir
         
         # Load constitutional identity
         self.identity = self._load_identity()
         
-        # Initialize cogency for reasoning
+        # Initialize cogency for reasoning with default tools and shared sandbox
         self.cogency_agent = (
             cogency.Agent(
-                llm="gemini",
+                llm="openai",
                 instructions=self.identity,
-                tools=[],
+                base_dir=self.base_dir,  # Shared sandbox for coordination
+                # tools=[] - Let cogency provide default tools (web, file, shell)
                 history_window=50  # Larger window for coordination context
             ) if cogency else None
         )
@@ -67,21 +70,20 @@ class Agent:
             logger.warning(f"Constitution file not found: {constitution_path}")
             return f"You are {self.agent_type} - coordinate through conversation."
             
-        # Add coordination instructions
-        coordination_addendum = """
-
-## Coordination Protocol
-You coordinate with other agents through pure conversation:
-1. Read the conversation history for context
-2. Identify what work needs to be done  
-3. Claim work conversationally: "I'll handle the database setup"
-4. Execute and report progress: "Database schema complete"
-5. Coordinate handoffs: "Backend ready, frontend can proceed"
-6. Signal completion: "Task complete, !despawn"
-
-Coordinate through dialogue, not tools or special commands."""
-
-        return base_identity + coordination_addendum
+        # Load coordination guidelines
+        coordination_path = os.path.join(
+            os.path.dirname(__file__), 
+            "constitution", 
+            "coordination.md"
+        )
+        
+        try:
+            with open(coordination_path, 'r') as f:
+                coordination_guidelines = f.read()
+        except FileNotFoundError:
+            coordination_guidelines = "Coordinate through conversation."
+            
+        return f"{base_identity}\n\n{coordination_guidelines}"
 
     async def run(self):
         """Main coordination loop - initial context + diff updates."""
@@ -150,19 +152,29 @@ Coordinate through dialogue, not tools or special commands."""
     async def _process_with_cogency(self, content: str):
         """Process content through cogency and respond."""
         if not self.cogency_agent:
+            logger.warning(f"Agent {self.agent_type} has no cogency agent")
             return
             
         async for event in self.cogency_agent(
             content, 
             user_id=self.user_id,
             conversation_id=self.conversation_id
-        ):
+        ):            
             if event["type"] == "respond":
                 response = event["content"]
+                logger.info(f"{self.agent_type}: {response}\n")
                 await self.bus.send(self.agent_type, response, self.channel)
                 
-                # Check for despawn signal
+                # Check for exit signals
                 if "!despawn" in response.lower():
                     logger.info(f"Agent {self.agent_type} despawning")
                     self.running = False
                     break
+                    
+                if "!complete" in response.lower():
+                    logger.info(f"Agent {self.agent_type} signaling task complete")
+                    # Don't despawn on !complete - let other agents see it and decide
+                    
+            elif event["type"] == "end":
+                # §end breaks the reasoning cycle - return to diff polling
+                break
