@@ -1,70 +1,48 @@
-# Protoss System Architecture
+# The Protoss Architecture
 
-*This document is the canonical technical reference for the Protoss system. It describes the concrete components and interaction patterns that manifest the principles laid out in the Doctrines.*
+*This document is the canonical technical reference for the Protoss system. It describes the simple, powerful components that manifest the principles of the Protoss Doctrine.*
 
-## 1. Core Architectural Philosophy
+## 1. The Core Philosophy: Radical Simplicity
 
-The system is designed as a decentralized, emergent swarm of sovereign agents coordinating through a central message bus. The architecture prioritizes functional purity, statelessness, and a clean separation of concerns, rejecting monolithic classes and inheritance in favor of data-driven behavior.
+The architecture is a direct reflection of the Doctrine. It is not a framework of features, but a minimalist container designed to enable conversational emergence. Its entire design is optimized for a single purpose: to allow multiple, sovereign agents to coordinate their actions by reading and contributing to a shared conversation.
 
-## 2. The Three Core Components
+Complexity resides in the agent's mind (`Cogency`), not in the framework's code (`Protoss`).
 
-The architecture consists of three primary components:
+## 2. The Two Pillars of the Framework
 
-1.  **The Bus (`bus.py`)**: The central nervous system of the swarm. It is a WebSocket server that handles all message routing between agents. Critically, it is also responsible for initiating the agent spawning process by listening for `@mention` signals in messages and triggering the appropriate Gateway function.
+The Protoss framework consists of only two components:
 
-2.  **The Gateway (`gateway.py`)**: A library of pure, stateless functions. Its sole purpose is to handle the creation of new agent OS processes. It is invoked by the Bus and does not hold any state about the swarm.
+1.  **The Bus (`core/bus.py`):** The shared conversational substrate. It is a simple, chronological log of all messages sent within a channel. It has only two functions: to record messages and to provide historical transcripts to agents. It does not route, interpret, or orchestrate. It is the impartial source of shared reality.
 
-3.  **The Agent (`agent.py`)**: A single, generic agent implementation. There are no subclasses for different agent types. An agent's specific identity, behavior, and capabilities are determined at runtime by the data it loads from the `AGENT_REGISTRY`.
+2.  **The Agent Harness (`core/agent.py`):** A lightweight wrapper that gives a `Cogency` instance access to the Bus. Its sole responsibility is to perform the coordination loop:
+    *   **Sense:** Read new messages from the Bus.
+    *   **Think:** Inject the messages as context into its internal `Cogency` reasoning engine.
+    *   **Act:** Broadcast the `§respond` events from `Cogency` back to the Bus.
 
-### 2.4. The Cogency Core: The Agent's Stone
+## 3. The Two-Database Pattern
 
-The Protoss Agent, while generic in its implementation, is not an empty vessel. Its core cognitive capabilities, its ability to reason, to parse protocol, to execute tools, and to manage its internal state, are powered by the `Cogency` library.
+To honor the doctrine of a two-level mind, the architecture uses two distinct storage layers:
 
-`Cogency` serves as the fundamental "stone" of the Protoss Agent. It provides:
--   **The ReAct Loop**: The core reasoning and action cycle.
--   **The Streaming Protocol**: The `§`-delimited communication for efficient LLM interaction.
--   **Stateless Context Assembly**: The robust mechanism for rebuilding agent memory from durable storage.
+1.  **The Public Transcript (`Protoss` Storage):** The Bus maintains the shared conversation, visible to all agents. This is the collective context.
 
-Thus, `Cogency` is not an external dependency; it is woven into the very fabric of the Protoss Agent's atomic unit. It is the engine of its thought, the interpreter of its will, and the foundation of its cognitive sovereignty.
+2.  **Private Reasoning (`Cogency` Storage):** Each agent's internal `Cogency` instance maintains its own private database of thoughts (`§think`), tool calls, and other internal events. This is the agent's individual mind.
 
-## 3. Agent Identity: The Data-Driven Model
-
-The system's most crucial pattern is its rejection of class inheritance for agent identity. An agent's "soul" is not defined by its code structure but by the data it is given upon creation.
-
--   **`AGENT_REGISTRY`**: This dictionary, located in `src/protoss/agents/registry.py`, is the single source of truth for agent definitions. It maps an agent type (e.g., `"conclave"`) to its constitutional components:
-    -   `identity`: A list of identity texts that define the agent's core purpose and personality.
-    -   `guidelines`: The behavioral guidelines and patterns the agent should follow.
-    -   `tools`: The set of capabilities available to the agent.
-
--   **Instantiation**: When the Gateway spawns a new agent process, it passes an `agent_type` as an argument. The generic `Agent` class uses this type to look up its data in the `AGENT_REGISTRY` and assembles its unique persona and capabilities.
+The `base_dir` parameter, set at the `Protoss` level, provides a single, isolated directory for each run, containing both the public transcript and the private reasoning databases for all agents in that run. This ensures perfect isolation between independent swarms.
 
 ## 4. The Coordination Lifecycle
 
-A typical coordination event unfolds as follows:
+A coordination event unfolds with profound simplicity:
 
-1.  **Vision Seeding**: A user initiates a task via the high-level `Protoss` interface, which acts as a temporary, specialized client for the duration of the mission.
+1.  **Instantiation:** A `Protoss` object is created, defining the `channel` and `base_dir` for the run.
 
-    ```python
-    async with Protoss("My vision @arbiter") as swarm:
-        result = await swarm
-    ```
+2.  **Genesis:** Agents are spawned into the channel. Each agent's harness is given a constitutional identity (`zealot`, `sentinel`, etc.).
 
-2.  **Session Genesis**: The `Protoss` context manager (`__aenter__`) summons a temporary `Bus` instance for the session and connects to it.
+3.  **Orientation:** Upon spawning, each agent reads the full history of the Bus to understand the current context.
 
-3.  **Invocation**: The `Protoss` client sends the initial vision as a message to the `nexus` channel on the Bus.
+4.  **Emergence:** The agents begin their sense-think-act loop. They read new messages from the Bus, reason about them using their private memory and constitutional identity, and contribute their responses back to the shared conversation.
 
-4.  **Emergent Spawning**: The `Bus` processes the message and detects the `@arbiter` mention. It calls the stateless `gateway.should_spawn()` function. If the conditions are met, it invokes `gateway.spawn_agent("arbiter", ...)`.
+5.  **Coordination:** Agents coordinate by reading each other's responses. Task division, code review, and error recovery emerge naturally from this shared dialogue, guided by the principles in each agent's constitution.
 
-5.  **Agent Creation**: The Gateway function creates a new operating system process running the generic `agent.py` module, passing `"arbiter"` as the `agent_type`.
+6.  **Resolution:** The task is complete when the agents conversationally agree it is done, signaled by the `!complete` and `!despawn` commands as defined in their constitutional `GUIDELINES`.
 
-6.  **Self-Discovery**: The newly created Arbiter agent starts, looks up its identity and guidelines in the `AGENT_REGISTRY`, and connects to the Bus.
-
-7.  **Constitutional Dialogue**: The Arbiter reads the channel history, understands the vision, and begins its work, potentially invoking other agents via `@mentions`, which continues the cycle of emergence.
-
-8.  **Resolution**: The `Protoss` client passively awaits a completion signal. Its `__await__` method monitors the `nexus` channel specifically for a message from an `arbiter` agent containing a completion keyword (e.g., "complete", "done").
-
-9.  **Session Dissolution**: Upon receiving the signal, the `await` completes, the `async with` block exits, and the `Protoss` instance disconnects and shuts down its session Bus.
-
-## 5. Channel Taxonomy
-
-The Khala uses structured channel names following the pattern `{purpose}:{identifier}:{status}` to enable self-documenting coordination. Core channels include `nexus` for vision seeding, `task:*` for work coordination, `query:*` for human questions, and `conclave:*` for Sacred Four deliberation.
+This architecture has no central orchestrator, no event router, and no complex state machines. It is the purest expression of conversational emergence.

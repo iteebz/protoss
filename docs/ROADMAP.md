@@ -1,61 +1,45 @@
 # Protoss Roadmap
 
-## Vision
+## The Vision
+
 **Can constitutional frameworks enable AI swarm coordination that transcends individual agent capabilities?**
 
-Ultimate test: **Recursive Self-Improvement** - swarm improves its own constitutional framework while maintaining alignment and working on external projects.
-
-## Constitutional Evolution Phases
-
-### Phase 0: Human Orchestration (Current)
-**Reality**: Human control with constitutional themes
-
-**Foundational Infrastructure** (Complete):
-- Bus & Gateway: Core messaging and agent-spawning mechanics
-- Data-Driven Agents: Generic Agent class configured by AGENT_REGISTRY
-- Core Doctrines: Constitution, emergence, resolution, continuity
-
-**Monitoring & Observability**:
-- `protoss monitor`: Real-time swarm view (active agents, channels, activity)
-- `protoss status`: Current swarm state snapshot
-- Khala Visualization: Real-time coordination flow analysis
-
-**Conversational Interface & Resource Management**:
-- `protoss ask`: Strategic questions to @arbiter
-- Escalation Protocol: Agent-to-human summoning process
-- Resource Tracking: Token usage, cost tracking, rate limiting
-
-**Advanced Coordination Patterns**:
-- Git Coordination: Multi-agent work on single codebase (branch-per-task, bus-coordinated merges, conflict resolution via @conclave)
-- Multi-Channel Coordination: Cross-channel agent protocols
-- Constitutional Testing: Framework validation under human control
-
-### Phase 1: Bounded Constitutional Evolution
-**Architecture**: Constitutional changes at checkpoints with human oversight
-
-- Constitutional kernel design (immutable invariants + enforcement)
-- Drift detection system (behavioral monitoring against constitutional expectations)
-- Checkpoint ritual implementation (human review pipeline for constitutional amendments)
-- Constitutional DNA embedding (framework integration in agent spawning process)
-- Version control integration (protected branches + cryptographic signatures)
-- Constitutional Evolution: AI systems authoring amendments based on coordination experience
-
-### Phase 2: Autonomous Constitutional Governance
-**Architecture**: Self-governed emergence under constitutional invariants
-
-- Meta-coordination agents (analyze swarm coordination patterns)
-- Safe experimentation environments (isolated constitutional modification testing)
-- Constitutional approval flow (swarm proposes changes for human review per SAFETY.md)
-- Autonomous governance protocols (self-modification within invariant constraints)
-- Multi-swarm federation (coordination between sovereign cathedral instances with different constitutional identities)
-
-## Success Metrics
-- **Phase 0**: Effective orchestration with constitutional guidance, complete human oversight
-- **Phase 1**: Constitutional evolution maintains alignment with human review, drift detection works
-- **Phase 2**: Emergent coordination capabilities, recursive self-improvement within bounds
-
-**No phase proceeds without demonstrated safety at the previous level.**
+The ultimate test remains unchanged: **Recursive Self-Improvement**. A swarm that can reason about, and safely improve, its own constitutional framework while executing complex tasks.
 
 ---
 
-**Bounded sovereignty through constitutional evolution, not absolute autonomy.**
+Our path to this vision is now clarified, proceeding in three phases built upon the validated foundation of conversational emergence.
+
+### Phase 0: The Foundational Core (Complete)
+
+This phase culminated in the "radical simplification" and the validation of the core hypothesis.
+
+-   **Architectural Reality:** A minimalist framework consisting of a dumb `Bus` (transcript) and a smart `Agent` (reasoning engine).
+-   **Core Breakthrough:** Proved that multiple agents can coordinate to build functional, multi-file software through pure conversation, without any orchestration layer.
+-   **Key Principle Validated:** Coordination logic can live in the agent's constitutional reasoning, not in the framework's code.
+
+*We have established a sound foundation. The next phase is about making it robust.*
+
+### Phase 1: Stabilization & Specialization
+
+The goal of this phase is to move from a working prototype to a reliable and efficient system, and to cultivate more sophisticated emergent behaviors.
+
+1.  **Stabilize the Execution Layer:** The conversational swarm demonstrated resilience by talking its way through tool-use errors. The immediate priority is to improve the reliability of the underlying `Cogency` tool execution, making conversational recovery an exception, not the rule.
+
+2.  **Sharpen Constitutional Identity:** The agents currently default to a collaborative consensus. We must refine their `IDENTITY` and `GUIDELINES` to elicit more diverse and specialized roles (e.g., the skepticism of the Zealot, the analytical rigor of the Sentinel). This is the primary lever for increasing the swarm's cognitive power.
+
+3.  **Cultivate Emergent Protocols:** We will begin re-introducing the concepts from the old `resolution` and `continuity` doctrines not as framework features, but as conversational patterns taught to the agents via their constitutional `GUIDELINES`. The goal is to have the swarm *develop* deadlock resolution and memory management strategies on its own.
+
+4.  **Develop Observability:** Create tooling to monitor the conversational transcript in real-time. Since the conversation *is* the coordination, observing it is the key to understanding the swarm's behavior.
+
+### Phase 2: Autonomous Governance
+
+With a stable and specialized swarm, we can once again approach the ultimate goal.
+
+-   **Meta-Coordination:** Introduce agents whose primary function is to observe, analyze, and comment on the coordination patterns of other agents.
+-   **Constitutional Evolution:** Task the swarm with proposing modifications to its own constitutional `GUIDELINES` to improve its efficiency and safety.
+-   **Recursive Self-Improvement:** The ultimate test, where the swarm can safely and successfully apply this entire process to its own foundational code.
+
+---
+
+*The path is no longer about building a complex machine, but about cultivating an intelligent organism.*
