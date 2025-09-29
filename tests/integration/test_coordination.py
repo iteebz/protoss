@@ -24,7 +24,7 @@ async def test_protoss_client_awaits_arbiter_completion(
         completion_event = event_factory(
             channel="human",
             sender="arbiter-123",
-            content="Vision fulfilled.",
+            content="!complete abc123 - Vision fulfilled.",
             coordination_id=swarm.coordination_id,
         )
 
@@ -62,7 +62,7 @@ async def test_coordination_pull_model_robustness(protoss_components, event_fact
         response_event = event_factory(
             channel="human",
             sender="arbiter-spawn-test",
-            content="Status: All systems operational. Context assembly successful.",
+            content="!complete xyz789 - Status: All systems operational. Context assembly successful.",
             coordination_id=swarm.coordination_id,
         )
 

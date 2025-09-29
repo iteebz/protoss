@@ -22,22 +22,22 @@ AGENT_REGISTRY = {
     "zealot": {
         "identity": [ZEALOT_IDENTITY],
         "guidelines": ZEALOT_GUIDELINES,
-        "tools": ["file", "system"],
+        "tools": ["file", "system", "protoss"],
     },
     "archon": {
         "identity": [ARCHON_IDENTITY],
         "guidelines": ARCHON_GUIDELINES,
-        "tools": ["file"],
+        "tools": ["file", "protoss"],
     },
     "arbiter": {
         "identity": [ARBITER_IDENTITY],
         "guidelines": ARBITER_GUIDELINES,
-        "tools": ["infra"],
+        "tools": ["infra", "protoss"],
     },
     "oracle": {
         "identity": [ORACLE_IDENTITY],
         "guidelines": ORACLE_GUIDELINES,
-        "tools": ["web"],
+        "tools": ["web", "protoss"],
     },
     "conclave": {
         "identity": [
@@ -47,7 +47,7 @@ AGENT_REGISTRY = {
             FENIX_IDENTITY,
         ],
         "guidelines": CONCLAVE_GUIDELINES,
-        "tools": [],
+        "tools": ["protoss"],
     },
 }
 

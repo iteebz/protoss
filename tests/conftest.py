@@ -1,12 +1,15 @@
 import asyncio
 from collections import deque
 from dataclasses import replace
-from typing import Any, Deque, Dict
+from typing import Any, Deque, Dict, Tuple
 from unittest.mock import AsyncMock
 
 import pytest
+import pytest_asyncio
 import websockets
 
+from protoss.core.agent import Agent
+from protoss.core.bus import Bus
 from protoss.core.config import Config
 from protoss.core.event import Event
 
@@ -187,3 +190,67 @@ async def agent_test_harness():
     harness = AgentTestHarness()
     yield harness
     await harness.cleanup()
+
+
+@pytest_asyncio.fixture
+async def protoss_harness(tmp_path):
+    """
+    A deterministic, in-process test harness for the Protoss swarm.
+
+    - Runs a real Bus on a random port.
+    - Uses a temporary, isolated database for each test.
+    - Spawns agents as lightweight asyncio tasks, not subprocesses.
+    - Bypasses the chaos of network latency and process management.
+    """
+    # 1. The Bus runs in-process, using a temporary DB for perfect isolation.
+    db_path = tmp_path / "harness.db"
+    bus = Bus(storage_path=str(db_path), port=0)
+    await bus.start()
+
+    # This list will track all agent tasks spawned during a test.
+    agent_tasks = []
+
+    # 2. Agents are spawned as simple coroutines, not heavy subprocesses.
+    async def spawn_agent(
+        agent_type: str, channel: str, coordination_id: str
+    ) -> Tuple[Agent, asyncio.Task]:
+        """Spawns an agent as a managed asyncio task."""
+        from protoss.core.agent import Agent
+
+        agent = Agent(
+            agent_type=agent_type,
+            channel=channel,
+            bus_url=bus.url,
+            coordination_id=coordination_id,
+        )
+        task = asyncio.create_task(agent.run())
+        agent_tasks.append(task)
+        return agent, task
+
+    # 3. Yield the harness components to the test.
+    yield bus, spawn_agent
+
+    # 4. After the test, conduct a clean, constitutional shutdown.
+    for task in agent_tasks:
+        task.cancel()
+    await asyncio.gather(*agent_tasks, return_exceptions=True)
+    await bus.stop()
+
+
+@pytest_asyncio.fixture
+async def mock_cogency_agent():
+    """
+    Centralized mock for cogency.Agent that simulates an async generator.
+    Adheres to the constitutional mandate for centralized mocking.
+    """
+    from unittest.mock import patch
+
+    class MockCogencyAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __call__(self, content_arg):
+            yield {"type": "respond", "content": "Acknowledged. Processing vision."}
+
+    with patch("protoss.core.agent.cogency.Agent", new=MockCogencyAgent) as mock_agent:
+        yield mock_agent

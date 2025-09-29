@@ -36,4 +36,7 @@ def signals(content: str) -> List:
     if "!emergency" in content.lower():
         signals_found.append(Emergency())
 
+    # Constitutional claims
+    # Removed: !claim and !complete are now tool calls, not direct signals.
+
     return signals_found

@@ -72,13 +72,18 @@ class Agent:
         """Get the tools available to this agent."""
         tool_categories = self.registry_data["tools"]
         tools = []
-        
+
         for category in tool_categories:
             if category == "infra":
                 from ..tools.infra.channel import ChannelCreate
                 from ..tools.infra.agent import AgentSpawn
+
                 tools.extend([ChannelCreate(), AgentSpawn()])
-        
+            elif category == "protoss":
+                from ..tools.protoss.claim import ClaimTool
+
+                tools.extend([ClaimTool()])
+
         return tools
 
     def _build_instructions(self) -> str:
@@ -185,29 +190,7 @@ class Agent:
 
     async def _process_with_cogency(self, content: str):
         """Process content through cogency LLM and handle responses."""
-        async for cogency_event in self.cogency_agent(content):
-            if cogency_event["type"] == "respond":  # §respond event from doctrine
-                response_content = cogency_event["content"]
-                await self.send_message(content=response_content)
-                if "!despawn" in response_content.lower():
-                    logger.info(f"Agent {self.agent_id} received despawn signal")
-                    self._running = False
-                    break
-
-    async def _process_message(self, event: Event):
-        """Process an incoming message from the Bus."""
-        # Handle system shutdown signal
-        if event.type == "system_shutdown":
-            logger.info(f"Agent {self.agent_id} received system shutdown")
-            await self.shutdown()
-            return
-
-        if event.type == "agent_message":
-            if self.cogency_agent:
-                await self._process_with_cogency(event.content)
-            else:
-                logger.warning(f"Cogency agent not initialized for {self.agent_type}")
-                self._running = False  # Despawn if no cogency to process message
+        async for cogency_event in self.cogency_agent(content):\n            if cogency_event[\"type\"] == \"respond\":  # §respond event from doctrine\n                response_content = cogency_event[\"content\"]\n                await self.send_message(content=response_content)\n                if \"!despawn\" in response_content.lower():\n                    logger.info(f\"Agent {self.agent_id} received despawn signal\")\n                    self._running = False\n                    break\n            elif cogency_event[\"type\"] == \"tool_code\":\n                tool_code = cogency_event[\"content\"]\n                logger.info(f\"Agent {self.agent_id} executing tool code: {tool_code}\")\n                # Execute the tool code\n                tool_output = await self._execute_tool_code(tool_code)\n                # Send the tool output back to the Bus\n                await self.send_message(\n                    content=tool_output.outcome,\n                    event_type=\"tool_output\",\n                    event_payload={\n                        \"tool_name\": tool_output.tool_name,\n                        \"outcome\": tool_output.outcome,\n                        \"args\": tool_output.args,\n                        \"is_error\": tool_output.is_error,\n                    },\n                )\n\n    async def _execute_tool_code(self, tool_code: str) -> \"ToolResult\":\n        \"\"\"Parses and executes tool code string.\"\"\"\n        # This is a simplified parser for tool code. A more robust solution\n        # would use a proper AST parser or a dedicated tool execution engine.\n        match = re.match(r\"^(\\w+)\((.*)\)$\", tool_code)\n        if not match:\n            return ToolResult(outcome=f\"Invalid tool code format: {tool_code}\", is_error=True)\n\n        tool_name = match.group(1)\n        args_str = match.group(2)\n\n        args = {}\n        if args_str:\n            try:\n                # Simple parsing for key=value pairs\n                for arg_pair in args_str.split(\',\'):\n                    key, value = arg_pair.split(\'=\', 1)\n                    args[key.strip()] = value.strip().strip(\"\'\\\"\") # Remove quotes\n            except Exception as e:\n                return ToolResult(outcome=f\"Error parsing tool arguments: {e}\", is_error=True)\n\n        for tool in self.tools():\n            if tool.name == tool_name:\n                try:\n                    return await tool.execute(**args)\n                except Exception as e:\n                    return ToolResult(outcome=f\"Error executing tool {tool_name}: {e}\", is_error=True)\n        return ToolResult(outcome=f\"Tool {tool_name} not found.\", is_error=True)\n\n    async def _process_message(self, event: Event):\n        \"\"\"Process an incoming message from the Bus.\"\"\"\n        # Handle system shutdown signal\n        if event.type == \"system_shutdown\":\n            logger.info(f\"Agent {self.agent_id} received system shutdown\")\n            await self.shutdown()\n            return\n\n        if event.type == \"agent_message\":\n            if self.cogency_agent:\n                await self._process_with_cogency(event.content)\n            else:\n                logger.warning(f\"Cogency agent not initialized for {self.agent_type}\")\n                self._running = False  # Despawn if no cogency to process message
 
     async def run(self):
         """Agent main loop."""

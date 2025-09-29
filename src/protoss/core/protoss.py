@@ -39,16 +39,18 @@ class Protoss:
 
         logger.info("Coordination network online")
         return self
-    
+
     async def seed_vision(self):
         """Seed the vision into #human for agent self-selection."""
-        await self.khala.send({
-            "type": "vision_seed", 
-            "channel": "human",
-            "sender": "protoss_client",
-            "coordination_id": self.coordination_id,
-            "content": self.vision,
-        })
+        await self.khala.send(
+            {
+                "type": "vision_seed",
+                "channel": "human",
+                "sender": "protoss_client",
+                "coordination_id": self.coordination_id,
+                "content": self.vision,
+            }
+        )
         logger.info(f"Vision seeded: {self.vision}")
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -64,15 +66,17 @@ class Protoss:
         """Awaits constitutional completion signal from any claiming agent."""
         # Seed vision after listener is ready
         await self.seed_vision()
-        
+
         async for event in self.khala.listen():
-            logger.info(f"Completion check: channel={event.channel}, coord={event.coordination_id}, sender={event.sender}, type={event.type}")
-            # Constitutional completion: any agent in #human can signal COMPLETE
+            logger.info(
+                f"Completion check: channel={event.channel}, coord={event.coordination_id}, sender={event.sender}, type={event.type}"
+            )
+            # Constitutional completion: any agent can !complete
             if (
                 event.channel == "human"
                 and event.coordination_id == self.coordination_id
                 and event.type == "agent_message"
-                and ("COMPLETE:" in event.content or "complete" in event.content.lower())
+                and "!complete" in event.content
             ):
                 logger.info(f"Completion detected: {event.content}")
                 self._last_completion_event = event

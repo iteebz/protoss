@@ -11,7 +11,9 @@ from ..constitution.registry import AGENT_REGISTRY
 logger = logging.getLogger(__name__)
 
 
-async def spawn_agent(agent_type: str, channel: str, bus_url: str, coordination_id: str = None) -> List[int]:
+async def spawn_agent(
+    agent_type: str, channel: str, bus_url: str, coordination_id: str = None
+) -> List[int]:
     """Spawn agent process(es). Returns list of PIDs."""
     if agent_type not in AGENT_REGISTRY:
         raise ValueError(f"Unknown agent type: {agent_type}")
@@ -48,7 +50,7 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str, coordination_
                 "--params",
                 json.dumps(identity_param),
             ]
-            
+
             if coordination_id:
                 cmd.extend(["--coordination-id", coordination_id])
 
@@ -73,7 +75,7 @@ async def spawn_agent(agent_type: str, channel: str, bus_url: str, coordination_
             "--bus-url",
             bus_url,
         ]
-        
+
         if coordination_id:
             cmd.extend(["--coordination-id", coordination_id])
 

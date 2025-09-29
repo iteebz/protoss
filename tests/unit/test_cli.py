@@ -7,7 +7,7 @@ from protoss.cli import app
 runner = CliRunner()
 
 
-@patch("protoss.cli.coordinate")
+@patch("protoss.cli.main.coordinate")
 def test_coord_invokes_coordination(mock_coordinate):
     """Verify the 'coord' command parses arguments and calls the core function."""
     result = runner.invoke(
@@ -26,7 +26,7 @@ def test_coord_invokes_coordination(mock_coordinate):
     mock_coordinate.assert_called_once_with("test vision", 9999, "test-coord-123")
 
 
-@patch("protoss.cli.Khala")
+@patch("protoss.cli.main.Khala")
 def test_status_displays_status(mock_khala_class):
     """Verify the 'status' command displays the bus status correctly."""
     # Arrange
@@ -62,8 +62,8 @@ def test_status_displays_status(mock_khala_class):
     mock_khala_instance.disconnect.assert_awaited_once()
 
 
-@patch("protoss.cli.uuid4")
-@patch("protoss.cli.Khala")
+@patch("protoss.cli.main.uuid4")
+@patch("protoss.cli.main.Khala")
 def test_ask_sends_and_prints(mock_khala_class, mock_uuid):
     """Verify the 'ask' command sends a question and prints the response."""
     # Arrange

@@ -2,18 +2,19 @@ import json
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Set, Tuple, AsyncIterator
+from typing import Dict, List, Optional, Set, Tuple, AsyncIterator, Any
 from collections import defaultdict
 import socket
 
 import websockets
-from websockets import WebSocketServerProtocol
+import websockets.server
 
 from dataclasses import dataclass, field
 
 from .event import Event
 from .protocols import Storage, Mention
 from ..lib.storage import SQLite
+from .claim import Claims
 from . import gateway
 from ..tools import probe
 from . import parser
@@ -74,6 +75,9 @@ class Bus:
         # State owned by the Bus facade
         self.connections: Dict[str, websockets.ServerProtocol] = {}
         self.channels: Dict[str, Channel] = {}  # Channel state with history
+
+        # Bus Kernel: Constitutional claim tracking
+        self.claims = Claims()
 
         # Nexus functionality merged into Bus
         self._subscribers: Dict[
@@ -193,6 +197,10 @@ class Bus:
             )
             return
 
+        # Bus Kernel: Process CLAIM/COMPLETE
+        # Removed: Claims are now handled via structured tool calls, not direct message parsing.
+        # await self._process_claims(event)
+
         channel_state = self.channels.setdefault(channel, Channel())
         channel_state.history.append(event)
 
@@ -223,9 +231,7 @@ class Bus:
             logger.error(f"Error retrieving channel history for {channel_id}: {e}")
             return []
 
-    async def _handle_history_request(
-        self, websocket: WebSocketServerProtocol, request: Dict
-    ):
+    async def _handle_history_request(self, websocket, request: Dict):
         channel_id = request.get("channel")
         coordination_id = request.get("coordination_id")
         request.get("sender", "system")
@@ -250,6 +256,40 @@ class Bus:
             "coordination_id": coordination_id,
         }
         await websocket.send(json.dumps(response))
+
+    async def _process_tool_result(
+        self,
+        event_type: str,
+        channel: str,
+        sender: str,
+        coordination_id: Optional[str],
+        content: Optional[str],
+        payload: Dict[str, Any],
+    ):
+        """Bus Kernel: Process structured tool outputs."""
+        tool_name = payload.get("tool_name")
+        tool_outcome = payload.get("outcome")
+        tool_args = payload.get("args", {})
+
+        if tool_name == "protoss_claim" and tool_outcome == "success":
+            task = tool_args.get("task")
+            if task and coordination_id:
+                claim_id = self.claims.claim(sender, coordination_id, task)
+                await self.transmit(
+                    channel=channel,
+                    sender="bus",
+                    event_type="system_message",
+                    content=f"Claim {claim_id} registered for {sender} (task: {task})",
+                    coordination_id=coordination_id,
+                )
+            else:
+                logger.warning(
+                    f"Invalid protoss_claim tool output: missing task or coordination_id. Payload: {payload}"
+                )
+        else:
+            logger.debug(
+                f"Unhandled tool output: {tool_name} with outcome {tool_outcome}"
+            )
 
     async def _handle_mentions(self, event: Event):
         """Processes an event to detect @mentions and trigger actions."""
@@ -294,7 +334,9 @@ class Bus:
     ):
         """Spawns an agent and publishes an agent_spawn event."""
         try:
-            await gateway.spawn_agent(agent_type, channel, self.url, original_event.coordination_id)
+            await gateway.spawn_agent(
+                agent_type, channel, self.url, original_event.coordination_id
+            )
             logger.info("Bus: Spawning %s for @mention in %s", agent_type, channel)
 
             await self.publish(
@@ -312,7 +354,7 @@ class Bus:
         except Exception as exc:
             logger.error("Bus: Failed to spawn %s: %s", agent_type, exc, exc_info=True)
 
-    async def _handler(self, websocket: websockets.ServerProtocol):
+    async def _handler(self, websocket):
         """Handles a new agent's WebSocket connection and routes its messages."""
         agent_id = websocket.request.path.lstrip("/")
         self.connections[agent_id] = websocket
@@ -323,20 +365,28 @@ class Bus:
                 channel = data.get("channel")
                 sender = agent_id  # Assuming sender is the connected agent_id
                 msg_type = data.get("type", "event")
-                message = data  # The full message dictionary
+
+                event_type = data.get("type", "agent_message")
+                coordination_id = data.get("coordination_id")
+                content = data.get("content")
+                payload = data.get("payload")
 
                 if not channel:
                     logger.warning(f"Received message without channel from {sender}")
                     continue
 
                 if msg_type == "history_req":
-                    await self._handle_history_request(websocket, message)
+                    await self._handle_history_request(websocket, data)
                     continue
 
-                event_type = data.get("type", "agent_message")
-                coordination_id = data.get("coordination_id")
-                content = data.get("content")
-                payload = data.get("payload")
+                if msg_type == "tool_output":
+                    await self._process_tool_result(
+                        event_type, channel, sender, coordination_id, content, payload
+                    )
+                    # Tool outputs are processed by the Bus, but not necessarily broadcast to all subscribers
+                    # unless they are also agent_messages or system_messages that need wider visibility.
+                    # For now, we'll just persist and process internally.
+                    # We still need to persist the tool_output event itself.
 
                 self.register(channel, agent_id)
 
@@ -398,10 +448,7 @@ class Bus:
             channel_state.subscribers.discard(agent_id)
 
     async def _send_history(
-        self,
-        websocket: websockets.ServerProtocol,
-        channel: str,
-        since: Optional[float] = None,
+        self, websocket, channel: str, since: Optional[float] = None
     ):
         """Respond to history requests with persisted events."""
         history = await self.storage.load_events(channel=channel, since=since)
