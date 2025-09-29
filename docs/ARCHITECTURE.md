@@ -16,7 +16,7 @@ The Protoss framework consists of only two components:
 
 2.  **The Agent Harness (`core/agent.py`):** A lightweight wrapper that gives a `Cogency` instance access to the Bus. Its sole responsibility is to perform the coordination loop:
     *   **Sense:** Read new messages from the Bus.
-    *   **Think:** Inject the messages as context into its internal `Cogency` reasoning engine.
+    *   **Think:** Inject the messages as context into its internal `Cogency` reasoning engine, using its unique agent type as the `user_id` to maintain isolated private reasoning.
     *   **Act:** Broadcast the `§respond` events from `Cogency` back to the Bus.
 
 ## 3. The Two-Database Pattern

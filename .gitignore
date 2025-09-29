@@ -52,6 +52,4 @@ Thumbs.db
 archives/
 
 # Test runs and debug artifacts
-test-run-*/
-debug-run-*/
-debug-test/
+trials/
