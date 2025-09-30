@@ -22,6 +22,15 @@ async def trial_by_fire():
     base_dir = f"./trials/{run_id}"
 
     protoss = Protoss(channel=channel, base_dir=base_dir)
+    
+    # Snapshot coordination.py for this trial
+    import shutil
+    from pathlib import Path
+    Path(base_dir).mkdir(parents=True, exist_ok=True)
+    shutil.copy(
+        "src/protoss/constitution/coordination.py",
+        f"{base_dir}/coordination.py"
+    )
 
     print("🔥 TRIAL BY FIRE: Team Coordination")
     print(f"Channel: #{channel}")

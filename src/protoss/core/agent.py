@@ -97,7 +97,7 @@ class Agent:
                     break
 
                 # Coordination heartbeat - pause before next cycle
-                await asyncio.sleep(3.0)
+                await asyncio.sleep(2.0)
 
             except Exception as e:
                 logger.error(f"Agent {self.agent_type} coordination error: {e}")
@@ -134,7 +134,8 @@ class Agent:
         try:
             from pathlib import Path
 
-            workspace = Path(self.base_dir)
+            # Show only sandbox contents, not internal DBs
+            workspace = Path(self.base_dir) / "sandbox"
             if not workspace.exists():
                 return ""
 
@@ -146,7 +147,7 @@ class Agent:
 
             if files:
                 files_list = "\n".join(f"  - {f}" for f in files[:20])
-                return f"[Workspace Files]\n{files_list}\n\n"
+                return f"[Workspace]\n{files_list}\n\n"
         except Exception as e:
             logger.debug(f"Failed to list workspace: {e}")
 
@@ -164,7 +165,10 @@ class Agent:
             ):
                 if event["type"] == "respond":
                     response = event["content"]
-                    logger.info(f"{self.agent_type}: {response}\n")
+                    timestamp = time.strftime("%H:%M:%S")
+                    logger.info(
+                        f"\n--- {self.agent_type.upper()} [{timestamp}] ---\n{response}\n"
+                    )
                     await self.bus.send(self.agent_type, response, self.channel)
 
                     # Check for exit signals
