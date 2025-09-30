@@ -4,11 +4,8 @@ default:
 install:
     @poetry install
 
-dev:
-    @poetry run protoss start
-
-cmd task:
-    @poetry run protoss "{{task}}"
+trial:
+    @poetry run python trial_by_fire.py
 
 format:
     @poetry run ruff format .
@@ -28,9 +25,15 @@ build:
 publish: ci build
     @poetry publish
 
+cov:
+    @poetry run pytest --cov=src/protoss tests/
+
 clean:
-    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv
+    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ trials/ test-*
     @find . -type d -name "__pycache__" -exec rm -rf {} +
+    @find . -type d -name ".pytest_cache" -exec rm -rf {} +
+    @find . -type d -name ".protoss" -exec rm -rf {} +
+    @find . -type d -name ".cogency" -exec rm -rf {} +
 
 commits:
     @git --no-pager log --pretty=format:"%ar %s"
