@@ -6,6 +6,7 @@ import time
 
 try:
     import cogency
+    from cogency.lib.llms.openai import OpenAI
 except ImportError:
     cogency = None
 
@@ -36,12 +37,12 @@ class Agent:
         # Initialize cogency for reasoning with default tools and shared sandbox
         self.cogency_agent = (
             cogency.Agent(
-                llm="openai",
+                llm=OpenAI(http_model="gpt-4.1-mini"),
                 identity=constitutional_identity,  # Strong constitutional identity
                 instructions=coordination_guidelines,  # Team coordination context
                 base_dir=self.base_dir,  # Shared sandbox for coordination
-                # tools=[] - Let cogency provide default tools (web, file, shell)
-                history_window=1000,  # Larger window for coordination context
+                mode="replay",
+                history_window=1000,
             )
             if cogency
             else None
@@ -81,8 +82,14 @@ class Agent:
                     ]
 
                     if filtered_messages:
-                        # Process the entire batch of new messages as a single context
-                        context = self._format_history(filtered_messages)
+                        # Add workspace state for coordination visibility
+                        workspace_state = await self._get_workspace_state()
+                        conversation = self._format_history(filtered_messages)
+                        context = (
+                            f"{workspace_state}{conversation}"
+                            if workspace_state
+                            else conversation
+                        )
                         await self._process_with_cogency(context)
 
                 # Check if we should continue
@@ -119,6 +126,32 @@ class Agent:
         """Format message history for context."""
         return "\n".join([f"{msg['sender']}: {msg['content']}" for msg in history])
 
+    async def _get_workspace_state(self) -> str:
+        """Get current workspace file listing for coordination."""
+        if not self.base_dir:
+            return ""
+
+        try:
+            from pathlib import Path
+
+            workspace = Path(self.base_dir)
+            if not workspace.exists():
+                return ""
+
+            files = []
+            for item in sorted(workspace.rglob("*")):
+                if item.is_file() and not item.name.startswith("."):
+                    rel_path = item.relative_to(workspace)
+                    files.append(str(rel_path))
+
+            if files:
+                files_list = "\n".join(f"  - {f}" for f in files[:20])
+                return f"[Workspace Files]\n{files_list}\n\n"
+        except Exception as e:
+            logger.debug(f"Failed to list workspace: {e}")
+
+        return ""
+
     async def _process_with_cogency(self, content: str):
         """Process content through cogency and respond, with self-correction."""
         if not self.cogency_agent:
@@ -143,6 +176,21 @@ class Agent:
                     if "!complete" in response.lower():
                         logger.info(f"Agent {self.agent_type} signaling task complete")
                         # Don't despawn on !complete - let other agents see it and decide
+
+                elif event["type"] == "result":
+                    # Surface tool results to conversation for visibility
+                    payload = event.get("payload", {})
+                    outcome = payload.get("outcome", "")
+
+                    # Only broadcast errors and important outcomes
+                    if (
+                        "error" in outcome.lower()
+                        or "failed" in outcome.lower()
+                        or "invalid" in outcome.lower()
+                    ):
+                        error_msg = f"[Tool Error] {outcome}"
+                        logger.warning(f"{self.agent_type} tool error: {outcome}")
+                        await self.bus.send(self.agent_type, error_msg, self.channel)
 
                 elif event["type"] == "end":
                     # §end breaks the reasoning cycle - return to diff polling
