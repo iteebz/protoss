@@ -1,4 +1,4 @@
-"""Constitutional agent with pure conversation coordination."""
+"Constitutional agent with pure conversation coordination."
 
 import asyncio
 import logging
@@ -20,7 +20,11 @@ class Agent:
     """Agent that coordinates through conversation."""
 
     def __init__(
-        self, agent_type: str, bus: Bus, channel: str = "human", base_dir: str = None
+        self,
+        agent_type: str,
+        bus: Bus,
+        channel: str = "human",
+        base_dir: str = None,
     ):
         self.agent_type = agent_type
         self.bus = bus
@@ -42,7 +46,8 @@ class Agent:
                 instructions=coordination_guidelines,  # Team coordination context
                 base_dir=self.base_dir,  # Shared sandbox for coordination
                 mode="replay",
-                history_window=1000,
+                profile=False,
+                history_window=200,
             )
             if cogency
             else None
@@ -51,7 +56,8 @@ class Agent:
     def _load_constitutional_identity(self) -> str:
         """Load constitutional identity from the registry."""
         return CONSTITUTIONS.get(
-            self.agent_type, f"You are {self.agent_type}, a software development agent."
+            self.agent_type,
+            f"You are {self.agent_type}, a software development agent.",
         )
 
     def _load_coordination_guidelines(self) -> str:
@@ -82,14 +88,8 @@ class Agent:
                     ]
 
                     if filtered_messages:
-                        # Add workspace state for coordination visibility
-                        workspace_state = await self._get_workspace_state()
                         conversation = self._format_history(filtered_messages)
-                        context = (
-                            f"{workspace_state}{conversation}"
-                            if workspace_state
-                            else conversation
-                        )
+                        context = conversation
                         await self._process_with_cogency(context)
 
                 # Check if we should continue
@@ -125,33 +125,6 @@ class Agent:
     def _format_history(self, history) -> str:
         """Format message history for context."""
         return "\n".join([f"{msg['sender']}: {msg['content']}" for msg in history])
-
-    async def _get_workspace_state(self) -> str:
-        """Get current workspace file listing for coordination."""
-        if not self.base_dir:
-            return ""
-
-        try:
-            from pathlib import Path
-
-            # Show only sandbox contents, not internal DBs
-            workspace = Path(self.base_dir) / "sandbox"
-            if not workspace.exists():
-                return ""
-
-            files = []
-            for item in sorted(workspace.rglob("*")):
-                if item.is_file() and not item.name.startswith("."):
-                    rel_path = item.relative_to(workspace)
-                    files.append(str(rel_path))
-
-            if files:
-                files_list = "\n".join(f"  - {f}" for f in files[:20])
-                return f"[Workspace]\n{files_list}\n\n"
-        except Exception as e:
-            logger.debug(f"Failed to list workspace: {e}")
-
-        return ""
 
     async def _process_with_cogency(self, content: str):
         """Process content through cogency and respond, with self-correction."""
