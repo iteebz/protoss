@@ -28,6 +28,7 @@ class DB:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS ledger (
                     channel TEXT NOT NULL,
+                    parent TEXT,
                     sender TEXT NOT NULL,
                     content TEXT NOT NULL,
                     timestamp REAL NOT NULL,
@@ -35,6 +36,7 @@ class DB:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_ledger_channel ON ledger(channel);
+                CREATE INDEX IF NOT EXISTS idx_ledger_parent ON ledger(parent);
             """)
 
 
@@ -45,7 +47,12 @@ class SQLite:
         self.base_dir = base_dir
 
     async def save_message(
-        self, channel: str, sender: str, content: str, timestamp: float = None
+        self,
+        channel: str,
+        sender: str,
+        content: str,
+        timestamp: float = None,
+        parent: str = None,
     ) -> None:
         """Save message to the ledger."""
         import asyncio
@@ -56,8 +63,8 @@ class SQLite:
         def _sync_save():
             with DB.connect(self.base_dir) as db:
                 db.execute(
-                    "INSERT INTO ledger (channel, sender, content, timestamp) VALUES (?, ?, ?, ?)",
-                    (channel, sender, content, timestamp),
+                    "INSERT INTO ledger (channel, sender, content, timestamp, parent) VALUES (?, ?, ?, ?, ?)",
+                    (channel, sender, content, timestamp, parent),
                 )
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
@@ -85,6 +92,33 @@ class SQLite:
                 return [dict(row) for row in rows]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+
+    async def get_channels(self) -> list[str]:
+        """Get list of active channels."""
+        import asyncio
+
+        def _sync_get():
+            with DB.connect(self.base_dir) as db:
+                rows = db.execute(
+                    "SELECT DISTINCT channel FROM ledger ORDER BY channel"
+                ).fetchall()
+                return [row[0] for row in rows]
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
+
+    async def get_parent_channel(self, channel: str) -> str | None:
+        """Get parent channel for a given channel."""
+        import asyncio
+
+        def _sync_get():
+            with DB.connect(self.base_dir) as db:
+                row = db.execute(
+                    "SELECT parent FROM ledger WHERE channel = ? AND parent IS NOT NULL LIMIT 1",
+                    (channel,),
+                ).fetchone()
+                return row[0] if row else None
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
 
 
 def default_storage(base_dir: str | None = None):

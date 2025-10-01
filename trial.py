@@ -94,7 +94,7 @@ async def run_trial():
     all_errors = []
     for agent in protoss.agents:
         all_errors.extend(agent.errors)
-    
+
     if all_errors:
         errors_log = f"{base_dir}/errors.md"
         with open(errors_log, "w") as f:

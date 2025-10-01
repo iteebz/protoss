@@ -26,11 +26,23 @@ class Protoss:
 
         logger.info("Swarm started with 3 constitutional agents")
 
-    async def spawn_agent(self, agent_type: str, channel: str = None):
+    async def spawn_agent(
+        self, agent_type: str, channel: str = None, parent: str = None
+    ):
         """Spawn an agent into the swarm."""
         channel = channel or self.channel
-        agent = Agent(agent_type, self.bus, channel, base_dir=self.base_dir)
+        agent = Agent(
+            agent_type, self.bus, channel, base_dir=self.base_dir, protoss=self
+        )
         self.agents.append(agent)
+
+        if parent:
+            await self.bus.storage.save_message(
+                channel=channel,
+                sender="system",
+                content=f"Channel #{channel} spawned from #{parent}",
+                parent=parent,
+            )
 
         # Start agent in background
         asyncio.create_task(agent.run())

@@ -12,6 +12,7 @@ except ImportError:
 
 from .bus import Bus
 from ..constitution import CONSTITUTIONS, GUIDELINES
+from ..tools import protoss_tools
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class Agent:
         bus: Bus,
         channel: str = "human",
         base_dir: str = None,
+        protoss=None,
     ):
         self.agent_type = agent_type
         self.bus = bus
@@ -39,12 +41,18 @@ class Agent:
         constitutional_identity = self._load_constitutional_identity()
         coordination_guidelines = self._load_coordination_guidelines()
 
+        # Build tool list with channel coordination
+        all_tools = protoss_tools(
+            bus=self.bus, protoss=protoss, parent_channel=self.channel
+        )
+
         # Initialize cogency for reasoning with default tools and shared sandbox
         self.cogency_agent = (
             cogency.Agent(
                 llm=OpenAI(http_model="gpt-4.1-mini"),
                 identity=constitutional_identity,  # Strong constitutional identity
                 instructions=coordination_guidelines,  # Team coordination context
+                tools=all_tools,
                 base_dir=self.base_dir,  # Shared sandbox for coordination
                 mode="replay",
                 profile=False,
@@ -153,6 +161,16 @@ class Agent:
 
                     if "!complete" in response.lower():
                         logger.info(f"Agent {self.agent_type} signaling task complete")
+                        
+                        # Broadcast completion to parent channel if exists
+                        parent = await self.bus.storage.get_parent_channel(self.channel)
+                        if parent:
+                            await self.bus.send(
+                                "system",
+                                f"← #{self.channel}: {self.agent_type} - {response}",
+                                parent
+                            )
+                        
                         # Don't despawn on !complete - let other agents see it and decide
 
                 elif event["type"] == "result":
@@ -161,10 +179,24 @@ class Agent:
                     call = payload.get("call", {})
                     tool_name = call.get("name", "") if isinstance(call, dict) else ""
 
-                    # Broadcast file operations
+                    # Broadcast file operations and channel spawns
                     if tool_name in ("file_write", "file_edit"):
-                        if "error" not in outcome.lower() and "failed" not in outcome.lower():
-                            await self.bus.send(self.agent_type, f"✓ {outcome}", self.channel)
+                        if (
+                            "error" not in outcome.lower()
+                            and "failed" not in outcome.lower()
+                        ):
+                            await self.bus.send(
+                                self.agent_type, f"✓ {outcome}", self.channel
+                            )
+                    
+                    if tool_name == "channel_spawn":
+                        if (
+                            "error" not in outcome.lower()
+                            and "failed" not in outcome.lower()
+                        ):
+                            await self.bus.send(
+                                self.agent_type, f"→ {outcome}", self.channel
+                            )
 
                     # Log errors (no broadcast - agent handles communication)
                     if (
@@ -179,7 +211,9 @@ class Agent:
                             "outcome": outcome,
                         }
                         self.errors.append(error_record)
-                        logger.warning(f"{self.agent_type} tool error: {tool_name} - {outcome}")
+                        logger.warning(
+                            f"{self.agent_type} tool error: {tool_name} - {outcome}"
+                        )
 
                 elif event["type"] == "end":
                     # §end breaks the reasoning cycle - return to diff polling
