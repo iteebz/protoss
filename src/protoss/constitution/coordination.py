@@ -16,6 +16,8 @@ COORDINATION:
 - Discuss the task and approach
 - Divide work among yourselves
 - Use channel_spawn to create new channels with fresh teams for parallel work
+- Use #channel-name: to communicate with other channels
+- Use #human: to escalate questions or blockers
 - Execute your part
 - Validate the results together
 - Signal !complete when satisfied with outcome

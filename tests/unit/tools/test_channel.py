@@ -84,17 +84,26 @@ async def test_read_no_channel_name(mock_bus):
 @pytest.mark.asyncio
 async def test_spawn_success(mock_bus, mock_protoss):
     mock_bus.storage.get_channels.return_value = ["main"]
+    mock_bus.send = AsyncMock()
 
     tool = ChannelSpawn(mock_bus, mock_protoss, parent_channel="main")
-    result = await tool.execute(channel="research", agents=["zealot", "sentinel"])
+    result = await tool.execute(channel="research", task="Compare testing frameworks")
 
-    assert result.outcome == "Spawned #research [zealot, sentinel]"
-    assert mock_protoss.spawn_agent.call_count == 2
+    assert result.outcome == "Spawned #research [zealot, sentinel, harbinger] - task: Compare testing frameworks"
+    
+    # Verify task sent to channel
+    mock_bus.send.assert_called_once_with("human", "Compare testing frameworks", "research")
+    
+    # Verify agents spawned
+    assert mock_protoss.spawn_agent.call_count == 3
     mock_protoss.spawn_agent.assert_any_call(
         "zealot", channel="research", parent="main"
     )
     mock_protoss.spawn_agent.assert_any_call(
         "sentinel", channel="research", parent="main"
+    )
+    mock_protoss.spawn_agent.assert_any_call(
+        "harbinger", channel="research", parent="main"
     )
 
 
@@ -103,7 +112,7 @@ async def test_spawn_channel_exists(mock_bus, mock_protoss):
     mock_bus.storage.get_channels.return_value = ["main", "research"]
 
     tool = ChannelSpawn(mock_bus, mock_protoss)
-    result = await tool.execute(channel="research", agents=["zealot"])
+    result = await tool.execute(channel="research", task="Some task")
 
     assert "Error: #research already exists" in result.outcome
     assert "#main" in result.outcome
@@ -114,14 +123,14 @@ async def test_spawn_channel_exists(mock_bus, mock_protoss):
 @pytest.mark.asyncio
 async def test_spawn_no_channel_name(mock_bus, mock_protoss):
     tool = ChannelSpawn(mock_bus, mock_protoss, parent_channel="main")
-    result = await tool.execute(channel="", agents=["zealot"])
+    result = await tool.execute(channel="", task="Some task")
 
     assert result.outcome == "Channel name required"
 
 
 @pytest.mark.asyncio
-async def test_spawn_no_agents(mock_bus, mock_protoss):
+async def test_spawn_no_task(mock_bus, mock_protoss):
     tool = ChannelSpawn(mock_bus, mock_protoss, parent_channel="main")
-    result = await tool.execute(channel="research", agents=[])
+    result = await tool.execute(channel="research", task="")
 
-    assert result.outcome == "Agent list required"
+    assert result.outcome == "Task description required"

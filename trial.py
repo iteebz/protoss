@@ -45,10 +45,16 @@ async def run_trial():
     print(f"   Workspace: {base_dir}")
     print()
 
-    # Task specification (explicit parallel pressure)
+    # Task specification (massive parallel pressure)
     await protoss.send_human_message(
-        "Build calculator with add, subtract, multiply, divide functions. "
-        "Work in parallel where possible. Integrate when done."
+        "Build complete task management system with: "
+        "1) CLI app for task CRUD, "
+        "2) REST API with FastAPI/Flask, "
+        "3) React frontend with modern UI, "
+        "4) SQLite database with proper schema. "
+        "Research and justify all technology choices. "
+        "Everything must integrate and work together. "
+        "Full test coverage."
     )
 
     # Spawn agents simultaneously (no staggering)
@@ -58,9 +64,9 @@ async def run_trial():
         protoss.spawn_agent("harbinger"),
     )
 
-    # Hard limits: 50 messages OR 5 minutes
-    max_messages = 50
-    timeout = 300
+    # Hard limits: 100 messages OR 10 minutes (complex task needs more runway)
+    max_messages = 100
+    timeout = 600
     check_interval = 5
     start_time = time.time()
 
@@ -111,10 +117,12 @@ async def run_trial():
     sandbox = Path(f"{base_dir}/sandbox")
     files = list(sandbox.glob("**/*.py")) if sandbox.exists() else []
 
-    # Check for success
-    has_calculator = any("calculator" in f.name.lower() or "calc" in f.name.lower() for f in files)
-    has_operations = any(op in f.read_text() for op in ["add", "subtract", "multiply", "divide"] for f in files if f.suffix == ".py")
-    success = has_calculator and has_operations and len(files) >= 1
+    # Check for success (multi-component system)
+    has_api = any("api" in f.name.lower() or "server" in f.name.lower() for f in files)
+    has_cli = any("cli" in f.name.lower() for f in files)
+    has_frontend = any("react" in f.name.lower() or "app.js" in f.name.lower() or "frontend" in f.name.lower() for f in files)
+    has_schema = any("schema" in f.name.lower() or "database" in f.name.lower() or ".sql" in f.name for f in files)
+    success = (has_api or has_cli or has_frontend or has_schema) and len(files) >= 3
 
     # Report
     print("\n📊 RESULTS")
