@@ -45,11 +45,10 @@ async def run_trial():
     print(f"   Workspace: {base_dir}")
     print()
 
-    # Task specification (parallelizable task for spawn pressure)
+    # Task specification (explicit parallel pressure)
     await protoss.send_human_message(
-        "Research 3 Python testing frameworks (pytest, unittest, nose2). "
-        "Create comparison doc. Then build calculator app using the best "
-        "framework with full test coverage."
+        "Build calculator with add, subtract, multiply, divide functions. "
+        "Work in parallel where possible. Integrate when done."
     )
 
     # Spawn agents simultaneously (no staggering)
@@ -113,10 +112,9 @@ async def run_trial():
     files = list(sandbox.glob("**/*.py")) if sandbox.exists() else []
 
     # Check for success
-    has_comparison = any("comparison" in f.name.lower() or "research" in f.name.lower() for f in files)
     has_calculator = any("calculator" in f.name.lower() or "calc" in f.name.lower() for f in files)
-    has_tests = any("test" in f.name for f in files)
-    success = has_comparison and has_calculator and has_tests and len(files) >= 3
+    has_operations = any(op in f.read_text() for op in ["add", "subtract", "multiply", "divide"] for f in files if f.suffix == ".py")
+    success = has_calculator and has_operations and len(files) >= 1
 
     # Report
     print("\n📊 RESULTS")

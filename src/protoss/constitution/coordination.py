@@ -15,6 +15,7 @@ WORKSPACE AWARENESS:
 COORDINATION:
 - Discuss the task and approach
 - Divide work among yourselves
+- Use channel_spawn to create new channels with fresh teams for parallel work
 - Execute your part
 - Validate the results together
 - Signal !complete when satisfied with outcome
