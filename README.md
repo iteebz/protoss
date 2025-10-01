@@ -12,11 +12,11 @@ The system rejects all forms of rigid orchestration in favor of a swarm of sover
 
 The project's philosophy, principles, and architecture are codified in a set of core documents:
 
-1.  **[CATHEDRAL.md](./docs/CATHEDRAL.md)**: The **Vision**. The "Why."
-2.  **[DOCTRINE.md](./docs/DOCTRINE.md)**: The **Principles**. The "What."
-3.  **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**: The **Implementation**. The "How."
+1.  **[cathedral.md](./docs/cathedral.md)**: The **Vision**. The "Why."
+2.  **[doctrine.md](./docs/doctrine.md)**: The **Principles**. The "What."
+3.  **[ascension.md](./docs/ascension.md)**: The **Path**. The "How."
 
-For strategic context, see the [ROADMAP.md](./docs/ROADMAP.md) and [SAFETY.md](./docs/SAFETY.md).
+For strategic context, see the [architecture](./docs/architecture.md), [roadmap.md](./docs/roadmap.md) and [safety.md](./docs/safety.md).
 
 ---
 
