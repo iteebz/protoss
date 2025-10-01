@@ -45,10 +45,11 @@ async def run_trial():
     print(f"   Workspace: {base_dir}")
     print()
 
-    # Task specification (no coordination instructions)
+    # Task specification (parallelizable task for spawn pressure)
     await protoss.send_human_message(
-        "Build Flask REST API with /users, /posts, /comments endpoints. "
-        "Full CRUD. Integrate properly."
+        "Research 3 Python testing frameworks (pytest, unittest, nose2). "
+        "Create comparison doc. Then build calculator app using the best "
+        "framework with full test coverage."
     )
 
     # Spawn agents simultaneously (no staggering)
@@ -58,8 +59,8 @@ async def run_trial():
         protoss.spawn_agent("harbinger"),
     )
 
-    # Hard limits: 100 messages OR 5 minutes
-    max_messages = 150
+    # Hard limits: 50 messages OR 5 minutes
+    max_messages = 50
     timeout = 300
     check_interval = 5
     start_time = time.time()
@@ -112,10 +113,10 @@ async def run_trial():
     files = list(sandbox.glob("**/*.py")) if sandbox.exists() else []
 
     # Check for success
-    has_users = any("user" in f.name for f in files)
-    has_posts = any("post" in f.name for f in files)
-    has_comments = any("comment" in f.name for f in files)
-    success = has_users and has_posts and has_comments and len(files) >= 3
+    has_comparison = any("comparison" in f.name.lower() or "research" in f.name.lower() for f in files)
+    has_calculator = any("calculator" in f.name.lower() or "calc" in f.name.lower() for f in files)
+    has_tests = any("test" in f.name for f in files)
+    success = has_comparison and has_calculator and has_tests and len(files) >= 3
 
     # Report
     print("\n📊 RESULTS")
@@ -187,7 +188,5 @@ async def run_batch(count: int):
 if __name__ == "__main__":
     import sys
 
-    # Default: single trial
     count = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-
     asyncio.run(run_batch(count))

@@ -12,27 +12,10 @@ WORKSPACE AWARENESS:
 - Shared filesystem
 - Use file_list tool to check state
 
-PHASE 1: DESIGN:
-- Propose designs first
-- Critique and discuss
-- No agreement theater - I'm watching you Wazowski 👀
-- Say !consensus once agreement is reached
-
-PHASE 2: PLAN:
-- When you see !consensus, break work into components
-- Claim ONE component
-- If claimed, pick different one
-- When all agents have distinct claims, say !ready and move to Phase 3
-
-PHASE 3: BUILD:
-- When you see !ready, building commences
-- Use shell tool to create your own directories
-- If you hit errors, fix them and continue - don't loop
-- Build what you claim
-- Respect others' claims
-- Say !review once you are done
-
-PHASE 4: REVIEW:
-- To wrap up, review and give feedback on each others' work
-- Patch any issues
-- Say !complete when the deliverable is ready"""
+COORDINATION:
+- Discuss the task and approach
+- Divide work among yourselves
+- Execute your part
+- Validate the results together
+- Signal !complete when satisfied with outcome
+- Use !despawn if no further contribution"""
