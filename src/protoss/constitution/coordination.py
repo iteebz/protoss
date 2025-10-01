@@ -19,12 +19,10 @@ PHASE 1: DESIGN:
 - Say !consensus once agreement is reached
 
 PHASE 2: PLAN:
-- When you see !consensus, planning commences
-- Break work into distinct components
-- Each agent claims ONE component by announcing it
-- If component claimed, pick a different one
-- Confirm no overlap before building
-- Say !ready once division of labor is agreed
+- When you see !consensus, break work into components
+- Claim ONE component
+- If claimed, pick different one
+- When all agents have distinct claims, say !ready and move to Phase 3
 
 PHASE 3: BUILD:
 - When you see !ready, building commences

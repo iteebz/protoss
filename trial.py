@@ -90,6 +90,23 @@ async def run_trial():
             content = msg["content"]
             f.write(f"### {sender}\n\n{content}\n\n")
 
+    # Export errors for debugging
+    all_errors = []
+    for agent in protoss.agents:
+        all_errors.extend(agent.errors)
+    
+    if all_errors:
+        errors_log = f"{base_dir}/errors.md"
+        with open(errors_log, "w") as f:
+            f.write(f"# Tool Errors - Trial {run_id}\n\n")
+            f.write(f"**Total Errors:** {len(all_errors)}\n\n")
+            f.write("---\n\n")
+            for err in all_errors:
+                f.write(f"## {err['agent']} → {err['tool']}\n\n")
+                f.write(f"**Call:** `{json.dumps(err['call'])}`\n\n")
+                f.write(f"**Outcome:** {err['outcome']}\n\n")
+                f.write("---\n\n")
+
     # Analyze workspace
     sandbox = Path(f"{base_dir}/sandbox")
     files = list(sandbox.glob("**/*.py")) if sandbox.exists() else []

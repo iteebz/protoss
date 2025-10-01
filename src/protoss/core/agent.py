@@ -33,6 +33,7 @@ class Agent:
         self.running = True
         self.last_poll_time: float = 0  # Track when we last read messages
         self.base_dir = base_dir
+        self.errors = []  # Collect tool errors for debugging
 
         # Load constitutional identity and coordination guidelines separately
         constitutional_identity = self._load_constitutional_identity()
@@ -155,19 +156,30 @@ class Agent:
                         # Don't despawn on !complete - let other agents see it and decide
 
                 elif event["type"] == "result":
-                    # Surface tool results to conversation for visibility
                     payload = event.get("payload", {})
                     outcome = payload.get("outcome", "")
+                    call = payload.get("call", {})
+                    tool_name = call.get("name", "") if isinstance(call, dict) else ""
 
-                    # Only broadcast errors and important outcomes
+                    # Broadcast file operations
+                    if tool_name in ("file_write", "file_edit"):
+                        if "error" not in outcome.lower() and "failed" not in outcome.lower():
+                            await self.bus.send(self.agent_type, f"✓ {outcome}", self.channel)
+
+                    # Log errors (no broadcast - agent handles communication)
                     if (
                         "error" in outcome.lower()
                         or "failed" in outcome.lower()
                         or "invalid" in outcome.lower()
                     ):
-                        error_msg = f"[Tool Error] {outcome}"
-                        logger.warning(f"{self.agent_type} tool error: {outcome}")
-                        await self.bus.send(self.agent_type, error_msg, self.channel)
+                        error_record = {
+                            "agent": self.agent_type,
+                            "tool": tool_name,
+                            "call": call,
+                            "outcome": outcome,
+                        }
+                        self.errors.append(error_record)
+                        logger.warning(f"{self.agent_type} tool error: {tool_name} - {outcome}")
 
                 elif event["type"] == "end":
                     # §end breaks the reasoning cycle - return to diff polling
