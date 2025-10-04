@@ -33,10 +33,16 @@ def get_metrics(trial_path: str) -> dict:
     for row in rows:
         agent_counts[row["channel"]][row["sender"]] = row["count"]
     
-    # Spawn events
-    spawn_count = conn.execute(
-        "SELECT COUNT(DISTINCT channel) FROM ledger WHERE parent IS NOT NULL"
-    ).fetchone()[0]
+    # Spawn events (legacy ledgers may omit parent column)
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(ledger)").fetchall()
+    }
+    if "parent" in columns:
+        spawn_count = conn.execute(
+            "SELECT COUNT(DISTINCT channel) FROM ledger WHERE parent IS NOT NULL"
+        ).fetchone()[0]
+    else:
+        spawn_count = 0
     
     # Completion signals
     completion_count = conn.execute(

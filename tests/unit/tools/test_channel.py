@@ -91,8 +91,14 @@ async def test_spawn_success(mock_bus, mock_protoss):
 
     assert result.outcome == "Spawned #research [zealot, sentinel, harbinger] - task: Compare testing frameworks"
     
-    # Verify task sent to channel
-    mock_bus.send.assert_called_once_with("human", "Compare testing frameworks", "research")
+    # Verify task sent with spawn context
+    mock_bus.send.assert_called_once()
+    call_args = mock_bus.send.call_args
+    assert call_args[0][0] == "human"
+    assert "Compare testing frameworks" in call_args[0][1]
+    assert "[Active channels:" in call_args[0][1]
+    assert "[You are in: #research]" in call_args[0][1]
+    assert call_args[0][2] == "research"
     
     # Verify agents spawned
     assert mock_protoss.spawn_agent.call_count == 3

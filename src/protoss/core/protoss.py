@@ -4,6 +4,7 @@ import asyncio
 import logging
 from .bus import Bus
 from .agent import Agent
+from ..lib.spawn import build_spawn_context
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,16 @@ class Protoss:
         logger.info(f"Spawned {agent_type} in #{channel}")
 
     async def send_human_message(self, content: str, channel: str = None):
-        """Send a message as human."""
+        """Send a message as human with spawn context."""
         channel = channel or self.channel
+        
+        # Check if this is first message in channel
+        history = await self.bus.get_history(channel)
+        if not history:
+            # Inject spawn context for first message
+            spawn_context = await build_spawn_context(self.bus.storage, channel)
+            content = f"{spawn_context}\n\n{content}"
+        
         await self.bus.send("human", content, channel)
 
     async def wait_for_completion(self, timeout: float = 30.0):
