@@ -7,6 +7,8 @@ import time
 try:
     import cogency
     from cogency.lib.llms.openai import OpenAI
+    from cogency.lib.storage import SQLite
+    from cogency.core.config import Security
 except ImportError:
     cogency = None
 
@@ -46,15 +48,21 @@ class Agent:
             bus=self.bus, protoss=protoss, parent_channel=self.channel
         )
 
-        # Initialize cogency for reasoning with default tools and shared sandbox
+        # Initialize cogency with project-scoped storage and access
+        from pathlib import Path
+        cogency_db = Path.home() / ".space" / "cogency.db"
+        storage = SQLite(db_path=str(cogency_db)) if cogency else None
+        security = Security(access="project") if cogency else None
+        
         self.cogency_agent = (
             cogency.Agent(
                 llm=OpenAI(http_model="gpt-4.1-mini"),
-                identity=constitutional_identity,  # Strong constitutional identity
-                instructions=coordination_guidelines,  # Team coordination context
+                storage=storage,
+                identity=constitutional_identity,
+                instructions=coordination_guidelines,
                 tools=all_tools,
-                base_dir=self.base_dir,  # Shared sandbox for coordination
-                mode="replay",
+                mode="auto",
+                security=security,
                 profile=False,
                 history_window=200,
             )
