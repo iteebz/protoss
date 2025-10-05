@@ -19,7 +19,7 @@ class Paths:
     @staticmethod
     def db(base_dir: str = None) -> Path:
         """Get database path."""
-        return get_protoss_dir(base_dir) / "ledger.db"
+        return get_protoss_dir(base_dir) / "store.db"
 
     @staticmethod
     def sandbox(base_dir: str = None) -> Path:

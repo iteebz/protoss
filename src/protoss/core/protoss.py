@@ -5,6 +5,7 @@ import logging
 from .bus import Bus
 from .agent import Agent
 from ..lib.spawn import build_spawn_context
+from ..lib import runs
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +13,13 @@ logger = logging.getLogger(__name__)
 class Protoss:
     """Conversational coordination through constitutional agents."""
 
-    def __init__(self, channel: str = "human", base_dir: str = None):
+    def __init__(self, channel: str = "human", base_dir: str = None, run_id: str = None):
         self.bus = Bus(base_dir=base_dir)
         self.agents = []
         self.channel = channel
         self.base_dir = base_dir
+        self.run_id = run_id or channel
+        self.task = None
 
     async def start(self):
         """Start the swarm with 3 constitutional agents."""
@@ -51,6 +54,9 @@ class Protoss:
 
     async def send_human_message(self, content: str, channel: str = None):
         """Send a message as human with spawn context."""
+        if not self.task:
+            self.task = content
+            
         channel = channel or self.channel
         
         # Check if this is first message in channel
@@ -78,3 +84,24 @@ class Protoss:
         """Get full conversation history."""
         channel = channel or self.channel
         return await self.bus.get_history(channel)
+    
+    async def run(self, task: str, agents: list[str], timeout: float):
+        """Execute complete run with telemetry."""
+        runs.init()
+        runs.start(self.run_id, task, agents, self.channel)
+        
+        for role in agents:
+            await self.spawn_agent(role)
+        
+        await self.send_human_message(task)
+        
+        try:
+            await self.wait_for_completion(timeout=timeout)
+            conv = await self.get_conversation()
+            outcome = "timeout" if len(conv) > 0 and any(agent.running for agent in self.agents) else "success"
+        except Exception as e:
+            outcome = f"error: {e}"
+            conv = []
+        
+        runs.complete(self.run_id, outcome, len(conv))
+        return conv

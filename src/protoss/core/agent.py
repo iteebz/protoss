@@ -105,9 +105,18 @@ class Agent:
                     ]
 
                     if filtered_messages:
-                        conversation = self._format_history(filtered_messages)
-                        context = conversation
-                        await self._process_with_cogency(context)
+                        # Check for consensus signals in messages
+                        for msg in filtered_messages:
+                            content_lower = msg.get("content", "").lower()
+                            if any(sig in content_lower for sig in ["!done", "!consensus", "!complete"]):
+                                logger.info(f"Agent {self.agent_type} detected consensus signal")
+                                self.running = False
+                                break
+                        
+                        if self.running:
+                            conversation = self._format_history(filtered_messages)
+                            context = conversation
+                            await self._process_with_cogency(context)
 
                 # Check if we should continue
                 if not self.running:
