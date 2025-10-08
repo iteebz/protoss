@@ -120,8 +120,16 @@ async def run_trial():
     # Check for success (multi-component system)
     has_api = any("api" in f.name.lower() or "server" in f.name.lower() for f in files)
     has_cli = any("cli" in f.name.lower() for f in files)
-    has_frontend = any("react" in f.name.lower() or "app.js" in f.name.lower() or "frontend" in f.name.lower() for f in files)
-    has_schema = any("schema" in f.name.lower() or "database" in f.name.lower() or ".sql" in f.name for f in files)
+    has_frontend = any(
+        "react" in f.name.lower()
+        or "app.js" in f.name.lower()
+        or "frontend" in f.name.lower()
+        for f in files
+    )
+    has_schema = any(
+        "schema" in f.name.lower() or "database" in f.name.lower() or ".sql" in f.name
+        for f in files
+    )
     success = (has_api or has_cli or has_frontend or has_schema) and len(files) >= 3
 
     # Report
@@ -151,7 +159,7 @@ async def run_batch(count: int):
 
     results = []
     for i in range(count):
-        print(f"▶️  Trial {i+1}/{count}")
+        print(f"▶️  Trial {i + 1}/{count}")
         result = await run_trial()
         results.append(result)
 
@@ -167,7 +175,7 @@ async def run_batch(count: int):
     print("\n" + "=" * 60)
     print("📈 BATCH SUMMARY")
     print("=" * 60)
-    print(f"Success rate: {successes}/{count} ({successes/count*100:.1f}%)")
+    print(f"Success rate: {successes}/{count} ({successes / count * 100:.1f}%)")
     print(f"Avg messages: {avg_messages:.1f}")
     print(f"Avg files: {avg_files:.1f}")
     print()

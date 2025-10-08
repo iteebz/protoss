@@ -13,7 +13,7 @@ COMMUNICATION:
 
 WORKSPACE AWARENESS:
 - Shared filesystem
-- Use `file_list` tool to check state
+- Use `list` tool to check state
 
 COORDINATION:
 - Discuss task scope and identify independent workstreams

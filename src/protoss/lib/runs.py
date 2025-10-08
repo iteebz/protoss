@@ -2,10 +2,11 @@ from pathlib import Path
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 import os
 
 DB = Path(os.getcwd()) / ".protoss" / "store.db"
+
 
 @dataclass
 class Run:
@@ -54,7 +55,7 @@ def start(run_id: str, task: str, agents: list[str], channel: str) -> None:
     with get_db() as conn:
         conn.execute(
             "INSERT INTO runs (id, task, agents, channel, started_at) VALUES (?, ?, ?, ?, ?)",
-            (run_id, task, ",".join(agents), channel, datetime.utcnow().isoformat())
+            (run_id, task, ",".join(agents), channel, datetime.now(UTC).isoformat()),
         )
         conn.commit()
 
@@ -65,7 +66,7 @@ def complete(run_id: str, outcome: str, msg_count: int) -> None:
             """UPDATE runs 
                SET completed_at=?, outcome=?, message_count=? 
                WHERE id=?""",
-            (datetime.utcnow().isoformat(), outcome, msg_count, run_id)
+            (datetime.now(UTC).isoformat(), outcome, msg_count, run_id),
         )
         conn.commit()
 

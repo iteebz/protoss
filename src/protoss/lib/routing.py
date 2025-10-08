@@ -6,16 +6,16 @@ from typing import Tuple, Optional
 
 def parse_route(content: str) -> Tuple[Optional[str], str]:
     """Parse message for #channel: routing directive.
-    
+
     Returns:
         (target_channel, message_body) if routing found, else (None, content)
-    
+
     Examples:
         "#main: found answer" -> ("main", "found answer")
         "I'm blocked, #human: need help" -> ("human", "need help")
         "normal message" -> (None, "normal message")
     """
-    match = re.search(r'#(\w+):\s*(.+)', content)
+    match = re.search(r"#(\w+):\s*(.+)", content)
     if match:
         return match.group(1), match.group(2)
     return None, content

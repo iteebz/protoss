@@ -6,10 +6,12 @@ class ChannelSpawn(Tool):
     """Spawn new channel with fresh team for parallel work."""
 
     name = "channel_spawn"
-    description = "Spawn new #channel with 3-agent squad for parallel subtask execution."
+    description = (
+        "Spawn new #channel with 3-agent squad for parallel subtask execution."
+    )
     schema = {
         "channel": {"description": "Name of the new channel"},
-        "task": {"description": "Specific task for the new channel to work on"}
+        "task": {"description": "Specific task for the new channel to work on"},
     }
 
     def __init__(self, bus, protoss, parent_channel=None):
@@ -24,7 +26,7 @@ class ChannelSpawn(Tool):
     async def execute(self, channel: str, task: str, **kwargs) -> ToolResult:
         if not channel:
             return ToolResult(outcome="Channel name required")
-        
+
         if not task:
             return ToolResult(outcome="Task description required")
 
@@ -38,14 +40,16 @@ class ChannelSpawn(Tool):
         # Build spawn context with topology
         spawn_context = await build_spawn_context(self.bus.storage, channel)
         content = f"{spawn_context}\n\n{task}"
-        
+
         # Send task with spawn context as first message
         await self.bus.send("human", content, channel)
-        
+
         # Always spawn 3 agents: zealot, sentinel, harbinger
         for agent_type in ["zealot", "sentinel", "harbinger"]:
             await self.protoss.spawn_agent(
                 agent_type, channel=channel, parent=self.parent_channel
             )
 
-        return ToolResult(outcome=f"Spawned #{channel} [zealot, sentinel, harbinger] - task: {task}")
+        return ToolResult(
+            outcome=f"Spawned #{channel} [zealot, sentinel, harbinger] - task: {task}"
+        )

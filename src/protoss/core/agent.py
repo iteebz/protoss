@@ -50,10 +50,11 @@ class Agent:
 
         # Initialize cogency with project-scoped storage and access
         from pathlib import Path
+
         cogency_db = Path.home() / ".space" / "cogency.db"
         storage = SQLite(db_path=str(cogency_db)) if cogency else None
         security = Security(access="project") if cogency else None
-        
+
         self.cogency_agent = (
             cogency.Agent(
                 llm=OpenAI(http_model="gpt-4.1-mini"),
@@ -108,11 +109,16 @@ class Agent:
                         # Check for consensus signals in messages
                         for msg in filtered_messages:
                             content_lower = msg.get("content", "").lower()
-                            if any(sig in content_lower for sig in ["!done", "!consensus", "!complete"]):
-                                logger.info(f"Agent {self.agent_type} detected consensus signal")
+                            if any(
+                                sig in content_lower
+                                for sig in ["!done", "!consensus", "!complete"]
+                            ):
+                                logger.info(
+                                    f"Agent {self.agent_type} detected consensus signal"
+                                )
                                 self.running = False
                                 break
-                        
+
                         if self.running:
                             conversation = self._format_history(filtered_messages)
                             context = conversation
@@ -178,16 +184,16 @@ class Agent:
 
                     if "!complete" in response.lower():
                         logger.info(f"Agent {self.agent_type} signaling task complete")
-                        
+
                         # Broadcast completion to parent channel if exists
                         parent = await self.bus.storage.get_parent_channel(self.channel)
                         if parent:
                             await self.bus.send(
                                 "system",
                                 f"← #{self.channel}: {self.agent_type} - {response}",
-                                parent
+                                parent,
                             )
-                        
+
                         # Don't despawn on !complete - let other agents see it and decide
 
                 elif event["type"] == "result":
@@ -197,7 +203,7 @@ class Agent:
                     tool_name = call.get("name", "") if isinstance(call, dict) else ""
 
                     # Broadcast file operations and channel spawns
-                    if tool_name in ("file_write", "file_edit"):
+                    if tool_name in ("write", "edit"):
                         if (
                             "error" not in outcome.lower()
                             and "failed" not in outcome.lower()
@@ -205,7 +211,7 @@ class Agent:
                             await self.bus.send(
                                 self.agent_type, f"✓ {outcome}", self.channel
                             )
-                    
+
                     if tool_name == "channel_spawn":
                         if (
                             "error" not in outcome.lower()

@@ -18,40 +18,46 @@ class Bus:
 
     async def send(self, sender: str, content: str, channel: str = "human"):
         """Send a message to channel and persist it.
-        
+
         Supports cross-channel routing via #channel: anywhere in message.
         Example: 'After analysis, #main: we should proceed' routes to #main.
         """
         timestamp = time.time()
-        
+
         # Check for cross-channel routing
         potential_target, message_body = parse_route(content)
         target_channel = channel
         routed_content = content
-        
+
         if potential_target:
             # Verify target channel exists
             channels = await self.storage.get_channels()
             if potential_target in channels or potential_target == "human":
                 target_channel = potential_target
                 routed_content = message_body
-                
+
                 # Leave forwarding stub in source channel
                 await self.storage.save_message(
                     channel=channel,
                     sender=sender,
                     content=format_stub(target_channel, message_body),
-                    timestamp=timestamp
+                    timestamp=timestamp,
                 )
-        
+
         # Send to target channel
         await self.storage.save_message(
-            channel=target_channel, sender=sender, content=routed_content, timestamp=timestamp
+            channel=target_channel,
+            sender=sender,
+            content=routed_content,
+            timestamp=timestamp,
         )
 
         # Notify subscribers in real-time
         message = Message(
-            sender=sender, content=routed_content, timestamp=timestamp, channel=target_channel
+            sender=sender,
+            content=routed_content,
+            timestamp=timestamp,
+            channel=target_channel,
         )
         for queue in self.subscribers.get(target_channel, []):
             await queue.put(message)
