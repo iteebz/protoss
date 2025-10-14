@@ -11,6 +11,10 @@ install:
     @poetry lock
     @poetry install
 
+reload:
+    @poetry remove cogency
+    @poetry add ../../public/cogency
+
 ci: format fix test
 
 trial:

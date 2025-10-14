@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.protoss.lib.storage import SQLite
+from src.protoss.lib.sqlite import SQLite
 
 
 @pytest.fixture

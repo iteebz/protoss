@@ -7,7 +7,7 @@ import time
 try:
     import cogency
     from cogency.lib.llms.openai import OpenAI
-    from cogency.lib.storage import SQLite
+    from cogency.lib.sqlite import SQLite
     from cogency.core.config import Security
 except ImportError:
     cogency = None

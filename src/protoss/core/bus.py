@@ -5,7 +5,7 @@ import time
 from typing import Dict, List, Optional
 
 from .protocols import Message, Storage
-from ..lib.storage import default_storage
+from ..lib.sqlite import default_storage
 from ..lib.routing import parse_route, format_stub
 
 

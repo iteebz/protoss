@@ -3,7 +3,7 @@
 import sqlite3
 
 
-from src.protoss.lib.storage import DB
+from src.protoss.lib.sqlite import DB
 from src.protoss.lib import runs
 
 
