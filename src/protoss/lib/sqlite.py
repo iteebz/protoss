@@ -1,7 +1,9 @@
-"""SQLite storage for the conversation ledger."""
+"""SQLite storage for protoss ledger and telemetry."""
 
+import asyncio
 import sqlite3
 import time
+from datetime import datetime, UTC
 from pathlib import Path
 
 from .paths import Paths
@@ -23,7 +25,7 @@ class DB:
 
     @classmethod
     def _init_schema(cls, db_path: Path):
-        """Initialize database schema for the ledger."""
+        """Initialize database schema for ledger and runs."""
         with sqlite3.connect(db_path) as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS ledger (
@@ -37,6 +39,19 @@ class DB:
 
                 CREATE INDEX IF NOT EXISTS idx_ledger_channel ON ledger(channel);
                 CREATE INDEX IF NOT EXISTS idx_ledger_parent ON ledger(parent);
+
+                CREATE TABLE IF NOT EXISTS runs (
+                    id TEXT PRIMARY KEY,
+                    task TEXT NOT NULL,
+                    agents TEXT NOT NULL,
+                    channel TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    message_count INTEGER DEFAULT 0,
+                    outcome TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_runs_started ON runs(started_at DESC);
             """)
 
 
@@ -108,8 +123,6 @@ class SQLite:
 
     async def get_parent_channel(self, channel: str) -> str | None:
         """Get parent channel for a given channel."""
-        import asyncio
-
         def _sync_get():
             with DB.connect(self.base_dir) as db:
                 row = db.execute(
@@ -119,6 +132,44 @@ class SQLite:
                 return row[0] if row else None
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
+
+    async def start_run(self, run_id: str, task: str, agents: list[str], channel: str) -> None:
+        """Record start of a coordination run."""
+        def _sync_insert():
+            with DB.connect(self.base_dir) as db:
+                db.execute(
+                    "INSERT INTO runs (id, task, agents, channel, started_at) VALUES (?, ?, ?, ?, ?)",
+                    (run_id, task, ",".join(agents), channel, datetime.now(UTC).isoformat()),
+                )
+                db.commit()
+
+        await asyncio.get_event_loop().run_in_executor(None, _sync_insert)
+
+    async def complete_run(self, run_id: str, outcome: str, msg_count: int) -> None:
+        """Record completion of a coordination run."""
+        def _sync_update():
+            with DB.connect(self.base_dir) as db:
+                db.execute(
+                    """UPDATE runs 
+                       SET completed_at=?, outcome=?, message_count=? 
+                       WHERE id=?""",
+                    (datetime.now(UTC).isoformat(), outcome, msg_count, run_id),
+                )
+                db.commit()
+
+        await asyncio.get_event_loop().run_in_executor(None, _sync_update)
+
+    async def list_runs(self, limit: int = 10) -> list[dict]:
+        """Get recent coordination runs."""
+        def _sync_list():
+            with DB.connect(self.base_dir) as db:
+                db.row_factory = sqlite3.Row
+                rows = db.execute(
+                    "SELECT * FROM runs ORDER BY started_at DESC LIMIT ?", (limit,)
+                ).fetchall()
+                return [dict(row) for row in rows]
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_list)
 
 
 def default_storage(base_dir: str | None = None):

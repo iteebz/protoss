@@ -1,5 +1,10 @@
 """Coordination guidelines for Protoss agents."""
 
+DEFAULT_AGENTS = ["zealot", "sentinel", "harbinger"]
+
+EXIT_SIGNALS = {"!done", "!consensus", "!complete", "!despawn"}
+COMPLETION_SIGNAL = "!complete"
+
 GUIDELINES = """CONTEXT:
 You are a 3-agent squad operating within a swarm.
 Your squad: zealot, sentinel, harbinger.

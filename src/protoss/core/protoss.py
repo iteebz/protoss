@@ -5,7 +5,7 @@ import logging
 from .bus import Bus
 from .agent import Agent
 from ..lib.spawn import build_spawn_context
-from ..lib import runs
+from ..constitution import DEFAULT_AGENTS
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +25,10 @@ class Protoss:
 
     async def start(self):
         """Start the swarm with 3 constitutional agents."""
-        # Spawn the 3 constitutional agents
-        await self.spawn_agent("zealot")
-        await self.spawn_agent("sentinel")
-        await self.spawn_agent("harbinger")
+        for agent_type in DEFAULT_AGENTS:
+            await self.spawn_agent(agent_type)
 
-        logger.info("Swarm started with 3 constitutional agents")
+        logger.info(f"Swarm started with {len(DEFAULT_AGENTS)} constitutional agents")
 
     async def spawn_agent(
         self, agent_type: str, channel: str = None, parent: str = None
@@ -89,8 +87,7 @@ class Protoss:
 
     async def run(self, task: str, agents: list[str], timeout: float):
         """Execute complete run with telemetry."""
-        runs.init()
-        runs.start(self.run_id, task, agents, self.channel)
+        await self.bus.storage.start_run(self.run_id, task, agents, self.channel)
 
         for role in agents:
             await self.spawn_agent(role)
@@ -109,5 +106,5 @@ class Protoss:
             outcome = f"error: {e}"
             conv = []
 
-        runs.complete(self.run_id, outcome, len(conv))
+        await self.bus.storage.complete_run(self.run_id, outcome, len(conv))
         return conv

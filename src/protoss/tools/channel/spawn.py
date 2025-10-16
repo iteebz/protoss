@@ -1,5 +1,6 @@
 from cogency.core.protocols import Tool, ToolResult
 from ...lib.spawn import build_spawn_context
+from ...constitution import DEFAULT_AGENTS
 
 
 class ChannelSpawn(Tool):
@@ -44,12 +45,13 @@ class ChannelSpawn(Tool):
         # Send task with spawn context as first message
         await self.bus.send("human", content, channel)
 
-        # Always spawn 3 agents: zealot, sentinel, harbinger
-        for agent_type in ["zealot", "sentinel", "harbinger"]:
+        # Spawn constitutional agents
+        for agent_type in DEFAULT_AGENTS:
             await self.protoss.spawn_agent(
                 agent_type, channel=channel, parent=self.parent_channel
             )
 
+        agents_str = ", ".join(DEFAULT_AGENTS)
         return ToolResult(
-            outcome=f"Spawned #{channel} [zealot, sentinel, harbinger] - task: {task}"
+            outcome=f"Spawned #{channel} [{agents_str}] - task: {task}"
         )

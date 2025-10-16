@@ -4,16 +4,13 @@ import asyncio
 import logging
 import time
 
-try:
-    import cogency
-    from cogency.lib.llms.openai import OpenAI
-    from cogency.lib.sqlite import SQLite
-    from cogency.core.config import Security
-except ImportError:
-    cogency = None
+import cogency
+from cogency.lib.llms.openai import OpenAI
+from cogency.lib.sqlite import SQLite
+from cogency.core.config import Security
 
 from .bus import Bus
-from ..constitution import CONSTITUTIONS, GUIDELINES
+from ..constitution import CONSTITUTIONS, GUIDELINES, EXIT_SIGNALS, COMPLETION_SIGNAL
 from ..tools import protoss_tools
 
 logger = logging.getLogger(__name__)
@@ -33,7 +30,7 @@ class Agent:
         self.agent_type = agent_type
         self.bus = bus
         self.channel = channel
-        self.conversation_id = channel  # Use channel as conversation_id
+        self.conversation_id = channel
         self.running = True
         self.last_poll_time: float = 0  # Track when we last read messages
         self.base_dir = base_dir
@@ -52,23 +49,19 @@ class Agent:
         from pathlib import Path
 
         cogency_db = Path.home() / ".space" / "cogency.db"
-        storage = SQLite(db_path=str(cogency_db)) if cogency else None
-        security = Security(access="project") if cogency else None
+        storage = SQLite(db_path=str(cogency_db))
+        security = Security(access="project")
 
-        self.cogency_agent = (
-            cogency.Agent(
-                llm=OpenAI(http_model="gpt-4.1-mini"),
-                storage=storage,
-                identity=constitutional_identity,
-                instructions=coordination_guidelines,
-                tools=all_tools,
-                mode="auto",
-                security=security,
-                profile=False,
-                history_window=200,
-            )
-            if cogency
-            else None
+        self.cogency_agent = cogency.Agent(
+            llm=OpenAI(http_model="gpt-4.1-mini"),
+            storage=storage,
+            identity=constitutional_identity,
+            instructions=coordination_guidelines,
+            tools=all_tools,
+            mode="auto",
+            security=security,
+            profile=False,
+            history_window=200,
         )
 
     def _load_constitutional_identity(self) -> str:
@@ -99,7 +92,7 @@ class Agent:
                 )
                 self.last_poll_time = poll_time
 
-                if new_messages and self.cogency_agent:
+                if new_messages:
                     # Filter out our own messages from the batch
                     filtered_messages = [
                         msg for msg in new_messages if msg["sender"] != self.agent_type
@@ -111,10 +104,10 @@ class Agent:
                             content_lower = msg.get("content", "").lower()
                             if any(
                                 sig in content_lower
-                                for sig in ["!done", "!consensus", "!complete"]
+                                for sig in EXIT_SIGNALS
                             ):
                                 logger.info(
-                                    f"Agent {self.agent_type} detected consensus signal"
+                                    f"Agent {self.agent_type} detected exit signal"
                                 )
                                 self.running = False
                                 break
@@ -141,7 +134,7 @@ class Agent:
         """Load full channel history on agent spawn."""
         history = await self.bus.get_history(self.channel)
 
-        if history and self.cogency_agent:
+        if history:
             # Format full conversation for initial context
             context = self._format_history(history)
             logger.info(
@@ -160,10 +153,6 @@ class Agent:
 
     async def _process_with_cogency(self, content: str):
         """Process content through cogency and respond, with self-correction."""
-        if not self.cogency_agent:
-            logger.warning(f"Agent {self.agent_type} has no cogency agent")
-            return
-
         try:
             async for event in self.cogency_agent(
                 content, user_id=self.agent_type, conversation_id=self.conversation_id
@@ -182,7 +171,7 @@ class Agent:
                         self.running = False
                         break
 
-                    if "!complete" in response.lower():
+                    if COMPLETION_SIGNAL in response.lower():
                         logger.info(f"Agent {self.agent_type} signaling task complete")
 
                         # Broadcast completion to parent channel if exists
@@ -193,8 +182,6 @@ class Agent:
                                 f"← #{self.channel}: {self.agent_type} - {response}",
                                 parent,
                             )
-
-                        # Don't despawn on !complete - let other agents see it and decide
 
                 elif event["type"] == "result":
                     payload = event.get("payload", {})
