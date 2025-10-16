@@ -39,7 +39,7 @@ pydantic-settings = "^2.2.1"
 python-dotenv = "^1.0.1"
 rich = "^13.7.1"
 typer = "^0.17.4"
-cogency = {path = "../../public/cogency"}
+cogency = {path = "../public/cogency"}
 
 [tool.poetry]
 packages = [{ include = "protoss", from = "src" }]

@@ -123,6 +123,7 @@ class SQLite:
 
     async def get_parent_channel(self, channel: str) -> str | None:
         """Get parent channel for a given channel."""
+
         def _sync_get():
             with DB.connect(self.base_dir) as db:
                 row = db.execute(
@@ -133,13 +134,22 @@ class SQLite:
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
 
-    async def start_run(self, run_id: str, task: str, agents: list[str], channel: str) -> None:
+    async def start_run(
+        self, run_id: str, task: str, agents: list[str], channel: str
+    ) -> None:
         """Record start of a coordination run."""
+
         def _sync_insert():
             with DB.connect(self.base_dir) as db:
                 db.execute(
                     "INSERT INTO runs (id, task, agents, channel, started_at) VALUES (?, ?, ?, ?, ?)",
-                    (run_id, task, ",".join(agents), channel, datetime.now(UTC).isoformat()),
+                    (
+                        run_id,
+                        task,
+                        ",".join(agents),
+                        channel,
+                        datetime.now(UTC).isoformat(),
+                    ),
                 )
                 db.commit()
 
@@ -147,6 +157,7 @@ class SQLite:
 
     async def complete_run(self, run_id: str, outcome: str, msg_count: int) -> None:
         """Record completion of a coordination run."""
+
         def _sync_update():
             with DB.connect(self.base_dir) as db:
                 db.execute(
@@ -161,6 +172,7 @@ class SQLite:
 
     async def list_runs(self, limit: int = 10) -> list[dict]:
         """Get recent coordination runs."""
+
         def _sync_list():
             with DB.connect(self.base_dir) as db:
                 db.row_factory = sqlite3.Row

@@ -52,6 +52,4 @@ class ChannelSpawn(Tool):
             )
 
         agents_str = ", ".join(DEFAULT_AGENTS)
-        return ToolResult(
-            outcome=f"Spawned #{channel} [{agents_str}] - task: {task}"
-        )
+        return ToolResult(outcome=f"Spawned #{channel} [{agents_str}] - task: {task}")

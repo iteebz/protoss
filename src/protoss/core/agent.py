@@ -4,10 +4,16 @@ import asyncio
 import logging
 import time
 
-import cogency
-from cogency.lib.llms.openai import OpenAI
-from cogency.lib.sqlite import SQLite
-from cogency.core.config import Security
+try:
+    import cogency
+    from cogency.lib.llms.openai import OpenAI
+    from cogency.lib.sqlite import SQLite
+    from cogency.core.config import Security
+except ImportError:
+    cogency = None
+    OpenAI = None
+    SQLite = None
+    Security = None
 
 from .bus import Bus
 from ..constitution import CONSTITUTIONS, GUIDELINES, EXIT_SIGNALS, COMPLETION_SIGNAL
@@ -39,6 +45,11 @@ class Agent:
         # Load constitutional identity and coordination guidelines separately
         constitutional_identity = self._load_constitutional_identity()
         coordination_guidelines = self._load_coordination_guidelines()
+
+        if cogency is None:
+            raise ImportError(
+                "cogency is required for Agent. Install: poetry add ../../public/cogency"
+            )
 
         # Build tool list with channel coordination
         all_tools = protoss_tools(
@@ -102,10 +113,7 @@ class Agent:
                         # Check for consensus signals in messages
                         for msg in filtered_messages:
                             content_lower = msg.get("content", "").lower()
-                            if any(
-                                sig in content_lower
-                                for sig in EXIT_SIGNALS
-                            ):
+                            if any(sig in content_lower for sig in EXIT_SIGNALS):
                                 logger.info(
                                     f"Agent {self.agent_type} detected exit signal"
                                 )
