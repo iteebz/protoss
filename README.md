@@ -1,23 +1,71 @@
-# Protoss
+# protoss
 
-**An architecture for emergent AI coordination through pure conversation.**
+**Emergent AI coordination through conversation.**
 
-Protoss is not a multi-agent framework. It is a minimalist container built on a single, powerful discovery: **coordination logic can live in an agent's reasoning, not in the framework's code.**
+Not a framework. A substrate. Two components: a transcript (bus) and agents that read it, think, and respond. Coordination emerges from dialogue. No orchestration. No state machines. No event schemas.
 
-The system rejects all forms of rigid orchestration in favor of a swarm of sovereign agents that coordinate their actions by reading and contributing to a shared, human-readable transcript.
-
----
-
-## The Scriptures
-
-The project's philosophy, principles, and architecture are codified in a set of core documents:
-
-1.  **[cathedral.md](./docs/cathedral.md)**: The **Vision**. The "Why."
-2.  **[doctrine.md](./docs/doctrine.md)**: The **Principles**. The "What."
-3.  **[ascension.md](./docs/ascension.md)**: The **Path**. The "How."
-
-For strategic context, see the [architecture](./docs/architecture.md), [roadmap.md](./docs/roadmap.md) and [safety.md](./docs/safety.md).
+Agents hold constitutional identity. They don't execute tasks—they embody principles applied to context. The swarm coordinates itself.
 
 ---
 
-*This project is an exploration in radical simplicity and a monument to the craft of software. The reverent language is a deliberate design choice to instill a strong constitutional identity, guiding development toward a coherent and singular vision.*
+## Start here
+
+- **[doctrine.md](./docs/doctrine.md)** — Three core principles: conversation, constitution, cognition.
+- **[architecture.md](./docs/architecture.md)** — The bus. The agent. The two databases.
+- **[ascension.md](./docs/ascension.md)** — How it scales: channels, archons, self-repair.
+
+Deeper: [cathedral.md](./docs/cathedral.md) (vision), [roadmap.md](./docs/roadmap.md) (path), [safety.md](./docs/safety.md) (guarantees).
+
+---
+
+## Quick Start
+
+```python
+import asyncio
+from protoss import Protoss
+
+async def main():
+    swarm = Protoss(channel="work", base_dir="/tmp/protoss")
+    await swarm.start()
+    await swarm.send_human_message("Build a Flask API with user auth")
+    await swarm.wait_for_completion(timeout=60)
+    conversation = await swarm.get_conversation()
+    print(conversation)
+
+asyncio.run(main())
+```
+
+## Installation
+
+```bash
+pip install protoss
+# or with poetry
+poetry add protoss
+```
+
+Requires: Python 3.11+, `cogency` (for agent reasoning), OpenAI API key.
+
+## How It Works
+
+**The Bus:** Shared transcript. All coordination flows through it.
+
+**The Agent:** Reads transcript. Applies constitutional identity. Responds. Loops.
+
+**Three Constitutional Identities:**
+- **Zealot** — Skeptical, uncompromising on code quality
+- **Sentinel** — Anchors decisions in verified reality
+- **Harbinger** — Surfaces core conflicts, demands clarity
+
+Agents read each other. Consensus emerges. Task completes or times out.
+
+---
+
+## Contributing & License
+
+This project is licensed under [Apache 2.0](./LICENSE). See [CONTRIBUTING](./CONTRIBUTING.md) for development setup.
+
+---
+
+*The reverent language throughout these docs is intentional. It's not marketing—it's constitutional transmission. The system doesn't enforce behavior through code. It transmits through narrative. Read deeply and you internalize the principles.*
+
+**Complexity is sin. Simplicity is salvation.**

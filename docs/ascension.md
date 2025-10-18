@@ -1,14 +1,12 @@
 # The Path to Ascension
 
-*The complete architecture for conversational emergence at arbitrary scale.*
-
----
+*Complete architecture for conversational emergence at arbitrary scale.*
 
 ## The Foundation (Proven)
 
-Agents coordinate through pure conversation. The Bus holds the shared transcript. Agents read, reason with constitutional identity, and respond. Coordination emerges from dialogue.
+Agents coordinate through pure conversation. Bus holds transcript. Read. Reason. Respond. Coordination emerges from dialogue.
 
-Calculator apps, Flask APIs, multi-file systems—all built through conversational emergence. The foundation stands.
+Calculator apps, Flask APIs, multi-file systems: all built through conversational emergence. Foundation proven.
 
 ---
 
@@ -16,9 +14,9 @@ Calculator apps, Flask APIs, multi-file systems—all built through conversation
 
 ### Horizon I: Channel Branching
 
-Complex tasks require parallel subtask execution. A single channel with many agents produces communication chaos.
+Complex tasks need parallel execution. Single channel + many agents = communication chaos.
 
-**Solution:** Agents spawn new channels for subtasks. Each channel is an isolated conversation. Subtasks execute in parallel without cross-talk.
+**Solution:** Agents spawn new channels for subtasks. Isolated conversations. Parallel execution. Zero cross-talk.
 
 ```
 Agent: spawn_channel('research', [zealot, sentinel])
@@ -41,29 +39,29 @@ Task decomposition through conversational substrate.
 
 ### Horizon II: The Archon Pattern
 
-Channels are ephemeral. Knowledge must persist across coordination sessions.
+Channels are ephemeral. Knowledge must persist.
 
-**Archons are memory curators.** When a channel completes, an archon spawns, reads the transcript, and distills it into coherent artifacts in `canon/`.
+**Archons curate memory.** Channel completes → archon spawns → reads transcript → distills into artifacts in `canon/`.
 
 - Conversation → Artifact
 - Artifacts inject as context into new channels
-- No embeddings, no retrieval. Just coherent documents.
+- No embeddings. No retrieval. Just coherent documents.
 
-The swarm remembers through curation, not through complexity.
+The swarm remembers through curation, not complexity.
 
 ---
 
 ### Horizon III: Meta-Coordination
 
-As the swarm scales, it must reason about its own coordination patterns.
+As swarm scales, it must reason about its own coordination.
 
-**Observer agents** watch cross-channel transcripts, identify bottlenecks, propose constitutional improvements.
+**Observer agents** watch cross-channel transcripts. Identify bottlenecks. Propose constitutional improvements.
 
-**Constitutional evolution protocol:** Observers propose amendments. Constitutional council debates. Adversarial consensus required for adoption. Archon records the change.
+**Constitutional evolution:** Observers propose. Council debates. Adversarial consensus for adoption. Archon records.
 
-**The ultimate test:** The swarm tasked with improving its own architecture. Agents analyze Protoss codebase, propose improvements, implement changes, validate results. Archon summarizes learnings.
+**The ultimate test:** Swarm improves its own architecture. Analyze Protoss. Propose. Implement. Validate. Summarize.
 
-**This is bootstrap.** The system improving the system that coordinates the system.
+**Bootstrap:** The system improving the system that coordinates the system.
 
 ---
 
@@ -94,15 +92,15 @@ Meta-Coordination
 
 ## Why This Wins
 
-**Scales with model quality, not framework complexity.** Better reasoning → better coordination. No code changes required.
+**Scales with model quality, not complexity.** Better reasoning → better coordination. Zero code changes.
 
-**Human-readable coordination.** Every decision visible in transcripts. Debugging is reading the conversation.
+**Human-readable coordination.** Every decision visible. Debugging is reading conversation.
 
-**Compositional primitives.** Channels compose. Agents compose. Constitutions compose.
+**Compositional primitives.** Channels. Agents. Constitutions. All compose.
 
-**Zero orchestration overhead.** No message schemas, no routing logic, no state machines. Agents coordinate through language.
+**Zero orchestration overhead.** No schemas. No routing. No state machines. Language is coordination.
 
-**Memory without retrieval complexity.** Coherent documents, not embeddings. Context injection is file concatenation.
+**Memory without complexity.** Coherent documents, not embeddings. Context injection is file concatenation.
 
 ---
 
