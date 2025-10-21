@@ -2,11 +2,11 @@
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "protoss"
 version = "0.1.0"
 description = "Constitutional AI coordination through emergent agent swarms."
-authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
+authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
 license = "Apache-2.0"
 homepage = "https://github.com/iteebz/protoss"
@@ -24,13 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.11,<4.0"
-
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.8.0"
-pytest = "^8.4.1"
-pytest-asyncio = "^0.21.0"
+packages = [{ include = "protoss", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
@@ -39,10 +33,12 @@ pydantic-settings = "^2.2.1"
 python-dotenv = "^1.0.1"
 rich = "^13.7.1"
 typer = "^0.17.4"
-cogency = {path = "../public/cogency"}
+cogency = {path = "../cogency"}
 
-[tool.poetry]
-packages = [{ include = "protoss", from = "src" }]
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.8.0"
+pytest = "^8.4.1"
+pytest-asyncio = "^0.21.0"
 
 [tool.poetry.scripts]
 protoss = "protoss.cli:app"

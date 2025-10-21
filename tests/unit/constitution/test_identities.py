@@ -1,6 +1,6 @@
 """Tests for constitutional identities and their principles."""
 
-from src.protoss.constitution import (
+from protoss.constitution import (
     CONSTITUTIONS,
     COMPLETION_SIGNAL,
     EXIT_SIGNALS,

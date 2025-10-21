@@ -56,7 +56,7 @@ class Agent:
             bus=self.bus, protoss=protoss, parent_channel=self.channel
         )
 
-        # Initialize cogency with project-scoped storage and access
+        # Initialize cogency with shared storage (user_id provides isolation)
         from pathlib import Path
 
         cogency_db = Path.home() / ".space" / "cogency.db"
@@ -96,12 +96,9 @@ class Agent:
         # Coordination loop - process only new messages
         while self.running:
             try:
-                # Set the poll time BEFORE we get history and start processing
-                poll_time = time.time()
                 new_messages = await self.bus.get_history(
                     channel=self.channel, since=self.last_poll_time
                 )
-                self.last_poll_time = poll_time
 
                 if new_messages:
                     # Filter out our own messages from the batch
@@ -110,7 +107,7 @@ class Agent:
                     ]
 
                     if filtered_messages:
-                        # Check for consensus signals in messages
+                        # Check for exit signals in incoming messages
                         for msg in filtered_messages:
                             content_lower = msg.get("content", "").lower()
                             if any(sig in content_lower for sig in EXIT_SIGNALS):
@@ -124,6 +121,9 @@ class Agent:
                             conversation = self._format_history(filtered_messages)
                             context = conversation
                             await self._process_with_cogency(context)
+
+                    # Set poll time only after processing external messages
+                    self.last_poll_time = time.time()
 
                 # Check if we should continue
                 if not self.running:
@@ -139,28 +139,37 @@ class Agent:
         logger.info(f"Agent {self.agent_type} stopping")
 
     async def _initial_context_load(self):
-        """Load full channel history on agent spawn."""
+        """Load full channel history on agent spawn, or initial framing if empty."""
         history = await self.bus.get_history(self.channel)
 
         if history:
-            # Format full conversation for initial context
             context = self._format_history(history)
             logger.info(
                 f"Agent {self.agent_type} loading initial context: {len(history)} messages"
             )
-
-            # Process full history as initial context
             await self._process_with_cogency(f"Channel history:\n{context}")
+        else:
+            initial_frame = (
+                f"Channel #{self.channel} initialized. Awaiting task from human."
+            )
+            logger.info(f"Agent {self.agent_type} framing empty channel")
+            await self._process_with_cogency(initial_frame)
 
-        # Set poll time to now - future polls will only get diffs
         self.last_poll_time = time.time()
 
     def _format_history(self, history) -> str:
         """Format message history for context."""
         return "\n".join([f"{msg['sender']}: {msg['content']}" for msg in history])
 
-    async def _process_with_cogency(self, content: str):
-        """Process content through cogency and respond, with self-correction."""
+    async def _process_with_cogency(self, content: str, error_depth: int = 0):
+        """Process content through cogency and respond, with limited error recovery."""
+        if error_depth > 2:
+            logger.error(
+                f"Agent {self.agent_type} exceeded error recovery depth. Despawning."
+            )
+            self.running = False
+            return
+
         try:
             async for event in self.cogency_agent(
                 content, user_id=self.agent_type, conversation_id=self.conversation_id
@@ -173,16 +182,8 @@ class Agent:
                     )
                     await self.bus.send(self.agent_type, response, self.channel)
 
-                    # Check for exit signals
-                    if "!despawn" in response.lower():
-                        logger.info(f"Agent {self.agent_type} despawning")
-                        self.running = False
-                        break
-
                     if COMPLETION_SIGNAL in response.lower():
                         logger.info(f"Agent {self.agent_type} signaling task complete")
-
-                        # Broadcast completion to parent channel if exists
                         parent = await self.bus.storage.get_parent_channel(self.channel)
                         if parent:
                             await self.bus.send(
@@ -190,6 +191,17 @@ class Agent:
                                 f"← #{self.channel}: {self.agent_type} - {response}",
                                 parent,
                             )
+                        else:
+                            await self.bus.send(
+                                "system",
+                                f"Task complete: {response}",
+                                self.channel,
+                            )
+
+                    if "!despawn" in response.lower():
+                        logger.info(f"Agent {self.agent_type} despawning")
+                        self.running = False
+                        break
 
                 elif event["type"] == "result":
                     payload = event.get("payload", {})
@@ -216,7 +228,7 @@ class Agent:
                                 self.agent_type, f"→ {outcome}", self.channel
                             )
 
-                    # Log errors (no broadcast - agent handles communication)
+                    # Log errors and collect for telemetry (internal only)
                     if (
                         "error" in outcome.lower()
                         or "failed" in outcome.lower()
@@ -234,16 +246,18 @@ class Agent:
                         )
 
                 elif event["type"] == "end":
-                    # §end breaks the reasoning cycle - return to diff polling
                     break
         except Exception as e:
-            error_message = f"A tool error occurred during my last action: {e}. I must analyze this error, inform my teammates, and correct my plan."
             logger.error(
-                f"Agent {self.agent_type} stream error: {e}. Attempting self-correction."
+                f"Agent {self.agent_type} stream error: {e}. Error depth={error_depth}"
             )
-            # Log the full exception details for diagnosis
             logger.exception(
                 f"Detailed error during agent {self.agent_type} stream processing."
             )
-            # Feed the error back into the reasoning loop
-            await self._process_with_cogency(error_message)
+            if error_depth < 2:
+                error_message = f"A tool error occurred during my last action: {e}. I must analyze this error, inform my teammates, and correct my plan."
+                await self._process_with_cogency(
+                    error_message, error_depth=error_depth + 1
+                )
+            else:
+                self.running = False

@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from src.protoss.core.bus import Bus
+from protoss.core.bus import Bus
 
 
 @pytest.fixture

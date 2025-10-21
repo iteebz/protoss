@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import patch
 
-from src.protoss.core.agent import Agent
-from src.protoss.core.bus import Bus
+from protoss.core.agent import Agent
+from protoss.core.bus import Bus
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def test_agent_raises_on_missing_cogency():
     """Agent raises ImportError if cogency unavailable during init."""
     bus = Bus()
 
-    with patch("src.protoss.core.agent.cogency", None):
+    with patch("protoss.core.agent.cogency", None):
         with pytest.raises(ImportError, match="cogency is required"):
             Agent(agent_type="zealot", bus=bus, channel="test")
 
@@ -139,3 +139,55 @@ async def test_agent_cogency_initialization(temp_bus):
     assert hasattr(agent, "cogency_agent")
     assert agent.cogency_agent is not None
     assert hasattr(agent.cogency_agent, "__call__")
+
+
+def test_error_recovery_depth_limit():
+    """Agent stops error recovery after depth > 2."""
+    bus = Bus()
+
+    with (
+        patch("protoss.core.agent.cogency"),
+        patch("protoss.core.agent.OpenAI"),
+        patch("protoss.core.agent.SQLite"),
+        patch("protoss.core.agent.Security"),
+    ):
+        agent = Agent(agent_type="zealot", bus=bus, channel="test")
+
+    assert agent.running is True
+
+    import asyncio
+
+    asyncio.run(agent._process_with_cogency("test", error_depth=0))
+    assert agent.running is True, "Depth 0 should not despawn"
+
+    asyncio.run(agent._process_with_cogency("test", error_depth=1))
+    assert agent.running is True, "Depth 1 should not despawn"
+
+    asyncio.run(agent._process_with_cogency("test", error_depth=2))
+    assert agent.running is True, "Depth 2 should not despawn"
+
+    asyncio.run(agent._process_with_cogency("test", error_depth=3))
+    assert not agent.running, "Depth 3 should despawn"
+
+
+@pytest.mark.asyncio
+async def test_poll_time_advances_on_external_messages(temp_bus):
+    """Poll time only advances when new external messages exist."""
+    with (
+        patch("protoss.core.agent.cogency"),
+        patch("protoss.core.agent.OpenAI"),
+        patch("protoss.core.agent.SQLite"),
+        patch("protoss.core.agent.Security"),
+    ):
+        agent = Agent(agent_type="zealot", bus=temp_bus, channel="test")
+
+    initial_poll = agent.last_poll_time
+
+    await temp_bus.send("zealot", "own message", "test")
+    assert (
+        agent.last_poll_time == initial_poll
+    ), "Poll time should not advance on own messages"
+
+    await temp_bus.send("human", "external message", "test")
+    history = await temp_bus.get_history("test", since=initial_poll)
+    assert len(history) >= 1, "Should retrieve messages after initial_poll"

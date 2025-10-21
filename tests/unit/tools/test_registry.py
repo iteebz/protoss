@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from src.protoss.tools import protoss_tools
+from protoss.tools import protoss_tools
 
 
 def test_base_tools():

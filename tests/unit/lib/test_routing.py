@@ -1,6 +1,6 @@
 """Unit tests for message routing."""
 
-from src.protoss.lib.routing import parse_route, format_stub
+from protoss.lib.routing import parse_route, format_stub
 
 
 def test_parse_route_prefix():
@@ -19,6 +19,12 @@ def test_parse_route_with_context():
     target, body = parse_route("After analysis, #research: pytest wins")
     assert target == "research"
     assert body == "pytest wins"
+
+
+def test_parse_route_allows_hyphenated_channels():
+    target, body = parse_route("#build-plan: ready to deploy")
+    assert target == "build-plan"
+    assert body == "ready to deploy"
 
 
 def test_parse_route_no_match():

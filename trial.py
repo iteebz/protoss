@@ -16,7 +16,7 @@ import time
 import uuid
 from pathlib import Path
 
-from src.protoss.core.protoss import Protoss
+from protoss.core.protoss import Protoss
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)

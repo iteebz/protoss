@@ -1,6 +1,6 @@
 """Tests for core protocols."""
 
-from src.protoss.core.protocols import Message
+from protoss.core.protocols import Message
 
 
 def test_message_to_dict():

@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.protoss.tools.channel import ChannelList, ChannelRead, ChannelSpawn
+from protoss.tools.channel import ChannelList, ChannelRead, ChannelSpawn
 
 
 @pytest.fixture
