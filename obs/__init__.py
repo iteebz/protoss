@@ -1,1 +1,0 @@
-"""Protoss trial observability tools."""
