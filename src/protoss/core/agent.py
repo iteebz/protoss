@@ -7,19 +7,20 @@ import time
 try:
     import cogency
     from cogency.lib.llms.openai import OpenAI
-    from cogency.lib.sqlite import SQLite
     from cogency.core.config import Security
 except ImportError:
     cogency = None
     OpenAI = None
-    SQLite = None
     Security = None
 
 from .bus import Bus
 from ..constitution import CONSTITUTIONS, GUIDELINES, EXIT_SIGNALS, COMPLETION_SIGNAL
 from ..tools import protoss_tools
+from ..lib import SQLite
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["Agent", "SQLite"]
 
 
 class Agent:
@@ -56,16 +57,10 @@ class Agent:
             bus=self.bus, protoss=protoss, parent_channel=self.channel
         )
 
-        # Initialize cogency with shared storage (user_id provides isolation)
-        from pathlib import Path
-
-        cogency_db = Path.home() / ".space" / "cogency.db"
-        storage = SQLite(db_path=str(cogency_db))
         security = Security(access="project")
 
         self.cogency_agent = cogency.Agent(
             llm=OpenAI(http_model="gpt-4.1-mini"),
-            storage=storage,
             identity=constitutional_identity,
             instructions=coordination_guidelines,
             tools=all_tools,
