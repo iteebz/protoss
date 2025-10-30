@@ -131,4 +131,4 @@ The system works. The agents are not just "coordinating"; they are functioning a
 
 **Next Steps:**
 
-Increase the message limit in `trial.py` and allow the now-proven system to run a trial to completion.
+Increase the message limit in `trials/runner.py` and allow the now-proven system to run a trial to completion.

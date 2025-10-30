@@ -11,7 +11,10 @@ install:
     @poetry lock
     @poetry install
 
-ci: format fix test
+ci:
+    @poetry run ruff format .
+    @poetry run ruff check . --fix --unsafe-fixes
+    @poetry run pytest tests/ -q
 
 trial:
     @poetry run python trial_by_fire.py
@@ -26,16 +29,16 @@ fix:
     @poetry run ruff check . --fix --unsafe-fixes
 
 test:
-    @poetry run python -m pytest tests/ -v
+    @poetry run pytest tests/
+
+cov:
+    @poetry run pytest --cov=src/protoss tests/
 
 build:
     @poetry build
 
 publish: ci build
     @poetry publish
-
-cov:
-    @poetry run pytest --cov=src/protoss tests/
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"

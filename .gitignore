@@ -1,22 +1,17 @@
 __pycache__/
 *.py[cod]
-*$py.class
-
 build/
 dist/
-*.egg-info/
-*.egg
-
-poetry.lock
 
 .env
 .venv/
 env/
 venv/
 
-.ruff_cache/
+.coverage
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 
 .DS_Store
 Thumbs.db
@@ -24,10 +19,5 @@ Thumbs.db
 .vscode/
 *.swp
 
-.cogency
-.sandbox
+repomix-output.*
 .protoss
-archives/
-
-trials/runs/
-trials/**/*.db
