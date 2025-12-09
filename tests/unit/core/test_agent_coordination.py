@@ -35,7 +35,6 @@ async def test_agent_reads_new_messages(temp_bus):
     with (
         patch("protoss.core.agent.cogency") as mock_cogency_module,
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         mock_cogency_module.Agent = MagicMock()
@@ -54,7 +53,6 @@ async def test_agent_filters_own_messages(temp_bus):
     with (
         patch("protoss.core.agent.cogency") as mock_cogency_module,
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         mock_cogency_module.Agent = MagicMock()
@@ -81,7 +79,6 @@ async def test_agent_detects_exit_signals(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel=channel)
@@ -111,7 +108,6 @@ async def test_agent_broadcasts_responses(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel=channel)
@@ -133,7 +129,6 @@ async def test_agent_maintains_conversation_context(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel=channel)
@@ -157,7 +152,6 @@ async def test_agent_exit_on_signal(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel=channel)
@@ -173,7 +167,6 @@ async def test_agent_different_types(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         for agent_type in ["zealot", "sentinel", "harbinger"]:

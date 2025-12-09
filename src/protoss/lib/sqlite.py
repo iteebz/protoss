@@ -70,7 +70,6 @@ class SQLite:
         parent: str = None,
     ) -> None:
         """Save message to the ledger."""
-        import asyncio
 
         if timestamp is None:
             timestamp = time.time()
@@ -88,7 +87,6 @@ class SQLite:
         self, channel: str, since: float | None = None
     ) -> list[dict]:
         """Load messages from the ledger."""
-        import asyncio
 
         def _sync_load():
             with DB.connect(self.base_dir) as db:
@@ -110,7 +108,6 @@ class SQLite:
 
     async def get_channels(self) -> list[str]:
         """Get list of active channels."""
-        import asyncio
 
         def _sync_get():
             with DB.connect(self.base_dir) as db:

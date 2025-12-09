@@ -27,19 +27,17 @@ def test_agent_tracks_tool_errors():
     bus = Bus()
     agent = Agent(agent_type="zealot", bus=bus, channel="test")
 
-    # Manually add error record (simulating tool failure)
     agent.errors.append(
         {
             "agent": "zealot",
-            "tool": "write",
-            "call": {"name": "write", "args": {}},
-            "outcome": "File not found error",
+            "failures": 1,
+            "content": '[{"tool": "write", "status": "error", "content": "File not found"}]',
         }
     )
 
     assert len(agent.errors) == 1
-    assert agent.errors[0]["tool"] == "write"
-    assert "not found" in agent.errors[0]["outcome"].lower()
+    assert agent.errors[0]["failures"] == 1
+    assert "not found" in agent.errors[0]["content"].lower()
 
 
 @pytest.mark.asyncio
@@ -148,7 +146,6 @@ def test_error_recovery_depth_limit():
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=bus, channel="test")
@@ -176,7 +173,6 @@ async def test_poll_time_advances_on_external_messages(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel="test")

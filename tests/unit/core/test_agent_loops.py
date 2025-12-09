@@ -18,7 +18,6 @@ async def test_exit_signal_stops_agent_loop(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel="test")
@@ -43,7 +42,6 @@ async def test_completion_signal_broadcasts_to_current_channel(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         Agent(agent_type="zealot", bus=temp_bus, channel="test")
@@ -67,7 +65,6 @@ async def test_initial_context_with_empty_channel(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel="empty")
@@ -90,7 +87,6 @@ async def test_poll_time_not_updated_without_external_messages(temp_bus):
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=temp_bus, channel="test")
@@ -114,19 +110,17 @@ def test_tool_errors_collected_for_telemetry():
     with (
         patch("protoss.core.agent.cogency"),
         patch("protoss.core.agent.OpenAI"),
-        patch("protoss.core.agent.SQLite"),
         patch("protoss.core.agent.Security"),
     ):
         agent = Agent(agent_type="zealot", bus=bus, channel="test")
 
     error_record = {
         "agent": "zealot",
-        "tool": "write",
-        "call": {"name": "write"},
-        "outcome": "File write error: Permission denied",
+        "failures": 1,
+        "content": '[{"tool": "write", "status": "error", "content": "Permission denied"}]',
     }
     agent.errors.append(error_record)
 
     assert len(agent.errors) > 0, "Tool errors should be collected"
-    assert agent.errors[0]["tool"] == "write"
-    assert "Permission" in agent.errors[0]["outcome"]
+    assert agent.errors[0]["failures"] == 1
+    assert "Permission" in agent.errors[0]["content"]

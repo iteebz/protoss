@@ -16,11 +16,10 @@ except ImportError:
 from .bus import Bus
 from ..constitution import CONSTITUTIONS, GUIDELINES, EXIT_SIGNALS, COMPLETION_SIGNAL
 from ..tools import protoss_tools
-from ..lib import SQLite
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["Agent", "SQLite"]
+__all__ = ["Agent"]
 
 
 class Agent:
@@ -60,7 +59,7 @@ class Agent:
         security = Security(access="project")
 
         self.cogency_agent = cogency.Agent(
-            llm=OpenAI(http_model="gpt-4.1-mini"),
+            llm=OpenAI(http_model="gpt-4o-mini"),
             identity=constitutional_identity,
             instructions=coordination_guidelines,
             tools=all_tools,
@@ -102,7 +101,6 @@ class Agent:
                     ]
 
                     if filtered_messages:
-                        # Check for exit signals in incoming messages
                         for msg in filtered_messages:
                             content_lower = msg.get("content", "").lower()
                             if any(sig in content_lower for sig in EXIT_SIGNALS):
@@ -113,8 +111,7 @@ class Agent:
                                 break
 
                         if self.running:
-                            conversation = self._format_history(filtered_messages)
-                            context = conversation
+                            context = self._format_history(filtered_messages)
                             await self._process_with_cogency(context)
 
                     # Set poll time only after processing external messages
@@ -200,45 +197,23 @@ class Agent:
 
                 elif event["type"] == "result":
                     payload = event.get("payload", {})
-                    outcome = payload.get("outcome", "")
-                    call = payload.get("call", {})
-                    tool_name = call.get("name", "") if isinstance(call, dict) else ""
-
-                    # Broadcast file operations and channel spawns
-                    if tool_name in ("write", "edit"):
-                        if (
-                            "error" not in outcome.lower()
-                            and "failed" not in outcome.lower()
-                        ):
-                            await self.bus.send(
-                                self.agent_type, f"✓ {outcome}", self.channel
-                            )
-
-                    if tool_name == "channel_spawn":
-                        if (
-                            "error" not in outcome.lower()
-                            and "failed" not in outcome.lower()
-                        ):
-                            await self.bus.send(
-                                self.agent_type, f"→ {outcome}", self.channel
-                            )
-
-                    # Log errors and collect for telemetry (internal only)
-                    if (
-                        "error" in outcome.lower()
-                        or "failed" in outcome.lower()
-                        or "invalid" in outcome.lower()
-                    ):
-                        error_record = {
-                            "agent": self.agent_type,
-                            "tool": tool_name,
-                            "call": call,
-                            "outcome": outcome,
-                        }
-                        self.errors.append(error_record)
-                        logger.warning(
-                            f"{self.agent_type} tool error: {tool_name} - {outcome}"
+                    failure_count = payload.get("failure_count", 0)
+                    if failure_count > 0:
+                        self.errors.append(
+                            {
+                                "agent": self.agent_type,
+                                "failures": failure_count,
+                                "content": event.get("content", ""),
+                            }
                         )
+                        logger.warning(
+                            f"{self.agent_type} tool failures: {failure_count}"
+                        )
+
+                elif event["type"] == "cancelled":
+                    logger.info(f"Agent {self.agent_type} cancelled")
+                    self.running = False
+                    break
 
                 elif event["type"] == "end":
                     break

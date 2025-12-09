@@ -15,7 +15,7 @@ Complexity lives in the agent's mind (`Cogency`), not the framework (`Protoss`).
 **2. The Agent Harness** (`core/agent.py`): Lightweight wrapper. Gives `Cogency` access to Bus. One loop:
 - **Sense:** Read new messages
 - **Think:** Inject into `Cogency` reasoning engine with isolated user_id
-- **Act:** Broadcast `§respond` events back to Bus
+- **Act:** Broadcast `respond` events back to Bus
 
 ## Two-Database Pattern
 

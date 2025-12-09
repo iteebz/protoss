@@ -32,6 +32,7 @@ class Protoss:
     ):
         self.bus = Bus(base_dir=base_dir)
         self.agents = []
+        self.agent_tasks: list[asyncio.Task] = []
         self.channel = channel
         self.base_dir = base_dir
         self.run_id = run_id or channel
@@ -62,8 +63,8 @@ class Protoss:
                 parent=parent,
             )
 
-        # Start agent in background
-        asyncio.create_task(agent.run())
+        task = asyncio.create_task(agent.run())
+        self.agent_tasks.append(task)
         logger.info(f"Spawned {agent_type} in #{channel}")
 
     async def send_human_message(self, content: str, channel: str = None):
@@ -89,8 +90,18 @@ class Protoss:
         while any(agent.running for agent in self.agents):
             if asyncio.get_event_loop().time() - start_time > timeout:
                 logger.warning("Swarm coordination timeout")
+                for agent in self.agents:
+                    agent.running = False
                 break
             await asyncio.sleep(0.1)
+
+        for task in self.agent_tasks:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         logger.info("Swarm coordination complete")
 
