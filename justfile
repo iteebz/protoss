@@ -1,44 +1,44 @@
 default:
     @just --list
 
-clean:
-    @echo "Cleaning protoss..."
-    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv test-*
-    @find . -type d -name "__pycache__" -exec rm -rf {} +
-    @find . -type d -name ".pytest_cache" -exec rm -rf {} +
-
 install:
-    @poetry lock
-    @poetry install
+    @uv sync
 
 ci:
-    @poetry run ruff format .
-    @poetry run ruff check . --fix --unsafe-fixes
-    @poetry run pytest tests/ -q
+    @uv run ruff format .
+    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check .
+    @uv run pyright
+    @uv run pytest tests/ -q
 
 trial:
-    @poetry run python trial_by_fire.py
-
-format:
-    @poetry run ruff format .
+    @uv run python trial_by_fire.py
 
 lint:
-    @poetry run ruff check .
+    @uv run ruff check .
+
+format:
+    @uv run ruff format .
 
 fix:
-    @poetry run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix --unsafe-fixes
 
 test:
-    @poetry run pytest tests/
+    @uv run pytest tests/
 
 cov:
-    @poetry run pytest --cov=src/protoss tests/
+    @uv run pytest --cov=src/protoss tests/
 
 build:
-    @poetry build
+    @uv build
 
 publish: ci build
-    @poetry publish
+    @uv publish
+
+clean:
+    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv test-*
+    @find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    @find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"
