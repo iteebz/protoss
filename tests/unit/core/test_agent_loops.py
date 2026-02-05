@@ -1,10 +1,11 @@
 """Tests for agent coordination loop correctness."""
 
-import pytest
 from unittest.mock import patch
 
-from protoss.core.bus import Bus
+import pytest
+
 from protoss.core.agent import Agent
+from protoss.core.bus import Bus
 
 
 @pytest.fixture
@@ -50,13 +51,9 @@ async def test_completion_signal_broadcasts_to_current_channel(temp_bus):
 
     history = await temp_bus.get_history("test")
 
-    completion_messages = [
-        msg for msg in history if "complete" in msg["content"].lower()
-    ]
+    completion_messages = [msg for msg in history if "complete" in msg["content"].lower()]
 
-    assert (
-        len(completion_messages) > 0
-    ), "Completion signal should be in channel history"
+    assert len(completion_messages) > 0, "Completion signal should be in channel history"
 
 
 @pytest.mark.asyncio

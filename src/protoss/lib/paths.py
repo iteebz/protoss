@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-def get_protoss_dir(base_dir: str = None) -> Path:
+def get_protoss_dir(base_dir: str | None = None) -> Path:
     """Get protoss directory, using base_dir if provided."""
     if base_dir:
         protoss_dir = Path(base_dir)
@@ -17,12 +17,12 @@ class Paths:
     """Clean path management for protoss directories."""
 
     @staticmethod
-    def db(base_dir: str = None) -> Path:
+    def db(base_dir: str | None = None) -> Path:
         """Get database path."""
         return get_protoss_dir(base_dir) / "store.db"
 
     @staticmethod
-    def sandbox(base_dir: str = None) -> Path:
+    def sandbox(base_dir: str | None = None) -> Path:
         """Get sandbox path."""
         base = get_protoss_dir(base_dir) / "sandbox"
         base.mkdir(exist_ok=True)

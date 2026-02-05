@@ -15,11 +15,13 @@
 """Protoss conversational coordination."""
 
 import asyncio
+import contextlib
 import logging
-from .bus import Bus
-from .agent import Agent
-from ..lib.spawn import build_spawn_context
+
 from ..constitution import DEFAULT_AGENTS
+from ..lib.spawn import build_spawn_context
+from .agent import Agent
+from .bus import Bus
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ class Protoss:
     """Conversational coordination through constitutional agents."""
 
     def __init__(
-        self, channel: str = "human", base_dir: str = None, run_id: str = None
+        self, channel: str = "human", base_dir: str | None = None, run_id: str | None = None
     ):
         self.bus = Bus(base_dir=base_dir)
         self.agents = []
@@ -46,13 +48,11 @@ class Protoss:
         logger.info(f"Swarm started with {len(DEFAULT_AGENTS)} constitutional agents")
 
     async def spawn_agent(
-        self, agent_type: str, channel: str = None, parent: str = None
+        self, agent_type: str, channel: str | None = None, parent: str | None = None
     ):
         """Spawn an agent into the swarm."""
         channel = channel or self.channel
-        agent = Agent(
-            agent_type, self.bus, channel, base_dir=self.base_dir, protoss=self
-        )
+        agent = Agent(agent_type, self.bus, channel, base_dir=self.base_dir, protoss=self)
         self.agents.append(agent)
 
         if parent:
@@ -67,7 +67,7 @@ class Protoss:
         self.agent_tasks.append(task)
         logger.info(f"Spawned {agent_type} in #{channel}")
 
-    async def send_human_message(self, content: str, channel: str = None):
+    async def send_human_message(self, content: str, channel: str | None = None):
         """Send a message as human with spawn context."""
         if not self.task:
             self.task = content
@@ -98,14 +98,12 @@ class Protoss:
         for task in self.agent_tasks:
             if not task.done():
                 task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
 
         logger.info("Swarm coordination complete")
 
-    async def get_conversation(self, channel: str = None):
+    async def get_conversation(self, channel: str | None = None):
         """Get full conversation history."""
         channel = channel or self.channel
         return await self.bus.get_history(channel)

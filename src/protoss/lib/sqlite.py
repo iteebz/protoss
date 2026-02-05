@@ -3,7 +3,7 @@
 import asyncio
 import sqlite3
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .paths import Paths
@@ -13,7 +13,7 @@ class DB:
     _initialized_paths = set()
 
     @classmethod
-    def connect(cls, base_dir: str = None):
+    def connect(cls, base_dir: str | None = None):
         """Get database connection with schema initialization."""
         db_path = Paths.db(base_dir=base_dir)
 
@@ -58,7 +58,7 @@ class DB:
 class SQLite:
     """SQLite storage implementation for the conversation ledger."""
 
-    def __init__(self, base_dir: str = None):
+    def __init__(self, base_dir: str | None = None):
         self.base_dir = base_dir
 
     async def save_message(
@@ -66,8 +66,8 @@ class SQLite:
         channel: str,
         sender: str,
         content: str,
-        timestamp: float = None,
-        parent: str = None,
+        timestamp: float | None = None,
+        parent: str | None = None,
     ) -> None:
         """Save message to the ledger."""
 
@@ -83,9 +83,7 @@ class SQLite:
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
-    async def load_messages(
-        self, channel: str, since: float | None = None
-    ) -> list[dict]:
+    async def load_messages(self, channel: str, since: float | None = None) -> list[dict]:
         """Load messages from the ledger."""
 
         def _sync_load():
@@ -97,7 +95,7 @@ class SQLite:
 
                 if since:
                     query += " AND timestamp > ?"
-                    params.append(since)
+                    params.append(str(since))
 
                 query += " ORDER BY timestamp"
 
@@ -111,9 +109,7 @@ class SQLite:
 
         def _sync_get():
             with DB.connect(self.base_dir) as db:
-                rows = db.execute(
-                    "SELECT DISTINCT channel FROM ledger ORDER BY channel"
-                ).fetchall()
+                rows = db.execute("SELECT DISTINCT channel FROM ledger ORDER BY channel").fetchall()
                 return [row[0] for row in rows]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
@@ -131,9 +127,7 @@ class SQLite:
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
 
-    async def start_run(
-        self, run_id: str, task: str, agents: list[str], channel: str
-    ) -> None:
+    async def start_run(self, run_id: str, task: str, agents: list[str], channel: str) -> None:
         """Record start of a coordination run."""
 
         def _sync_insert():
@@ -158,8 +152,8 @@ class SQLite:
         def _sync_update():
             with DB.connect(self.base_dir) as db:
                 db.execute(
-                    """UPDATE runs 
-                       SET completed_at=?, outcome=?, message_count=? 
+                    """UPDATE runs
+                       SET completed_at=?, outcome=?, message_count=?
                        WHERE id=?""",
                     (datetime.now(UTC).isoformat(), outcome, msg_count, run_id),
                 )

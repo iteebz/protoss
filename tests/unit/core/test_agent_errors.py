@@ -1,7 +1,8 @@
 """Tests for agent error handling and recovery."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from protoss.core.agent import Agent
 from protoss.core.bus import Bus
@@ -124,9 +125,7 @@ def test_agent_conversation_id_equals_channel():
 
     assert agent.conversation_id == channel
     assert agent.channel == channel
-    assert (
-        agent.conversation_id == agent.channel
-    ), "Invariant: conversation_id == channel"
+    assert agent.conversation_id == agent.channel, "Invariant: conversation_id == channel"
 
 
 @pytest.mark.asyncio
@@ -136,7 +135,7 @@ async def test_agent_cogency_initialization(temp_bus):
 
     assert hasattr(agent, "cogency_agent")
     assert agent.cogency_agent is not None
-    assert hasattr(agent.cogency_agent, "__call__")
+    assert callable(agent.cogency_agent)
 
 
 def test_error_recovery_depth_limit():
@@ -180,9 +179,7 @@ async def test_poll_time_advances_on_external_messages(temp_bus):
     initial_poll = agent.last_poll_time
 
     await temp_bus.send("zealot", "own message", "test")
-    assert (
-        agent.last_poll_time == initial_poll
-    ), "Poll time should not advance on own messages"
+    assert agent.last_poll_time == initial_poll, "Poll time should not advance on own messages"
 
     await temp_bus.send("human", "external message", "test")
     history = await temp_bus.get_history("test", since=initial_poll)

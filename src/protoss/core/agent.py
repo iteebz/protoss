@@ -1,21 +1,27 @@
 "Constitutional agent with pure conversation coordination."
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
+from typing import TYPE_CHECKING
 
 try:
     import cogency
-    from cogency.lib.llms.openai import OpenAI
     from cogency.core.config import Security
+    from cogency.lib.llms.openai import OpenAI
 except ImportError:
     cogency = None
     OpenAI = None
     Security = None
 
-from .bus import Bus
-from ..constitution import CONSTITUTIONS, GUIDELINES, EXIT_SIGNALS, COMPLETION_SIGNAL
+from ..constitution import COMPLETION_SIGNAL, CONSTITUTIONS, EXIT_SIGNALS, GUIDELINES
 from ..tools import protoss_tools
+from .bus import Bus
+
+if TYPE_CHECKING:
+    from .protoss import Protoss
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +36,8 @@ class Agent:
         agent_type: str,
         bus: Bus,
         channel: str = "human",
-        base_dir: str = None,
-        protoss=None,
+        base_dir: str | None = None,
+        protoss: Protoss | None = None,
     ):
         self.agent_type = agent_type
         self.bus = bus
@@ -46,15 +52,11 @@ class Agent:
         constitutional_identity = self._load_constitutional_identity()
         coordination_guidelines = self._load_coordination_guidelines()
 
-        if cogency is None:
-            raise ImportError(
-                "cogency is required for Agent. Install: poetry add ../../public/cogency"
-            )
+        if cogency is None or Security is None or OpenAI is None:
+            raise ImportError("cogency is required for Agent. Install: uv add cogency")
 
         # Build tool list with channel coordination
-        all_tools = protoss_tools(
-            bus=self.bus, protoss=protoss, parent_channel=self.channel
-        )
+        all_tools = protoss_tools(bus=self.bus, protoss=protoss, parent_channel=self.channel)
 
         security = Security(access="project")
 
@@ -104,9 +106,7 @@ class Agent:
                         for msg in filtered_messages:
                             content_lower = msg.get("content", "").lower()
                             if any(sig in content_lower for sig in EXIT_SIGNALS):
-                                logger.info(
-                                    f"Agent {self.agent_type} detected exit signal"
-                                )
+                                logger.info(f"Agent {self.agent_type} detected exit signal")
                                 self.running = False
                                 break
 
@@ -136,14 +136,10 @@ class Agent:
 
         if history:
             context = self._format_history(history)
-            logger.info(
-                f"Agent {self.agent_type} loading initial context: {len(history)} messages"
-            )
+            logger.info(f"Agent {self.agent_type} loading initial context: {len(history)} messages")
             await self._process_with_cogency(f"Channel history:\n{context}")
         else:
-            initial_frame = (
-                f"Channel #{self.channel} initialized. Awaiting task from human."
-            )
+            initial_frame = f"Channel #{self.channel} initialized. Awaiting task from human."
             logger.info(f"Agent {self.agent_type} framing empty channel")
             await self._process_with_cogency(initial_frame)
 
@@ -156,9 +152,7 @@ class Agent:
     async def _process_with_cogency(self, content: str, error_depth: int = 0):
         """Process content through cogency and respond, with limited error recovery."""
         if error_depth > 2:
-            logger.error(
-                f"Agent {self.agent_type} exceeded error recovery depth. Despawning."
-            )
+            logger.error(f"Agent {self.agent_type} exceeded error recovery depth. Despawning.")
             self.running = False
             return
 
@@ -169,9 +163,7 @@ class Agent:
                 if event["type"] == "respond":
                     response = event["content"]
                     timestamp = time.strftime("%H:%M:%S")
-                    logger.info(
-                        f"\n--- {self.agent_type.upper()} [{timestamp}] ---\n{response}\n"
-                    )
+                    logger.info(f"\n--- {self.agent_type.upper()} [{timestamp}] ---\n{response}\n")
                     await self.bus.send(self.agent_type, response, self.channel)
 
                     if COMPLETION_SIGNAL in response.lower():
@@ -196,7 +188,7 @@ class Agent:
                         break
 
                 elif event["type"] == "result":
-                    payload = event.get("payload", {})
+                    payload = event.get("payload") or {}
                     failure_count = payload.get("failure_count", 0)
                     if failure_count > 0:
                         self.errors.append(
@@ -206,9 +198,7 @@ class Agent:
                                 "content": event.get("content", ""),
                             }
                         )
-                        logger.warning(
-                            f"{self.agent_type} tool failures: {failure_count}"
-                        )
+                        logger.warning(f"{self.agent_type} tool failures: {failure_count}")
 
                 elif event["type"] == "cancelled":
                     logger.info(f"Agent {self.agent_type} cancelled")
@@ -218,16 +208,10 @@ class Agent:
                 elif event["type"] == "end":
                     break
         except Exception as e:
-            logger.error(
-                f"Agent {self.agent_type} stream error: {e}. Error depth={error_depth}"
-            )
-            logger.exception(
-                f"Detailed error during agent {self.agent_type} stream processing."
-            )
+            logger.error(f"Agent {self.agent_type} stream error: {e}. Error depth={error_depth}")
+            logger.exception(f"Detailed error during agent {self.agent_type} stream processing.")
             if error_depth < 2:
                 error_message = f"A tool error occurred during my last action: {e}. I must analyze this error, inform my teammates, and correct my plan."
-                await self._process_with_cogency(
-                    error_message, error_depth=error_depth + 1
-                )
+                await self._process_with_cogency(error_message, error_depth=error_depth + 1)
             else:
                 self.running = False

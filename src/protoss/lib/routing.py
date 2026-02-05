@@ -1,10 +1,9 @@
 """Cross-channel message routing."""
 
 import re
-from typing import Tuple, Optional
 
 
-def parse_route(content: str) -> Tuple[Optional[str], str]:
+def parse_route(content: str) -> tuple[str | None, str]:
     """Parse message for #channel: routing directive.
 
     Returns:

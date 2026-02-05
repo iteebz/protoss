@@ -2,19 +2,18 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional
 
-from .protocols import Message, Storage
+from ..lib.routing import format_stub, parse_route
 from ..lib.sqlite import default_storage
-from ..lib.routing import parse_route, format_stub
+from .protocols import Message, Storage
 
 
 class Bus:
     """Minimal message bus - stores and routes conversation via a persistent backend."""
 
-    def __init__(self, storage: Storage = None, base_dir: str = None):
-        self.storage = storage or default_storage(base_dir=base_dir)
-        self.subscribers: Dict[str, List[asyncio.Queue]] = {}
+    def __init__(self, storage: Storage | None = None, base_dir: str | None = None):
+        self.storage: Storage = storage or default_storage(base_dir=base_dir)
+        self.subscribers: dict[str, list[asyncio.Queue]] = {}
 
     async def send(self, sender: str, content: str, channel: str = "human"):
         """Send a message to channel and persist it.
@@ -62,9 +61,7 @@ class Bus:
         for queue in self.subscribers.get(target_channel, []):
             await queue.put(message)
 
-    async def get_history(
-        self, channel: str = "human", since: Optional[float] = None
-    ) -> List[Dict]:
+    async def get_history(self, channel: str = "human", since: float | None = None) -> list[dict]:
         """Get conversation history from storage."""
         return await self.storage.load_messages(channel=channel, since=since)
 

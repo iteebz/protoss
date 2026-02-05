@@ -1,15 +1,14 @@
 from cogency.core.protocols import Tool, ToolResult
-from ...lib.spawn import build_spawn_context
+
 from ...constitution import DEFAULT_AGENTS
+from ...lib.spawn import build_spawn_context
 
 
 class ChannelSpawn(Tool):
     """Spawn new channel with fresh team for parallel work."""
 
     name = "channel_spawn"
-    description = (
-        "Spawn new #channel with 3-agent squad for parallel subtask execution."
-    )
+    description = "Spawn new #channel with 3-agent squad for parallel subtask execution."
     schema = {
         "channel": {"description": "Name of the new channel"},
         "task": {"description": "Specific task for the new channel to work on"},
@@ -24,7 +23,9 @@ class ChannelSpawn(Tool):
         channel = args.get("channel", "channel")
         return f"Spawning #{channel} with fresh team"
 
-    async def execute(self, channel: str, task: str, **kwargs) -> ToolResult:
+    async def execute(self, **kwargs) -> ToolResult:
+        channel = kwargs.get("channel", "")
+        task = kwargs.get("task", "")
         if not channel:
             return ToolResult(outcome="Channel name required")
 
@@ -47,9 +48,7 @@ class ChannelSpawn(Tool):
 
         # Spawn constitutional agents
         for agent_type in DEFAULT_AGENTS:
-            await self.protoss.spawn_agent(
-                agent_type, channel=channel, parent=self.parent_channel
-            )
+            await self.protoss.spawn_agent(agent_type, channel=channel, parent=self.parent_channel)
 
         agents_str = ", ".join(DEFAULT_AGENTS)
         return ToolResult(outcome=f"Spawned #{channel} [{agents_str}] - task: {task}")

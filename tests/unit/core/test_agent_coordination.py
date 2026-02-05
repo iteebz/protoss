@@ -1,10 +1,11 @@
 """Unit tests for agent coordination loop with mocked cogency."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from protoss.core.bus import Bus
+import pytest
+
 from protoss.core.agent import Agent
+from protoss.core.bus import Bus
 
 
 @pytest.fixture
@@ -94,8 +95,7 @@ async def test_agent_detects_exit_signals(temp_bus):
 
         content_lower = filtered[0]["content"].lower()
         has_signal = any(
-            sig in content_lower
-            for sig in ["!done", "!consensus", "!complete", "!despawn"]
+            sig in content_lower for sig in ["!done", "!consensus", "!complete", "!despawn"]
         )
         assert has_signal, f"Should detect {signal}"
 
@@ -116,9 +116,7 @@ async def test_agent_broadcasts_responses(temp_bus):
     await temp_bus.send(agent.agent_type, test_response, channel)
 
     history = await temp_bus.get_history(channel)
-    assert any(
-        msg["sender"] == "zealot" and msg["content"] == test_response for msg in history
-    )
+    assert any(msg["sender"] == "zealot" and msg["content"] == test_response for msg in history)
 
 
 @pytest.mark.asyncio

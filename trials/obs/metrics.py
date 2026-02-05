@@ -19,9 +19,7 @@ def get_metrics(trial_path: str) -> dict:
 
     # Messages per channel
     channel_counts = {}
-    rows = conn.execute(
-        "SELECT channel, COUNT(*) as count FROM ledger GROUP BY channel"
-    ).fetchall()
+    rows = conn.execute("SELECT channel, COUNT(*) as count FROM ledger GROUP BY channel").fetchall()
     for row in rows:
         channel_counts[row["channel"]] = row["count"]
 
@@ -56,9 +54,7 @@ def get_metrics(trial_path: str) -> dict:
     total_messages = conn.execute("SELECT COUNT(*) FROM ledger").fetchone()[0]
 
     # Unique channels
-    unique_channels = conn.execute(
-        "SELECT COUNT(DISTINCT channel) FROM ledger"
-    ).fetchone()[0]
+    unique_channels = conn.execute("SELECT COUNT(DISTINCT channel) FROM ledger").fetchone()[0]
 
     conn.close()
 

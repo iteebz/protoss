@@ -3,7 +3,6 @@
 import sys
 from pathlib import Path
 
-
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 if SRC_ROOT.exists():
     src_path = str(SRC_ROOT)

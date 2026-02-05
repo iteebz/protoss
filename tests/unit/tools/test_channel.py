@@ -1,7 +1,8 @@
 """Unit tests for channel coordination tools."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from protoss.tools.channel import ChannelList, ChannelRead, ChannelSpawn
 
@@ -105,15 +106,9 @@ async def test_spawn_success(mock_bus, mock_protoss):
 
     # Verify agents spawned
     assert mock_protoss.spawn_agent.call_count == 3
-    mock_protoss.spawn_agent.assert_any_call(
-        "zealot", channel="research", parent="main"
-    )
-    mock_protoss.spawn_agent.assert_any_call(
-        "sentinel", channel="research", parent="main"
-    )
-    mock_protoss.spawn_agent.assert_any_call(
-        "harbinger", channel="research", parent="main"
-    )
+    mock_protoss.spawn_agent.assert_any_call("zealot", channel="research", parent="main")
+    mock_protoss.spawn_agent.assert_any_call("sentinel", channel="research", parent="main")
+    mock_protoss.spawn_agent.assert_any_call("harbinger", channel="research", parent="main")
 
 
 @pytest.mark.asyncio

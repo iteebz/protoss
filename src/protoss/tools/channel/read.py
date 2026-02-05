@@ -14,7 +14,8 @@ class ChannelRead(Tool):
     def describe(self, args: dict) -> str:
         return f"Reading #{args.get('channel', 'channel')}"
 
-    async def execute(self, channel: str, **kwargs) -> ToolResult:
+    async def execute(self, **kwargs) -> ToolResult:
+        channel = kwargs.get("channel", "")
         if not channel:
             return ToolResult(outcome="Channel name required")
 

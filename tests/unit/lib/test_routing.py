@@ -1,6 +1,6 @@
 """Unit tests for message routing."""
 
-from protoss.lib.routing import parse_route, format_stub
+from protoss.lib.routing import format_stub, parse_route
 
 
 def test_parse_route_prefix():

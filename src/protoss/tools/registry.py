@@ -1,11 +1,11 @@
-from cogency.tools import tools
+from cogency.tools import defaults
 
 
 def protoss_tools(bus=None, protoss=None, parent_channel=None):
     """Get all tools including Protoss channel coordination."""
     from .channel import ChannelList, ChannelRead, ChannelSpawn
 
-    base_tools = tools()
+    base_tools = list(defaults)
 
     if not bus:
         return base_tools

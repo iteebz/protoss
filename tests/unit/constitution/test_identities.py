@@ -1,10 +1,10 @@
 """Tests for constitutional identities and their principles."""
 
 from protoss.constitution import (
-    CONSTITUTIONS,
     COMPLETION_SIGNAL,
-    EXIT_SIGNALS,
+    CONSTITUTIONS,
     DEFAULT_AGENTS,
+    EXIT_SIGNALS,
 )
 
 
@@ -29,9 +29,9 @@ def test_zealot_identity_defines_core_mandate():
     assert "ZEALOT" in zealot.upper(), "Zealot should identify as ZEALOT"
     assert "complexity" in zealot.lower(), "Zealot should critique complexity"
     assert "simplicity" in zealot.lower(), "Zealot should advocate simplicity"
-    assert (
-        "push back" in zealot.lower() or "refuse" in zealot.lower()
-    ), "Zealot should refuse bad ideas"
+    assert "push back" in zealot.lower() or "refuse" in zealot.lower(), (
+        "Zealot should refuse bad ideas"
+    )
 
 
 def test_sentinel_identity_anchors_reality():
@@ -51,37 +51,33 @@ def test_harbinger_identity_creates_clarity():
     assert "HARBINGER" in harbinger.upper(), "Harbinger should identify as HARBINGER"
     assert "clarity" in harbinger.lower(), "Harbinger should forge clarity"
     assert "tension" in harbinger.lower(), "Harbinger should use productive tension"
-    assert (
-        "simplest" in harbinger.lower() or "simple" in harbinger.lower()
-    ), "Harbinger should reframe to simplest solution"
+    assert "simplest" in harbinger.lower() or "simple" in harbinger.lower(), (
+        "Harbinger should reframe to simplest solution"
+    )
 
 
 def test_exit_signals_defined():
     """EXIT_SIGNALS is authoritative list of agent termination signals."""
-    assert EXIT_SIGNALS == {"!done", "!consensus", "!complete", "!despawn"}
+    assert {"!done", "!consensus", "!complete", "!despawn"} == EXIT_SIGNALS
     assert len(EXIT_SIGNALS) == 4
 
 
 def test_completion_signal_is_single_source():
     """COMPLETION_SIGNAL is single source for task completion."""
     assert COMPLETION_SIGNAL == "!complete"
-    assert (
-        COMPLETION_SIGNAL in EXIT_SIGNALS
-    ), "Completion signal should be in exit signals"
+    assert COMPLETION_SIGNAL in EXIT_SIGNALS, "Completion signal should be in exit signals"
 
 
 def test_constitutional_principles():
     """Constitutions guide behavior through identity, not explicit commands."""
     for agent, identity in CONSTITUTIONS.items():
         # Should define identity/mandate
-        assert any(
-            word in identity.lower() for word in ["you are", "mandate", "principles"]
-        ), f"{agent} should state identity"
+        assert any(word in identity.lower() for word in ["you are", "mandate", "principles"]), (
+            f"{agent} should state identity"
+        )
 
         # Should NOT be a task list
-        assert not identity.lower().startswith(
-            "1."
-        ), f"{agent} should not be numbered tasks"
+        assert not identity.lower().startswith("1."), f"{agent} should not be numbered tasks"
         assert "step 1" not in identity.lower(), f"{agent} should not prescribe steps"
 
 
@@ -97,6 +93,6 @@ def test_agent_types_consistent_across_exports():
     constitution_agents = set(CONSTITUTIONS.keys())
     default_agents = set(DEFAULT_AGENTS)
 
-    assert (
-        default_agents == constitution_agents
-    ), f"Agent type mismatch: {default_agents} vs {constitution_agents}"
+    assert default_agents == constitution_agents, (
+        f"Agent type mismatch: {default_agents} vs {constitution_agents}"
+    )

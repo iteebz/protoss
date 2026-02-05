@@ -1,6 +1,6 @@
 """Constitutional identities for Protoss agents."""
 
-from .coordination import DEFAULT_AGENTS, EXIT_SIGNALS, COMPLETION_SIGNAL, GUIDELINES
+from .coordination import COMPLETION_SIGNAL, DEFAULT_AGENTS, EXIT_SIGNALS, GUIDELINES
 from .harbinger import IDENTITY as HARBINGER_IDENTITY
 from .sentinel import IDENTITY as SENTINEL_IDENTITY
 from .zealot import IDENTITY as ZEALOT_IDENTITY

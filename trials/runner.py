@@ -32,9 +32,7 @@ async def run_trial():
 
     # Snapshot coordination.py and constitutions for reproducibility
     Path(base_dir).mkdir(parents=True, exist_ok=True)
-    shutil.copy(
-        "src/protoss/constitution/coordination.py", f"{base_dir}/coordination.py"
-    )
+    shutil.copy("src/protoss/constitution/coordination.py", f"{base_dir}/coordination.py")
     for agent in ["zealot", "sentinel", "harbinger"]:
         src = f"src/protoss/constitution/{agent}.py"
         if Path(src).exists():
@@ -121,9 +119,7 @@ async def run_trial():
     has_api = any("api" in f.name.lower() or "server" in f.name.lower() for f in files)
     has_cli = any("cli" in f.name.lower() for f in files)
     has_frontend = any(
-        "react" in f.name.lower()
-        or "app.js" in f.name.lower()
-        or "frontend" in f.name.lower()
+        "react" in f.name.lower() or "app.js" in f.name.lower() or "frontend" in f.name.lower()
         for f in files
     )
     has_schema = any(

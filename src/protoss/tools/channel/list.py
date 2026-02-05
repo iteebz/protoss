@@ -20,6 +20,4 @@ class ChannelList(Tool):
             return ToolResult(outcome="No active channels")
 
         content = "\n".join([f"#{ch}" for ch in channels])
-        return ToolResult(
-            outcome=f"Found {len(channels)} active channels", content=content
-        )
+        return ToolResult(outcome=f"Found {len(channels)} active channels", content=content)
